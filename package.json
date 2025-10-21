@@ -2,16 +2,14 @@
   "name": "etiquetas-desktop",
   "version": "1.0.0",
   "description": "Sistema de geração de etiquetas para impressoras térmicas",
-  "main": "dist/main.js",
+  "main": "src/main.js",
   "scripts": {
-    "start": "npm run build:all && npx electron .",
-    "dev": "npm run build:all && npx electron . --dev",
-    "build": "./node_modules/.bin/tsc --noEmitOnError false",
-    "build:all": "npm run build && node scripts/post-build.js",
-    "watch": "./node_modules/.bin/tsc -w --noEmitOnError false",
-    "dist": "npm run build:all && npx electron-builder --publish=never",
-    "clean": "rm -rf dist",
-    "postinstall": "npx electron-builder install-app-deps"
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
   },
   "keywords": [
     "etiquetas",
@@ -19,18 +17,15 @@
     "PPLA",
     "EPL2",
     "ZPL",
-    "Argox"
+    "Argox",
+    "barcode",
+    "qrcode"
   ],
   "author": "Matheus Santos - DFcom",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.9.0",
-    "@types/qrcode": "^1.5.5",
-    "concurrently": "^8.2.2",
     "electron": "^27.0.0",
-    "electron-builder": "^24.6.4",
-    "rimraf": "^5.0.5",
-    "typescript": "^5.2.2"
+    "electron-builder": "^24.6.4"
   },
   "dependencies": {
     "electron-store": "^8.1.0",
@@ -45,17 +40,18 @@
       "output": "dist"
     },
     "files": [
-      "dist/**/*",
+      "src/**/*",
       "node_modules/**/*"
     ],
     "mac": {
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"]
     },
     "win": {
-      "target": "nsis"
+      "target": ["nsis", "portable"]
     },
     "linux": {
-      "target": "AppImage"
+      "target": ["AppImage", "deb"]
     }
   }
 }

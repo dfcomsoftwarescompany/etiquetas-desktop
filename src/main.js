@@ -1,37 +1,17 @@
-import { app, BrowserWindow, ipcMain, Menu, MenuItemConstructorOptions } from 'electron';
-import * as path from 'path';
-import Store from 'electron-store';
-
-interface Settings {
-  defaultPrinter: string;
-  defaultProtocol: 'PPLA' | 'EPL2' | 'ZPL';
-  defaultLabelSize: { width: number; height: number };
-  units: 'mm' | 'inch';
-  printerPort?: string;
-}
-
-interface Template {
-  id: string;
-  name: string;
-  description?: string;
-  elements: any[];
-  labelSize: { width: number; height: number };
-  createdAt: string;
-  updatedAt: string;
-}
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const path = require('path');
+const Store = require('electron-store');
+const { PrinterManager } = require('./printer/printer-manager');
 
 // Inicializar store para configurações
-const store = new Store<{
-  settings: Settings;
-  templates: Template[];
-}>();
+const store = new Store();
 
-let mainWindow: BrowserWindow | null = null;
+let mainWindow = null;
 
 // Habilitar hot reload em desenvolvimento
 const isDev = process.argv.includes('--dev');
 
-function createWindow(): void {
+function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -54,7 +34,7 @@ function createWindow(): void {
   }
 
   // Menu da aplicação
-  const template: MenuItemConstructorOptions[] = [
+  const template = [
     {
       label: 'Arquivo',
       submenu: [
@@ -62,14 +42,18 @@ function createWindow(): void {
           label: 'Nova Etiqueta',
           accelerator: 'CmdOrCtrl+N',
           click: () => {
-            mainWindow?.webContents.send('new-label');
+            if (mainWindow) {
+              mainWindow.webContents.send('new-label');
+            }
           }
         },
         {
           label: 'Abrir Template',
           accelerator: 'CmdOrCtrl+O',
           click: () => {
-            mainWindow?.webContents.send('open-template');
+            if (mainWindow) {
+              mainWindow.webContents.send('open-template');
+            }
           }
         },
         { type: 'separator' },
@@ -106,7 +90,9 @@ function createWindow(): void {
         {
           label: 'Sobre',
           click: () => {
-            mainWindow?.webContents.send('show-about');
+            if (mainWindow) {
+              mainWindow.webContents.send('show-about');
+            }
           }
         }
       ]
@@ -142,9 +128,6 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Importar PrinterManager
-import { PrinterManager, PrinterConfig } from './printer/printer-manager';
-
 // IPC Handlers
 ipcMain.handle('get-printers', async () => {
   if (!mainWindow) return [];
@@ -169,7 +152,7 @@ ipcMain.handle('get-printers', async () => {
   ];
 });
 
-ipcMain.handle('save-settings', async (_event, settings: Settings) => {
+ipcMain.handle('save-settings', async (_event, settings) => {
   store.set('settings', settings);
   return { success: true };
 });
@@ -177,13 +160,13 @@ ipcMain.handle('save-settings', async (_event, settings: Settings) => {
 ipcMain.handle('get-settings', async () => {
   return store.get('settings', {
     defaultPrinter: '',
-    defaultProtocol: 'PPLA' as const,
+    defaultProtocol: 'PPLA',
     defaultLabelSize: { width: 100, height: 50 },
-    units: 'mm' as const
+    units: 'mm'
   });
 });
 
-ipcMain.handle('save-template', async (_event, template: Template) => {
+ipcMain.handle('save-template', async (_event, template) => {
   const templates = store.get('templates', []);
   
   // Adicionar timestamps
@@ -208,7 +191,7 @@ ipcMain.handle('get-templates', async () => {
   return store.get('templates', []);
 });
 
-ipcMain.handle('delete-template', async (_event, templateId: string) => {
+ipcMain.handle('delete-template', async (_event, templateId) => {
   const templates = store.get('templates', []);
   const filtered = templates.filter(t => t.id !== templateId);
   store.set('templates', filtered);

@@ -1,27 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
-
-// Definir tipos para o API exposta
-export interface ElectronAPI {
-  // Impressoras
-  getPrinters: () => Promise<Electron.PrinterInfo[]>;
-  
-  // Configurações
-  saveSettings: (settings: any) => Promise<{ success: boolean }>;
-  getSettings: () => Promise<any>;
-  
-  // Templates
-  saveTemplate: (template: any) => Promise<{ success: boolean; id: string }>;
-  getTemplates: () => Promise<any[]>;
-  deleteTemplate: (templateId: string) => Promise<{ success: boolean }>;
-  
-  // Eventos
-  onNewLabel: (callback: () => void) => void;
-  onOpenTemplate: (callback: () => void) => void;
-  onShowAbout: (callback: () => void) => void;
-  
-  // Remover listeners
-  removeAllListeners: (channel: string) => void;
-}
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Expor APIs seguras para o renderer
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -44,4 +21,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Remover listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)
-} as ElectronAPI);
+});
