@@ -4,13 +4,14 @@
   "description": "Sistema de geração de etiquetas para impressoras térmicas",
   "main": "dist/main.js",
   "scripts": {
-    "start": "tsc && electron .",
-    "dev": "concurrently \"tsc -w\" \"electron . --dev\"",
-    "build": "tsc",
-    "watch": "tsc -w",
-    "dist": "tsc && electron-builder --publish=never",
-    "clean": "rimraf dist",
-    "postinstall": "electron-builder install-app-deps"
+    "start": "npm run build:all && npx electron .",
+    "dev": "npm run build:all && npx electron . --dev",
+    "build": "./node_modules/.bin/tsc --noEmitOnError false",
+    "build:all": "npm run build && node scripts/post-build.js",
+    "watch": "./node_modules/.bin/tsc -w --noEmitOnError false",
+    "dist": "npm run build:all && npx electron-builder --publish=never",
+    "clean": "rm -rf dist",
+    "postinstall": "npx electron-builder install-app-deps"
   },
   "keywords": [
     "etiquetas",
