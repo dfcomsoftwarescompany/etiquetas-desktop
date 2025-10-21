@@ -7,6 +7,8 @@
     <title>Etiquetas Desktop</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/label-designer.css">
+    <link rel="stylesheet" href="styles/templates.css">
 </head>
 <body>
     <!-- Barra de Ferramentas -->
@@ -162,7 +164,51 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Templates Salvos</h2>
-                <button class="close-btn">&times;</button>
+                <div class="modal-actions">
+                    <button id="btnNewTemplate" class="btn btn-primary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M12 5v14M5 12h14" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Novo Template
+                    </button>
+                    <button id="btnImportTemplate" class="btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Importar
+                    </button>
+                    <button class="close-btn">&times;</button>
+                </div>
+            </div>
+            <div class="template-filters">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Buscar</label>
+                        <input type="text" id="templateSearch" class="input" placeholder="Buscar templates...">
+                    </div>
+                    <div class="filter-group">
+                        <label>Categoria</label>
+                        <select id="templateCategory" class="select">
+                            <option value="">Todas as Categorias</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Ordenar por</label>
+                        <select id="templateSort" class="select">
+                            <option value="name">Nome</option>
+                            <option value="createdAt">Data de Criação</option>
+                            <option value="updatedAt">Última Atualização</option>
+                            <option value="lastUsed">Último Uso</option>
+                            <option value="useCount">Mais Usados</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Tags</label>
+                        <div id="templateTags" class="tag-container"></div>
+                    </div>
+                </div>
             </div>
             <div class="modal-body">
                 <div id="templateList" class="template-list"></div>

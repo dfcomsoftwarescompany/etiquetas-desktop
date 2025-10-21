@@ -7,6 +7,7 @@ interface Settings {
   defaultProtocol: 'PPLA' | 'EPL2' | 'ZPL';
   defaultLabelSize: { width: number; height: number };
   units: 'mm' | 'inch';
+  printerPort?: string;
 }
 
 interface Template {
@@ -124,6 +125,10 @@ function createWindow(): void {
 app.whenReady().then(() => {
   createWindow();
 
+  // Configurar impressora Argox OS-214
+  const printerManager = PrinterManager.getInstance();
+  printerManager.configureArgoxOS214();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -137,10 +142,31 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Importar PrinterManager
+import { PrinterManager, PrinterConfig } from './printer/printer-manager';
+
 // IPC Handlers
 ipcMain.handle('get-printers', async () => {
   if (!mainWindow) return [];
-  return await mainWindow.webContents.getPrintersAsync();
+  
+  // Obter impressoras do sistema
+  const systemPrinters = await mainWindow.webContents.getPrintersAsync();
+  
+  // Obter impressoras configuradas
+  const printerManager = PrinterManager.getInstance();
+  const configuredPrinters = printerManager.listPrinters();
+  
+  // Combinar as listas
+  return [
+    ...systemPrinters,
+    ...configuredPrinters.map(printer => ({
+      name: printer.name,
+      displayName: `${printer.name} (${printer.model})`,
+      description: `Protocolo: ${printer.protocol}`,
+      isConfigured: true,
+      protocol: printer.protocol
+    }))
+  ];
 });
 
 ipcMain.handle('save-settings', async (_event, settings: Settings) => {
