@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <title>Etiquetas Desktop</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/components.css">
+</head>
+<body>
+    <!-- Barra de Ferramentas -->
+    <div class="toolbar">
+        <div class="toolbar-section">
+            <button id="btnNew" class="btn btn-primary" title="Nova Etiqueta">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 5v14M5 12h14" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Nova
+            </button>
+            <button id="btnSaveTemplate" class="btn" title="Salvar como Template">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke-width="2"/>
+                    <path d="M17 21v-8H7v8M7 3v5h8" stroke-width="2"/>
+                </svg>
+                Salvar Template
+            </button>
+            <button id="btnLoadTemplate" class="btn" title="Carregar Template">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2"/>
+                    <path d="M14 2v6h6M12 12v6M9 15l3-3 3 3" stroke-width="2"/>
+                </svg>
+                Carregar
+            </button>
+        </div>
+        
+        <div class="toolbar-section">
+            <select id="selectProtocol" class="select">
+                <option value="PPLA">PPLA (Argox)</option>
+                <option value="EPL2">EPL2 (Zebra)</option>
+                <option value="ZPL">ZPL (Zebra)</option>
+            </select>
+            
+            <select id="selectPrinter" class="select">
+                <option value="">Selecione a impressora...</option>
+            </select>
+            
+            <button id="btnPrint" class="btn btn-success" title="Imprimir">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke-width="2"/>
+                    <rect x="6" y="14" width="12" height="8" stroke-width="2"/>
+                </svg>
+                Imprimir
+            </button>
+        </div>
+    </div>
+
+    <!-- Container Principal -->
+    <div class="main-container">
+        <!-- Painel Lateral -->
+        <div class="sidebar">
+            <div class="panel">
+                <h3>Propriedades da Etiqueta</h3>
+                
+                <div class="form-group">
+                    <label>Largura (mm)</label>
+                    <input type="number" id="labelWidth" value="100" min="10" max="200" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Altura (mm)</label>
+                    <input type="number" id="labelHeight" value="50" min="10" max="200" class="input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Orientação</label>
+                    <select id="labelOrientation" class="select">
+                        <option value="portrait">Retrato</option>
+                        <option value="landscape">Paisagem</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>Elementos</h3>
+                
+                <button id="btnAddText" class="btn btn-block">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" stroke-width="2"/>
+                        <path d="M13 2v7h7" stroke-width="2"/>
+                    </svg>
+                    Adicionar Texto
+                </button>
+                
+                <button id="btnAddBarcode" class="btn btn-block">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M2 5v14M6 5v14M10 5v14M13 5v14M17 5v14M20 5v14M22 5v14" stroke-width="2"/>
+                    </svg>
+                    Adicionar Código de Barras
+                </button>
+                
+                <button id="btnAddQRCode" class="btn btn-block">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="3" width="7" height="7" stroke-width="2"/>
+                        <rect x="14" y="3" width="7" height="7" stroke-width="2"/>
+                        <rect x="3" y="14" width="7" height="7" stroke-width="2"/>
+                        <rect x="14" y="14" width="7" height="7" stroke-width="2"/>
+                    </svg>
+                    Adicionar QR Code
+                </button>
+                
+                <button id="btnAddLine" class="btn btn-block">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M5 12h14" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    Adicionar Linha
+                </button>
+                
+                <button id="btnAddRectangle" class="btn btn-block">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
+                    </svg>
+                    Adicionar Retângulo
+                </button>
+            </div>
+            
+            <div class="panel" id="elementProperties" style="display: none;">
+                <h3>Propriedades do Elemento</h3>
+                <div id="propertiesContent"></div>
+            </div>
+        </div>
+
+        <!-- Área de Design -->
+        <div class="design-area">
+            <div class="canvas-container">
+                <div id="labelCanvas" class="label-canvas">
+                    <!-- Elementos da etiqueta serão adicionados aqui -->
+                </div>
+                <div class="ruler ruler-horizontal"></div>
+                <div class="ruler ruler-vertical"></div>
+            </div>
+        </div>
+
+        <!-- Painel de Preview -->
+        <div class="preview-panel">
+            <h3>Preview do Código</h3>
+            <div class="code-preview">
+                <pre id="codePreview">; Código da etiqueta aparecerá aqui</pre>
+            </div>
+            <button id="btnCopyCode" class="btn btn-sm">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <rect x="9" y="9" width="13" height="13" rx="2" stroke-width="2"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2"/>
+                </svg>
+                Copiar Código
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de Templates -->
+    <div id="templateModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Templates Salvos</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="templateList" class="template-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sobre -->
+    <div id="aboutModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Sobre</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="about-content">
+                    <h3>Etiquetas Desktop</h3>
+                    <p>Versão 1.0.0</p>
+                    <p>Sistema de geração de etiquetas para impressoras térmicas</p>
+                    <p>Suporte para protocolos PPLA, EPL2 e ZPL</p>
+                    <p>&copy; 2025 WhiteLabel</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/label-designer.js"></script>
+    <script src="js/protocols.js"></script>
+    <script src="js/barcode-generator.js"></script>
+</body>
+</html>
