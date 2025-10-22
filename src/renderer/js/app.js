@@ -1,64 +1,14 @@
-// Declaração global para a API do Electron
-declare global {
-  interface Window {
-    electronAPI: {
-      getPrinters: () => Promise<Electron.PrinterInfo[]>;
-      saveSettings: (settings: Settings) => Promise<{ success: boolean }>;
-      getSettings: () => Promise<Settings>;
-      saveTemplate: (template: Template) => Promise<{ success: boolean; id: string }>;
-      getTemplates: () => Promise<Template[]>;
-      deleteTemplate: (templateId: string) => Promise<{ success: boolean }>;
-      onNewLabel: (callback: () => void) => void;
-      onOpenTemplate: (callback: () => void) => void;
-      onShowAbout: (callback: () => void) => void;
-      removeAllListeners: (channel: string) => void;
-    };
-  }
-}
-
-// Interfaces
-interface Settings {
-  defaultPrinter: string;
-  defaultProtocol: 'PPLA' | 'EPL2' | 'ZPL';
-  defaultLabelSize: { width: number; height: number };
-  units: 'mm' | 'inch';
-}
-
-interface Template {
-  id: string;
-  name: string;
-  description?: string;
-  elements: LabelElement[];
-  labelSize: { width: number; height: number };
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface LabelElement {
-  id: string;
-  type: 'text' | 'barcode' | 'qrcode' | 'line' | 'rectangle';
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  content?: string;
-  fontSize?: number;
-  fontFamily?: string;
-  rotation?: number;
-  style?: any;
-}
-
 // Classe principal da aplicação
 class LabelDesignerApp {
-  private settings: Settings | null = null;
-  private currentTemplate: Template | null = null;
-  private selectedElement: HTMLElement | null = null;
+  settings = null;
+  currentTemplate = null;
+  selectedElement = null;
 
   constructor() {
     this.init();
   }
 
-  private async init(): Promise<void> {
+  async init() {
     // Carregar configurações
     await this.loadSettings();
     
@@ -75,15 +25,15 @@ class LabelDesignerApp {
     this.updateCanvasSize();
   }
 
-  private async loadSettings(): Promise<void> {
+  async loadSettings() {
     try {
       this.settings = await window.electronAPI.getSettings();
       
       // Aplicar configurações na UI
-      const protocolSelect = document.getElementById('selectProtocol') as HTMLSelectElement;
-      const printerSelect = document.getElementById('selectPrinter') as HTMLSelectElement;
-      const widthInput = document.getElementById('labelWidth') as HTMLInputElement;
-      const heightInput = document.getElementById('labelHeight') as HTMLInputElement;
+      const protocolSelect = document.getElementById('selectProtocol');
+      const printerSelect = document.getElementById('selectPrinter');
+      const widthInput = document.getElementById('labelWidth');
+      const heightInput = document.getElementById('labelHeight');
       
       if (this.settings) {
         protocolSelect.value = this.settings.defaultProtocol;
@@ -96,10 +46,10 @@ class LabelDesignerApp {
     }
   }
 
-  private async loadPrinters(): Promise<void> {
+  async loadPrinters() {
     try {
       const printers = await window.electronAPI.getPrinters();
-      const printerSelect = document.getElementById('selectPrinter') as HTMLSelectElement;
+      const printerSelect = document.getElementById('selectPrinter');
       
       // Limpar opções existentes
       printerSelect.innerHTML = '<option value="">Selecione a impressora...</option>';
@@ -124,7 +74,7 @@ class LabelDesignerApp {
     }
   }
 
-  private setupEventListeners(): void {
+  setupEventListeners() {
     // Botões da toolbar
     document.getElementById('btnNew')?.addEventListener('click', () => this.newLabel());
     document.getElementById('btnSaveTemplate')?.addEventListener('click', () => this.saveTemplate());
@@ -149,26 +99,26 @@ class LabelDesignerApp {
     modals.forEach(modal => {
       const closeBtn = modal.querySelector('.close-btn');
       closeBtn?.addEventListener('click', () => {
-        (modal as HTMLElement).style.display = 'none';
+        modal.style.display = 'none';
       });
     });
     
     // Fechar modal ao clicar fora
     window.addEventListener('click', (event) => {
-      const target = event.target as HTMLElement;
+      const target = event.target;
       if (target.classList.contains('modal')) {
         target.style.display = 'none';
       }
     });
   }
 
-  private setupIPCListeners(): void {
+  setupIPCListeners() {
     window.electronAPI.onNewLabel(() => this.newLabel());
     window.electronAPI.onOpenTemplate(() => this.showTemplates());
     window.electronAPI.onShowAbout(() => this.showAbout());
   }
 
-  private newLabel(): void {
+  newLabel() {
     // Limpar canvas
     const canvas = document.getElementById('labelCanvas');
     if (canvas) {
@@ -176,8 +126,8 @@ class LabelDesignerApp {
     }
     
     // Resetar para tamanho padrão
-    const widthInput = document.getElementById('labelWidth') as HTMLInputElement;
-    const heightInput = document.getElementById('labelHeight') as HTMLInputElement;
+    const widthInput = document.getElementById('labelWidth');
+    const heightInput = document.getElementById('labelHeight');
     widthInput.value = '100';
     heightInput.value = '50';
     
@@ -185,17 +135,17 @@ class LabelDesignerApp {
     this.updateCodePreview();
   }
 
-  private async saveTemplate(): Promise<void> {
+  async saveTemplate() {
     const name = prompt('Nome do template:');
     if (!name) return;
     
     const description = prompt('Descrição (opcional):');
     
     const elements = this.getCanvasElements();
-    const widthInput = document.getElementById('labelWidth') as HTMLInputElement;
-    const heightInput = document.getElementById('labelHeight') as HTMLInputElement;
+    const widthInput = document.getElementById('labelWidth');
+    const heightInput = document.getElementById('labelHeight');
     
-    const template: Template = {
+    const template = {
       id: Date.now().toString(),
       name,
       description: description || '',
@@ -217,7 +167,7 @@ class LabelDesignerApp {
     }
   }
 
-  private async showTemplates(): Promise<void> {
+  async showTemplates() {
     const modal = document.getElementById('templateModal');
     if (!modal) return;
     
@@ -243,7 +193,7 @@ class LabelDesignerApp {
     }
   }
 
-  private createTemplateItem(template: Template): HTMLElement {
+  createTemplateItem(template) {
     const div = document.createElement('div');
     div.className = 'template-item';
     
@@ -260,7 +210,7 @@ class LabelDesignerApp {
     return div;
   }
 
-  public async loadTemplate(templateId: string): Promise<void> {
+  async loadTemplate(templateId) {
     try {
       const templates = await window.electronAPI.getTemplates();
       const template = templates.find(t => t.id === templateId);
@@ -271,8 +221,8 @@ class LabelDesignerApp {
       }
       
       // Aplicar tamanho da etiqueta
-      const widthInput = document.getElementById('labelWidth') as HTMLInputElement;
-      const heightInput = document.getElementById('labelHeight') as HTMLInputElement;
+      const widthInput = document.getElementById('labelWidth');
+      const heightInput = document.getElementById('labelHeight');
       widthInput.value = template.labelSize.width.toString();
       heightInput.value = template.labelSize.height.toString();
       this.updateCanvasSize();
@@ -300,7 +250,7 @@ class LabelDesignerApp {
     }
   }
 
-  public async deleteTemplate(templateId: string): Promise<void> {
+  async deleteTemplate(templateId) {
     if (!confirm('Tem certeza que deseja excluir este template?')) return;
     
     try {
@@ -312,18 +262,18 @@ class LabelDesignerApp {
     }
   }
 
-  private showAbout(): void {
+  showAbout() {
     const modal = document.getElementById('aboutModal');
     if (modal) {
       modal.style.display = 'flex';
     }
   }
 
-  private updateCanvasSize(): void {
-    const canvas = document.getElementById('labelCanvas') as HTMLElement;
-    const widthInput = document.getElementById('labelWidth') as HTMLInputElement;
-    const heightInput = document.getElementById('labelHeight') as HTMLInputElement;
-    const orientationSelect = document.getElementById('labelOrientation') as HTMLSelectElement;
+  updateCanvasSize() {
+    const canvas = document.getElementById('labelCanvas');
+    const widthInput = document.getElementById('labelWidth');
+    const heightInput = document.getElementById('labelHeight');
+    const orientationSelect = document.getElementById('labelOrientation');
     
     let width = parseInt(widthInput.value);
     let height = parseInt(heightInput.value);
@@ -341,14 +291,14 @@ class LabelDesignerApp {
     this.updateCodePreview();
   }
 
-  private addElement(type: string): void {
+  addElement(type) {
     // Implementação será adicionada no arquivo label-designer.ts
     if (window.labelDesigner) {
       window.labelDesigner.addElement(type);
     }
   }
 
-  private getCanvasElements(): LabelElement[] {
+  getCanvasElements() {
     // Implementação será adicionada no arquivo label-designer.ts
     if (window.labelDesigner) {
       return window.labelDesigner.getElements();
@@ -356,26 +306,84 @@ class LabelDesignerApp {
     return [];
   }
 
-  private recreateElement(element: LabelElement): void {
+  recreateElement(element) {
     // Implementação será adicionada no arquivo label-designer.ts
     if (window.labelDesigner) {
       window.labelDesigner.recreateElement(element);
     }
   }
 
-  private print(): void {
-    const printerSelect = document.getElementById('selectPrinter') as HTMLSelectElement;
+  async print() {
+    const printerSelect = document.getElementById('selectPrinter');
+    const protocolSelect = document.getElementById('selectProtocol');
+    const widthInput = document.getElementById('labelWidth');
+    const heightInput = document.getElementById('labelHeight');
     
+    // Validar seleção de impressora
     if (!printerSelect.value) {
       alert('Por favor, selecione uma impressora');
       return;
     }
     
-    // Implementação da impressão será adicionada posteriormente
-    alert('Funcionalidade de impressão será implementada em breve');
+    // Validar que há elementos na etiqueta
+    const elements = this.getCanvasElements();
+    if (elements.length === 0) {
+      alert('Adicione pelo menos um elemento à etiqueta antes de imprimir');
+      return;
+    }
+    
+    // Confirmar impressão
+    const copies = prompt('Quantas cópias deseja imprimir?', '1');
+    if (!copies || parseInt(copies) <= 0) {
+      return;
+    }
+    
+    try {
+      // Desabilitar botão de impressão
+      const btnPrint = document.getElementById('btnPrint');
+      const originalText = btnPrint.innerHTML;
+      btnPrint.disabled = true;
+      btnPrint.innerHTML = '⏳ Imprimindo...';
+      
+      // Preparar dados para impressão
+      const printData = {
+        printerName: printerSelect.value,
+        protocol: protocolSelect.value,
+        elements: elements,
+        labelSize: {
+          width: parseInt(widthInput.value),
+          height: parseInt(heightInput.value)
+        },
+        copies: parseInt(copies)
+      };
+      
+      // Enviar para impressão
+      const result = await window.electronAPI.printLabel(printData);
+      
+      if (result.success) {
+        alert(`✓ Etiqueta enviada para impressão!\n${copies} cópia(s)`);
+      } else {
+        throw new Error(result.error || 'Erro desconhecido');
+      }
+      
+      // Restaurar botão
+      btnPrint.disabled = false;
+      btnPrint.innerHTML = originalText;
+      
+    } catch (error) {
+      console.error('Erro ao imprimir:', error);
+      alert(`❌ Erro ao imprimir: ${error.message}\n\nVerifique se a impressora está conectada e ligada.`);
+      
+      // Restaurar botão em caso de erro
+      const btnPrint = document.getElementById('btnPrint');
+      if (btnPrint) {
+        btnPrint.disabled = false;
+        btnPrint.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke-width="2"/><rect x="6" y="14" width="12" height="8" stroke-width="2"/></svg>Imprimir';
+      }
+    }
   }
 
-  private copyCode(): void {
+  copyCode() {
     const codePreview = document.getElementById('codePreview');
     if (!codePreview) return;
     
@@ -396,20 +404,50 @@ class LabelDesignerApp {
     });
   }
 
-  private updateCodePreview(): void {
-    // Implementação será adicionada no arquivo protocols.ts
-    if (window.protocolGenerator) {
-      window.protocolGenerator.updatePreview();
+  async updateCodePreview() {
+    try {
+      const protocolSelect = document.getElementById('selectProtocol');
+      const widthInput = document.getElementById('labelWidth');
+      const heightInput = document.getElementById('labelHeight');
+      const codePreview = document.getElementById('codePreview');
+      
+      if (!codePreview) return;
+      
+      // Obter elementos da etiqueta
+      const elements = this.getCanvasElements();
+      
+      // Se não houver elementos, mostrar mensagem
+      if (elements.length === 0) {
+        codePreview.textContent = '; Adicione elementos à etiqueta para ver o código gerado';
+        return;
+      }
+      
+      // Preparar dados para preview
+      const previewData = {
+        protocol: protocolSelect.value,
+        elements: elements,
+        labelSize: {
+          width: parseInt(widthInput.value),
+          height: parseInt(heightInput.value)
+        }
+      };
+      
+      // Gerar preview
+      const result = await window.electronAPI.generatePreview(previewData);
+      
+      if (result.success) {
+        codePreview.textContent = result.code;
+      } else {
+        codePreview.textContent = `; Erro ao gerar código: ${result.error}`;
+      }
+      
+    } catch (error) {
+      console.error('Erro ao atualizar preview:', error);
+      const codePreview = document.getElementById('codePreview');
+      if (codePreview) {
+        codePreview.textContent = `; Erro: ${error.message}`;
+      }
     }
-  }
-}
-
-// Declarar instância global
-declare global {
-  interface Window {
-    app: LabelDesignerApp;
-    labelDesigner: any;
-    protocolGenerator: any;
   }
 }
 

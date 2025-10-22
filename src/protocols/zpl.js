@@ -1,11 +1,11 @@
-import { BasePrinterProtocol, PrintElement, PrinterConfig } from './base-protocol';
+import { BasePrinterProtocol } from './base-protocol.js';
 
 export class ZPLProtocol extends BasePrinterProtocol {
-  constructor(config: Partial<PrinterConfig>) {
+  constructor(config) {
     super(config);
   }
 
-  protected initialize(): void {
+  initialize() {
     // Reset printer
     this.sendCommand('^XA^XZ');
     
@@ -13,7 +13,7 @@ export class ZPLProtocol extends BasePrinterProtocol {
     this.clearBuffer();
   }
 
-  setLabelSize(width: number, height: number): void {
+  setLabelSize(width, height) {
     // Convert mm to dots (203 DPI = 8 dots per mm)
     const dotsPerMm = 8;
     const widthDots = Math.round(width * dotsPerMm);
@@ -24,13 +24,13 @@ export class ZPLProtocol extends BasePrinterProtocol {
     this.sendCommand(`^LL${heightDots}`); // Length
   }
 
-  setPrintSpeed(speed: 1 | 2 | 3 | 4 | 5 | 6): void {
+  setPrintSpeed(speed) {
     // PR command sets print speed (A-F, where A=2 ips, F=12 ips)
     const speedMap = { 1: 'A', 2: 'B', 3: 'C', 4: 'D', 5: 'E', 6: 'F' };
     this.sendCommand(`^PR${speedMap[speed]}`);
   }
 
-  setPrintDensity(density: number): void {
+  setPrintDensity(density) {
     // SD command sets darkness (0-30)
     if (density < 0 || density > 30) {
       throw new Error('Densidade deve estar entre 0 e 30');
@@ -38,7 +38,7 @@ export class ZPLProtocol extends BasePrinterProtocol {
     this.sendCommand(`~SD${density}`);
   }
 
-  addElement(element: PrintElement): void {
+  addElement(element) {
     const { type, position, content = '', font, barcode } = element;
     
     // Convert mm to dots
@@ -131,19 +131,19 @@ export class ZPLProtocol extends BasePrinterProtocol {
     }
   }
 
-  clearBuffer(): void {
+  clearBuffer() {
     // Start new label format
     this.sendCommand('^XA');
   }
 
-  print(copies: number = 1): void {
+  print(copies = 1) {
     // ^PQ sets quantity
     // ^XZ ends format
     this.sendCommand(`^PQ${copies}^XZ`);
   }
 
-  private getZPLBarcodeType(type: string): string {
-    const barcodeMap: { [key: string]: string } = {
+  getZPLBarcodeType(type) {
+    const barcodeMap = {
       'CODE39': 'B3',
       'CODE128': 'BC',
       'EAN13': 'BE',
@@ -157,7 +157,7 @@ export class ZPLProtocol extends BasePrinterProtocol {
     return barcodeMap[type] || 'BC'; // Default to CODE128
   }
 
-  generatePreview(elements: PrintElement[]): string {
+  generatePreview(elements) {
     let preview = '^XA\n'; // Start format
     
     // Process elements

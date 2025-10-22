@@ -197,3 +197,47 @@ ipcMain.handle('delete-template', async (_event, templateId) => {
   store.set('templates', filtered);
   return { success: true };
 });
+
+// Handler de impressão
+ipcMain.handle('print-label', async (_event, printData) => {
+  try {
+    const { printerName, protocol, elements, labelSize, copies } = printData;
+    
+    // Obter o gerenciador de impressoras
+    const printerManager = PrinterManager.getInstance();
+    
+    // Conectar à impressora
+    await printerManager.connect(printerName);
+    
+    // Configurar tamanho da etiqueta
+    // (Isso será feito pelo protocolo específico)
+    
+    // Imprimir
+    await printerManager.printLabel(elements, copies || 1);
+    
+    // Desconectar
+    await printerManager.disconnect();
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao imprimir:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler para gerar preview do código
+ipcMain.handle('generate-preview', async (_event, previewData) => {
+  try {
+    const { protocol, elements, labelSize } = previewData;
+    
+    const printerManager = PrinterManager.getInstance();
+    
+    // Gerar preview sem conectar à impressora
+    const code = printerManager.generatePreview(elements, protocol);
+    
+    return { success: true, code };
+  } catch (error) {
+    console.error('Erro ao gerar preview:', error);
+    return { success: false, error: error.message };
+  }
+});

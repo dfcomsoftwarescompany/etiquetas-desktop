@@ -1,39 +1,23 @@
-interface DesignerElement {
-  id: string;
-  type: 'text' | 'barcode' | 'qrcode' | 'line' | 'rectangle';
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  content?: string;
-  rotation?: number;
-  fontSize?: number;
-  fontFamily?: string;
-  barcodeType?: string;
-  humanReadable?: boolean;
-  thickness?: number;
-}
-
-import { BarcodeGenerator } from './barcode-generator';
+import { BarcodeGenerator } from './barcode-generator.js';
 
 class LabelDesigner {
-  private canvas: HTMLElement;
-  private selectedElement: HTMLElement | null = null;
-  private elements: Map<string, DesignerElement> = new Map();
-  private isDragging: boolean = false;
-  private isResizing: boolean = false;
-  private startX: number = 0;
-  private startY: number = 0;
-  private currentResizeHandle: string = '';
-  private gridSize: number = 5; // mm
+  canvas;
+  selectedElement = null;
+  elements = new Map();
+  isDragging = false;
+  isResizing = false;
+  startX = 0;
+  startY = 0;
+  currentResizeHandle = '';
+  gridSize = 5; // mm
 
   constructor() {
-    this.canvas = document.getElementById('labelCanvas') as HTMLElement;
+    this.canvas = document.getElementById('labelCanvas');
     this.setupEventListeners();
     this.setupGrid();
   }
 
-  private setupEventListeners(): void {
+  setupEventListeners() {
     // Canvas events
     this.canvas.addEventListener('mousedown', this.handleCanvasMouseDown.bind(this));
     document.addEventListener('mousemove', this.handleMouseMove.bind(this));
@@ -46,7 +30,7 @@ class LabelDesigner {
     document.addEventListener('input', this.handlePropertyChange.bind(this));
   }
 
-  private setupGrid(): void {
+  setupGrid() {
     const grid = document.createElement('div');
     grid.className = 'design-grid';
     
@@ -68,8 +52,8 @@ class LabelDesigner {
     this.canvas.appendChild(grid);
   }
 
-  private handleCanvasMouseDown(e: MouseEvent): void {
-    const target = e.target as HTMLElement;
+  handleCanvasMouseDown(e) {
+    const target = e.target;
     
     if (target.classList.contains('resize-handle')) {
       this.startResizing(e, target);
@@ -80,7 +64,7 @@ class LabelDesigner {
     }
   }
 
-  private startDragging(e: MouseEvent, element: HTMLElement): void {
+  startDragging(e, element) {
     this.isDragging = true;
     this.selectedElement = element;
     this.deselectAll();
@@ -93,17 +77,17 @@ class LabelDesigner {
     this.showElementProperties(element);
   }
 
-  private startResizing(e: MouseEvent, handle: HTMLElement): void {
+  startResizing(e, handle) {
     this.isResizing = true;
     this.currentResizeHandle = handle.dataset.handle || '';
-    this.selectedElement = handle.parentElement as HTMLElement;
+    this.selectedElement = handle.parentElement;
     
     const rect = this.selectedElement.getBoundingClientRect();
     this.startX = e.clientX;
     this.startY = e.clientY;
   }
 
-  private handleMouseMove(e: MouseEvent): void {
+  handleMouseMove(e) {
     if (!this.selectedElement) return;
 
     if (this.isDragging) {
@@ -113,7 +97,7 @@ class LabelDesigner {
     }
   }
 
-  private handleDragMove(e: MouseEvent): void {
+  handleDragMove(e) {
     if (!this.selectedElement || !this.isDragging) return;
 
     const canvasRect = this.canvas.getBoundingClientRect();
@@ -135,7 +119,7 @@ class LabelDesigner {
     this.updatePreview();
   }
 
-  private handleResizeMove(e: MouseEvent): void {
+  handleResizeMove(e) {
     if (!this.selectedElement || !this.isResizing) return;
 
     const rect = this.selectedElement.getBoundingClientRect();
@@ -192,14 +176,14 @@ class LabelDesigner {
     this.updatePreview();
   }
 
-  private handleMouseUp(): void {
+  handleMouseUp() {
     this.isDragging = false;
     this.isResizing = false;
     this.currentResizeHandle = '';
   }
 
-  private handlePropertyChange(e: Event): void {
-    const target = e.target as HTMLInputElement;
+  handlePropertyChange(e) {
+    const target = e.target;
     if (!target.dataset.property || !this.selectedElement) return;
 
     const elementId = this.selectedElement.dataset.id;
@@ -213,29 +197,29 @@ class LabelDesigner {
 
     switch (property) {
       case 'content':
-        element.content = value as string;
-        this.selectedElement.textContent = value as string;
+        element.content = value;
+        this.selectedElement.textContent = value;
         break;
       case 'fontSize':
-        element.fontSize = parseInt(value as string);
+        element.fontSize = parseInt(value);
         this.selectedElement.style.fontSize = `${value}px`;
         break;
       case 'fontFamily':
-        element.fontFamily = value as string;
-        this.selectedElement.style.fontFamily = value as string;
+        element.fontFamily = value;
+        this.selectedElement.style.fontFamily = value;
         break;
       case 'rotation':
-        element.rotation = parseInt(value as string);
+        element.rotation = parseInt(value);
         this.selectedElement.style.transform = `rotate(${value}deg)`;
         break;
       case 'barcodeType':
-        element.barcodeType = value as string;
+        element.barcodeType = value;
         break;
       case 'humanReadable':
-        element.humanReadable = value as boolean;
+        element.humanReadable = value;
         break;
       case 'thickness':
-        element.thickness = parseInt(value as string);
+        element.thickness = parseInt(value);
         if (element.type === 'line' || element.type === 'rectangle') {
           this.selectedElement.style.borderWidth = `${value}px`;
         }
@@ -245,10 +229,10 @@ class LabelDesigner {
     this.updatePreview();
   }
 
-  public addElement(type: string): void {
-    const element: DesignerElement = {
+  addElement(type) {
+    const element = {
       id: Date.now().toString(),
-      type: type as DesignerElement['type'],
+      type: type,
       x: 10,
       y: 10,
       width: 100,
@@ -262,7 +246,7 @@ class LabelDesigner {
     this.updatePreview();
   }
 
-  private createElementNode(element: DesignerElement): void {
+  createElementNode(element) {
     const node = document.createElement('div');
     node.className = `label-element ${element.type}`;
     node.dataset.id = element.id;
@@ -336,20 +320,20 @@ class LabelDesigner {
     this.selectElement(node);
   }
 
-  private selectElement(element: HTMLElement): void {
+  selectElement(element) {
     this.deselectAll();
     element.classList.add('selected');
     this.selectedElement = element;
     this.showElementProperties(element);
   }
 
-  private deselectAll(): void {
+  deselectAll() {
     const elements = this.canvas.querySelectorAll('.label-element');
     elements.forEach(el => el.classList.remove('selected'));
     this.hideElementProperties();
   }
 
-  private showElementProperties(element: HTMLElement): void {
+  showElementProperties(element) {
     const elementId = element.dataset.id;
     if (!elementId) return;
 
@@ -479,14 +463,14 @@ class LabelDesigner {
     propertiesPanel.style.display = 'block';
   }
 
-  private hideElementProperties(): void {
+  hideElementProperties() {
     const panel = document.getElementById('elementProperties');
     if (panel) {
       panel.style.display = 'none';
     }
   }
 
-  public deleteElement(elementId: string): void {
+  deleteElement(elementId) {
     const element = this.canvas.querySelector(`[data-id="${elementId}"]`);
     if (element) {
       element.remove();
@@ -496,7 +480,7 @@ class LabelDesigner {
     }
   }
 
-  private updateElementData(element: HTMLElement): void {
+  updateElementData(element) {
     const elementId = element.dataset.id;
     if (!elementId) return;
 
@@ -512,11 +496,11 @@ class LabelDesigner {
     data.height = rect.height;
   }
 
-  public getElements(): DesignerElement[] {
+  getElements() {
     return Array.from(this.elements.values());
   }
 
-  public loadElements(elements: DesignerElement[]): void {
+  loadElements(elements) {
     // Limpar canvas
     this.canvas.innerHTML = '';
     this.elements.clear();
@@ -530,19 +514,11 @@ class LabelDesigner {
     this.updatePreview();
   }
 
-  private updatePreview(): void {
+  updatePreview() {
     // Atualizar preview do código
     if (window.app) {
       window.app.updateCodePreview();
     }
-  }
-}
-
-// Declarar tipo global
-declare global {
-  interface Window {
-    labelDesigner: LabelDesigner;
-    app: any;
   }
 }
 

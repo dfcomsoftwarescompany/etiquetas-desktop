@@ -1,43 +1,14 @@
-import { DesignerElement } from './label-designer';
-
-export interface Template {
-  id: string;
-  name: string;
-  description?: string;
-  category?: string;
-  labelSize: {
-    width: number;
-    height: number;
-  };
-  elements: DesignerElement[];
-  createdAt: string;
-  updatedAt: string;
-  lastUsed?: string;
-  useCount?: number;
-  tags?: string[];
-  isDefault?: boolean;
-  version?: number;
-}
-
-export interface TemplateFilter {
-  search?: string;
-  category?: string;
-  tags?: string[];
-  sortBy?: 'name' | 'createdAt' | 'updatedAt' | 'lastUsed' | 'useCount';
-  sortOrder?: 'asc' | 'desc';
-}
-
 export class TemplateManager {
-  private static instance: TemplateManager;
-  private templates: Template[] = [];
-  private categories: Set<string> = new Set();
-  private tags: Set<string> = new Set();
+  static instance;
+  templates = [];
+  categories = new Set();
+  tags = new Set();
 
-  private constructor() {
+  constructor() {
     this.loadTemplates();
   }
 
-  static getInstance(): TemplateManager {
+  static getInstance() {
     if (!TemplateManager.instance) {
       TemplateManager.instance = new TemplateManager();
     }
@@ -47,7 +18,7 @@ export class TemplateManager {
   /**
    * Carrega templates do armazenamento
    */
-  private async loadTemplates(): Promise<void> {
+  async loadTemplates() {
     try {
       const templates = await window.electronAPI.getTemplates();
       this.templates = templates;
@@ -63,7 +34,7 @@ export class TemplateManager {
   /**
    * Atualiza metadados dos templates
    */
-  private updateMetadata(): void {
+  updateMetadata() {
     this.categories.clear();
     this.tags.clear();
 
@@ -80,8 +51,8 @@ export class TemplateManager {
   /**
    * Salva um novo template
    */
-  async saveTemplate(template: Omit<Template, 'id' | 'createdAt' | 'updatedAt'>): Promise<Template> {
-    const newTemplate: Template = {
+  async saveTemplate(template) {
+    const newTemplate = {
       ...template,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
@@ -104,13 +75,13 @@ export class TemplateManager {
   /**
    * Atualiza um template existente
    */
-  async updateTemplate(id: string, updates: Partial<Template>): Promise<Template> {
+  async updateTemplate(id, updates) {
     const template = this.templates.find(t => t.id === id);
     if (!template) {
       throw new Error('Template não encontrado');
     }
 
-    const updatedTemplate: Template = {
+    const updatedTemplate = {
       ...template,
       ...updates,
       updatedAt: new Date().toISOString(),
@@ -132,7 +103,7 @@ export class TemplateManager {
   /**
    * Exclui um template
    */
-  async deleteTemplate(id: string): Promise<void> {
+  async deleteTemplate(id) {
     try {
       await window.electronAPI.deleteTemplate(id);
       this.templates = this.templates.filter(t => t.id !== id);
@@ -146,7 +117,7 @@ export class TemplateManager {
   /**
    * Registra uso do template
    */
-  async registerTemplateUse(id: string): Promise<void> {
+  async registerTemplateUse(id) {
     const template = this.templates.find(t => t.id === id);
     if (!template) return;
 
@@ -159,7 +130,7 @@ export class TemplateManager {
   /**
    * Busca templates com filtros
    */
-  searchTemplates(filter: TemplateFilter = {}): Template[] {
+  searchTemplates(filter = {}) {
     let results = [...this.templates];
 
     // Filtrar por texto
@@ -182,15 +153,15 @@ export class TemplateManager {
     // Filtrar por tags
     if (filter.tags?.length) {
       results = results.filter(template =>
-        filter.tags?.every(tag => template.tags?.includes(tag))
+        filter.tags.every(tag => template.tags?.includes(tag))
       );
     }
 
     // Ordenar resultados
     if (filter.sortBy) {
       results.sort((a, b) => {
-        let valueA: any = a[filter.sortBy!];
-        let valueB: any = b[filter.sortBy!];
+        let valueA = a[filter.sortBy];
+        let valueB = b[filter.sortBy];
 
         // Tratar valores undefined
         if (valueA === undefined) valueA = '';
@@ -210,27 +181,27 @@ export class TemplateManager {
   /**
    * Retorna todas as categorias
    */
-  getCategories(): string[] {
+  getCategories() {
     return Array.from(this.categories).sort();
   }
 
   /**
    * Retorna todas as tags
    */
-  getTags(): string[] {
+  getTags() {
     return Array.from(this.tags).sort();
   }
 
   /**
    * Duplica um template
    */
-  async duplicateTemplate(id: string, newName?: string): Promise<Template> {
+  async duplicateTemplate(id, newName) {
     const template = this.templates.find(t => t.id === id);
     if (!template) {
       throw new Error('Template não encontrado');
     }
 
-    const duplicated: Omit<Template, 'id' | 'createdAt' | 'updatedAt'> = {
+    const duplicated = {
       ...template,
       name: newName || `${template.name} (Cópia)`,
       useCount: 0,
@@ -244,7 +215,7 @@ export class TemplateManager {
   /**
    * Define um template como padrão
    */
-  async setDefaultTemplate(id: string): Promise<void> {
+  async setDefaultTemplate(id) {
     // Remover flag de padrão de outros templates
     for (const template of this.templates) {
       if (template.isDefault && template.id !== id) {
@@ -261,14 +232,14 @@ export class TemplateManager {
   /**
    * Retorna o template padrão
    */
-  getDefaultTemplate(): Template | undefined {
+  getDefaultTemplate() {
     return this.templates.find(t => t.isDefault);
   }
 
   /**
    * Exporta templates selecionados
    */
-  exportTemplates(ids: string[]): string {
+  exportTemplates(ids) {
     const templates = this.templates.filter(t => ids.includes(t.id));
     return JSON.stringify(templates, null, 2);
   }
@@ -276,18 +247,18 @@ export class TemplateManager {
   /**
    * Importa templates
    */
-  async importTemplates(jsonData: string): Promise<Template[]> {
+  async importTemplates(jsonData) {
     try {
-      const templates: Template[] = JSON.parse(jsonData);
-      const imported: Template[] = [];
+      const templates = JSON.parse(jsonData);
+      const imported = [];
 
       for (const template of templates) {
         // Gerar novo ID e timestamps
         const newTemplate = await this.saveTemplate({
           ...template,
-          id: undefined as any,
-          createdAt: undefined as any,
-          updatedAt: undefined as any
+          id: undefined,
+          createdAt: undefined,
+          updatedAt: undefined
         });
         imported.push(newTemplate);
       }
@@ -302,8 +273,8 @@ export class TemplateManager {
   /**
    * Valida um template
    */
-  validateTemplate(template: Partial<Template>): string[] {
-    const errors: string[] = [];
+  validateTemplate(template) {
+    const errors = [];
 
     if (!template.name?.trim()) {
       errors.push('Nome é obrigatório');

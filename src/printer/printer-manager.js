@@ -1,25 +1,17 @@
-import { PrinterConfig as BaseConfig } from '../protocols/base-protocol';
-import { PPLAProtocol } from '../protocols/ppla';
-import { EPL2Protocol } from '../protocols/epl2';
-import { ZPLProtocol } from '../protocols/zpl';
-
-export interface PrinterConfig {
-  name: string;
-  model: string;
-  protocol: 'PPLA' | 'EPL2' | 'ZPL';
-  connection: BaseConfig;
-}
+import { PPLAProtocol } from '../protocols/ppla.js';
+import { EPL2Protocol } from '../protocols/epl2.js';
+import { ZPLProtocol } from '../protocols/zpl.js';
 
 export class PrinterManager {
-  private static instance: PrinterManager;
-  private printers: Map<string, PrinterConfig> = new Map();
-  private activeProtocol: PPLAProtocol | EPL2Protocol | ZPLProtocol | null = null;
+  static instance;
+  printers = new Map();
+  activeProtocol = null;
 
-  private constructor() {
+  constructor() {
     // Singleton
   }
 
-  static getInstance(): PrinterManager {
+  static getInstance() {
     if (!PrinterManager.instance) {
       PrinterManager.instance = new PrinterManager();
     }
@@ -29,28 +21,28 @@ export class PrinterManager {
   /**
    * Adiciona uma nova impressora
    */
-  addPrinter(config: PrinterConfig): void {
+  addPrinter(config) {
     this.printers.set(config.name, config);
   }
 
   /**
    * Remove uma impressora
    */
-  removePrinter(name: string): void {
+  removePrinter(name) {
     this.printers.delete(name);
   }
 
   /**
    * Lista todas as impressoras configuradas
    */
-  listPrinters(): PrinterConfig[] {
+  listPrinters() {
     return Array.from(this.printers.values());
   }
 
   /**
    * Conecta a uma impressora específica
    */
-  async connect(name: string): Promise<void> {
+  async connect(name) {
     const printer = this.printers.get(name);
     if (!printer) {
       throw new Error(`Impressora "${name}" não encontrada`);
@@ -83,7 +75,7 @@ export class PrinterManager {
   /**
    * Desconecta da impressora atual
    */
-  async disconnect(): Promise<void> {
+  async disconnect() {
     if (this.activeProtocol) {
       await this.activeProtocol.disconnect();
       this.activeProtocol = null;
@@ -93,8 +85,8 @@ export class PrinterManager {
   /**
    * Configura uma impressora Argox OS-214
    */
-  configureArgoxOS214(port: string = 'COM1'): void {
-    const config: PrinterConfig = {
+  configureArgoxOS214(port = 'COM1') {
+    const config = {
       name: 'Argox OS-214',
       model: 'OS-214',
       protocol: 'PPLA',
@@ -114,7 +106,7 @@ export class PrinterManager {
   /**
    * Imprime uma etiqueta
    */
-  async printLabel(elements: any[], copies: number = 1): Promise<void> {
+  async printLabel(elements, copies = 1) {
     if (!this.activeProtocol) {
       throw new Error('Nenhuma impressora conectada');
     }
@@ -190,11 +182,33 @@ export class PrinterManager {
   /**
    * Gera preview do código da etiqueta
    */
-  generatePreview(elements: any[]): string {
-    if (!this.activeProtocol) {
-      return '; Nenhuma impressora conectada';
+  generatePreview(elements, protocol) {
+    // Se houver protocolo ativo, use-o
+    if (this.activeProtocol) {
+      return this.activeProtocol.generatePreview(elements);
     }
-
-    return this.activeProtocol.generatePreview(elements);
+    
+    // Caso contrário, crie uma instância temporária do protocolo
+    let tempProtocol;
+    switch (protocol) {
+      case 'PPLA':
+        const PPLAProtocol = require('../protocols/ppla').PPLAProtocol;
+        tempProtocol = new PPLAProtocol();
+        break;
+      case 'EPL2':
+        const EPL2Protocol = require('../protocols/epl2').EPL2Protocol;
+        tempProtocol = new EPL2Protocol();
+        break;
+      case 'ZPL':
+        const ZPLProtocol = require('../protocols/zpl').ZPLProtocol;
+        tempProtocol = new ZPLProtocol();
+        break;
+      default:
+        return '; Protocolo não suportado';
+    }
+    
+    return tempProtocol.generatePreview(elements);
   }
 }
+
+module.exports = { PrinterManager };

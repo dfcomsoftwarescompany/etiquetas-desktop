@@ -1,39 +1,8 @@
 import JsBarcode from 'jsbarcode';
 import QRCode from 'qrcode';
 
-interface BarcodeOptions {
-  width?: number;
-  height?: number;
-  displayValue?: boolean;
-  text?: string;
-  fontOptions?: string;
-  font?: string;
-  textAlign?: string;
-  textPosition?: string;
-  textMargin?: number;
-  fontSize?: number;
-  background?: string;
-  lineColor?: string;
-  margin?: number;
-  marginTop?: number;
-  marginBottom?: number;
-  marginLeft?: number;
-  marginRight?: number;
-  flat?: boolean;
-}
-
-interface QRCodeOptions {
-  width?: number;
-  margin?: number;
-  color?: {
-    dark?: string;
-    light?: string;
-  };
-  errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H';
-}
-
 export class BarcodeGenerator {
-  private static validateBarcode(type: string, value: string): boolean {
+  static validateBarcode(type, value) {
     switch (type) {
       case 'EAN13':
         return /^\d{13}$/.test(value);
@@ -65,7 +34,7 @@ export class BarcodeGenerator {
     }
   }
 
-  private static calculateCheckDigit(type: string, value: string): string {
+  static calculateCheckDigit(type, value) {
     switch (type) {
       case 'EAN13':
         return this.calculateEAN13CheckDigit(value);
@@ -81,7 +50,7 @@ export class BarcodeGenerator {
     }
   }
 
-  private static calculateEAN13CheckDigit(value: string): string {
+  static calculateEAN13CheckDigit(value) {
     if (value.length !== 12) return value;
     
     let sum = 0;
@@ -92,7 +61,7 @@ export class BarcodeGenerator {
     return value + checkDigit;
   }
 
-  private static calculateEAN8CheckDigit(value: string): string {
+  static calculateEAN8CheckDigit(value) {
     if (value.length !== 7) return value;
     
     let sum = 0;
@@ -103,7 +72,7 @@ export class BarcodeGenerator {
     return value + checkDigit;
   }
 
-  private static calculateUPCACheckDigit(value: string): string {
+  static calculateUPCACheckDigit(value) {
     if (value.length !== 11) return value;
     
     let sum = 0;
@@ -117,11 +86,7 @@ export class BarcodeGenerator {
   /**
    * Gera um código de barras como SVG
    */
-  public static async generateBarcode(
-    value: string,
-    type: string,
-    options: BarcodeOptions = {}
-  ): Promise<string> {
+  static async generateBarcode(value, type, options = {}) {
     return new Promise((resolve, reject) => {
       try {
         // Validar o código
@@ -136,7 +101,7 @@ export class BarcodeGenerator {
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 
         // Configurar opções padrão
-        const defaultOptions: BarcodeOptions = {
+        const defaultOptions = {
           width: 2,
           height: 100,
           displayValue: true,
@@ -167,14 +132,11 @@ export class BarcodeGenerator {
   /**
    * Gera um QR Code como SVG
    */
-  public static async generateQRCode(
-    value: string,
-    options: QRCodeOptions = {}
-  ): Promise<string> {
+  static async generateQRCode(value, options = {}) {
     return new Promise((resolve, reject) => {
       try {
         // Configurar opções padrão
-        const defaultOptions: QRCodeOptions = {
+        const defaultOptions = {
           width: 200,
           margin: 4,
           color: {
@@ -205,12 +167,7 @@ export class BarcodeGenerator {
   /**
    * Atualiza a visualização de um elemento de código de barras
    */
-  public static async updateBarcodePreview(
-    element: HTMLElement,
-    value: string,
-    type: string,
-    options: BarcodeOptions = {}
-  ): Promise<void> {
+  static async updateBarcodePreview(element, value, type, options = {}) {
     try {
       const svg = await this.generateBarcode(value, type, options);
       element.innerHTML = svg;
@@ -230,11 +187,7 @@ export class BarcodeGenerator {
   /**
    * Atualiza a visualização de um elemento QR Code
    */
-  public static async updateQRCodePreview(
-    element: HTMLElement,
-    value: string,
-    options: QRCodeOptions = {}
-  ): Promise<void> {
+  static async updateQRCodePreview(element, value, options = {}) {
     try {
       const svg = await this.generateQRCode(value, options);
       element.innerHTML = svg;
@@ -254,12 +207,7 @@ export class BarcodeGenerator {
   /**
    * Retorna as especificações de um tipo de código de barras
    */
-  public static getBarcodeSpecs(type: string): {
-    name: string;
-    description: string;
-    example: string;
-    pattern: string;
-  } {
+  static getBarcodeSpecs(type) {
     const specs = {
       'CODE128': {
         name: 'Code 128',

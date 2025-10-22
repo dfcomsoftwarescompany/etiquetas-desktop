@@ -1,11 +1,11 @@
-import { BasePrinterProtocol, PrintElement, PrinterConfig } from './base-protocol';
+import { BasePrinterProtocol } from './base-protocol.js';
 
 export class EPL2Protocol extends BasePrinterProtocol {
-  constructor(config: Partial<PrinterConfig>) {
+  constructor(config) {
     super(config);
   }
 
-  protected initialize(): void {
+  initialize() {
     // Reset printer
     this.sendCommand('\x1B@');
     
@@ -16,7 +16,7 @@ export class EPL2Protocol extends BasePrinterProtocol {
     this.sendCommand('I8,0,001\n');
   }
 
-  setLabelSize(width: number, height: number, gap: number = 3): void {
+  setLabelSize(width, height, gap = 3) {
     // Convert mm to dots (203 DPI = 8 dots per mm)
     const dotsPerMm = 8;
     const widthDots = Math.round(width * dotsPerMm);
@@ -30,12 +30,12 @@ export class EPL2Protocol extends BasePrinterProtocol {
     this.sendCommand(`q${widthDots}\n`);
   }
 
-  setPrintSpeed(speed: 1 | 2 | 3 | 4): void {
+  setPrintSpeed(speed) {
     // S command sets print speed (0-4)
     this.sendCommand(`S${speed}\n`);
   }
 
-  setPrintDensity(density: number): void {
+  setPrintDensity(density) {
     // D command sets darkness (0-15)
     if (density < 0 || density > 15) {
       throw new Error('Densidade deve estar entre 0 e 15');
@@ -43,7 +43,7 @@ export class EPL2Protocol extends BasePrinterProtocol {
     this.sendCommand(`D${density}\n`);
   }
 
-  addElement(element: PrintElement): void {
+  addElement(element) {
     const { type, position, content = '', font, barcode } = element;
     
     // Convert mm to dots
@@ -115,17 +115,17 @@ export class EPL2Protocol extends BasePrinterProtocol {
     }
   }
 
-  clearBuffer(): void {
+  clearBuffer() {
     // Clear image buffer
     this.sendCommand('N\n');
   }
 
-  print(copies: number = 1): void {
+  print(copies = 1) {
     // P command prints
     this.sendCommand(`P${copies}\n`);
   }
 
-  generatePreview(elements: PrintElement[]): string {
+  generatePreview(elements) {
     let preview = '';
     
     // Add header

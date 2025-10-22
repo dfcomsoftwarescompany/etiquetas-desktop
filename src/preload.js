@@ -20,5 +20,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onShowAbout: (callback) => ipcRenderer.on('show-about', callback),
   
   // Remover listeners
-  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)
+  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+  
+  // Impressão
+  printLabel: (printData) => ipcRenderer.invoke('print-label', printData),
+  generatePreview: (previewData) => ipcRenderer.invoke('generate-preview', previewData)
 });

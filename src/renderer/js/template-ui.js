@@ -1,29 +1,29 @@
-import { TemplateManager, Template, TemplateFilter } from './template-manager';
+import { TemplateManager } from './template-manager.js';
 
 export class TemplateUI {
-  private manager: TemplateManager;
-  private modal: HTMLElement;
-  private templateList: HTMLElement;
-  private searchInput: HTMLInputElement;
-  private categorySelect: HTMLSelectElement;
-  private sortSelect: HTMLSelectElement;
-  private tagContainer: HTMLElement;
-  private selectedTags: Set<string> = new Set();
+  manager;
+  modal;
+  templateList;
+  searchInput;
+  categorySelect;
+  sortSelect;
+  tagContainer;
+  selectedTags = new Set();
 
   constructor() {
     this.manager = TemplateManager.getInstance();
-    this.modal = document.getElementById('templateModal') as HTMLElement;
-    this.templateList = document.getElementById('templateList') as HTMLElement;
-    this.searchInput = document.getElementById('templateSearch') as HTMLInputElement;
-    this.categorySelect = document.getElementById('templateCategory') as HTMLSelectElement;
-    this.sortSelect = document.getElementById('templateSort') as HTMLSelectElement;
-    this.tagContainer = document.getElementById('templateTags') as HTMLElement;
+    this.modal = document.getElementById('templateModal');
+    this.templateList = document.getElementById('templateList');
+    this.searchInput = document.getElementById('templateSearch');
+    this.categorySelect = document.getElementById('templateCategory');
+    this.sortSelect = document.getElementById('templateSort');
+    this.tagContainer = document.getElementById('templateTags');
 
     this.setupEventListeners();
     this.setupFilterControls();
   }
 
-  private setupEventListeners(): void {
+  setupEventListeners() {
     // Busca
     this.searchInput.addEventListener('input', () => this.updateTemplateList());
     
@@ -44,7 +44,7 @@ export class TemplateUI {
     });
   }
 
-  private setupFilterControls(): void {
+  setupFilterControls() {
     // Preencher categorias
     const categories = this.manager.getCategories();
     this.categorySelect.innerHTML = '<option value="">Todas as Categorias</option>';
@@ -67,8 +67,9 @@ export class TemplateUI {
     });
   }
 
-  private toggleTag(tag: string): void {
-    const chip = this.tagContainer.querySelector(`[data-tag="${tag}"]`);
+  toggleTag(tag) {
+    const chips = this.tagContainer.querySelectorAll('.tag-chip');
+    const chip = Array.from(chips).find(chip => chip.textContent === tag);
     if (this.selectedTags.has(tag)) {
       this.selectedTags.delete(tag);
       chip?.classList.remove('selected');
@@ -79,12 +80,12 @@ export class TemplateUI {
     this.updateTemplateList();
   }
 
-  private async updateTemplateList(): Promise<void> {
-    const filter: TemplateFilter = {
+  async updateTemplateList() {
+    const filter = {
       search: this.searchInput.value,
       category: this.categorySelect.value,
       tags: Array.from(this.selectedTags),
-      sortBy: this.sortSelect.value as any,
+      sortBy: this.sortSelect.value,
       sortOrder: 'asc'
     };
 
@@ -92,7 +93,7 @@ export class TemplateUI {
     this.renderTemplateList(templates);
   }
 
-  private renderTemplateList(templates: Template[]): void {
+  renderTemplateList(templates) {
     this.templateList.innerHTML = '';
 
     if (templates.length === 0) {
@@ -117,7 +118,7 @@ export class TemplateUI {
     });
   }
 
-  private createTemplateCard(template: Template): HTMLElement {
+  createTemplateCard(template) {
     const card = document.createElement('div');
     card.className = 'template-card';
     if (template.isDefault) {
@@ -168,7 +169,7 @@ export class TemplateUI {
     return card;
   }
 
-  private renderPreviewElements(elements: any[]): string {
+  renderPreviewElements(elements) {
     // Simplificado para preview
     return elements.map(element => {
       switch (element.type) {
@@ -187,16 +188,16 @@ export class TemplateUI {
     }).join('');
   }
 
-  public showModal(): void {
+  showModal() {
     this.updateTemplateList();
     this.modal.style.display = 'flex';
   }
 
-  public hideModal(): void {
+  hideModal() {
     this.modal.style.display = 'none';
   }
 
-  public async loadTemplate(id: string): Promise<void> {
+  async loadTemplate(id) {
     try {
       await this.manager.registerTemplateUse(id);
       const template = this.manager.searchTemplates().find(t => t.id === id);
@@ -210,7 +211,7 @@ export class TemplateUI {
     }
   }
 
-  public async showNewTemplateForm(): Promise<void> {
+  async showNewTemplateForm() {
     const name = prompt('Nome do template:');
     if (!name) return;
 
@@ -243,7 +244,7 @@ export class TemplateUI {
     }
   }
 
-  public async editTemplate(id: string): Promise<void> {
+  async editTemplate(id) {
     const template = this.manager.searchTemplates().find(t => t.id === id);
     if (!template) return;
 
@@ -269,7 +270,7 @@ export class TemplateUI {
     }
   }
 
-  public async duplicateTemplate(id: string): Promise<void> {
+  async duplicateTemplate(id) {
     const name = prompt('Nome do novo template:');
     if (!name) return;
 
@@ -282,7 +283,7 @@ export class TemplateUI {
     }
   }
 
-  public async deleteTemplate(id: string): Promise<void> {
+  async deleteTemplate(id) {
     if (!confirm('Tem certeza que deseja excluir este template?')) return;
 
     try {
@@ -294,7 +295,7 @@ export class TemplateUI {
     }
   }
 
-  public async setDefaultTemplate(id: string): Promise<void> {
+  async setDefaultTemplate(id) {
     try {
       await this.manager.setDefaultTemplate(id);
       this.updateTemplateList();
@@ -304,7 +305,7 @@ export class TemplateUI {
     }
   }
 
-  public async unsetDefaultTemplate(id: string): Promise<void> {
+  async unsetDefaultTemplate(id) {
     try {
       await this.manager.setDefaultTemplate('');
       this.updateTemplateList();
@@ -314,7 +315,7 @@ export class TemplateUI {
     }
   }
 
-  public exportTemplate(id: string): void {
+  exportTemplate(id) {
     const template = this.manager.searchTemplates().find(t => t.id === id);
     if (!template) return;
 
@@ -331,19 +332,19 @@ export class TemplateUI {
     URL.revokeObjectURL(url);
   }
 
-  public async showImportDialog(): Promise<void> {
+  async showImportDialog() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
     
-    input.onchange = async (e: Event) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
       if (!file) return;
 
       try {
         const reader = new FileReader();
         reader.onload = async (e) => {
-          const json = e.target?.result as string;
+          const json = e.target?.result;
           await this.manager.importTemplates(json);
           this.updateTemplateList();
           alert('Templates importados com sucesso!');
@@ -356,14 +357,6 @@ export class TemplateUI {
     };
 
     input.click();
-  }
-}
-
-// Declarar tipo global
-declare global {
-  interface Window {
-    templateUI: TemplateUI;
-    labelDesigner: any;
   }
 }
 

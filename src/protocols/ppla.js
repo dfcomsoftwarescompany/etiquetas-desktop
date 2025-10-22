@@ -1,29 +1,21 @@
-import { BasePrinterProtocol, PrintElement, PrinterConfig, Position, Font, Barcode } from './base-protocol';
-
-export interface PPLAPosition extends Position {}
-
-export interface PPLAFont extends Font {}
-
-export interface PPLABarcode extends Barcode {
-  type: 'CODE39' | 'CODE128' | 'EAN13' | 'EAN8' | 'UPCA' | 'UPCE' | 'ITF' | 'CODABAR';
-}
+import { BasePrinterProtocol } from './base-protocol.js';
 
 export class PPLAProtocol extends BasePrinterProtocol {
-  constructor(config: Partial<PrinterConfig> = {}) {
+  constructor(config = {}) {
     super(config);
   }
 
   /**
    * Conecta à impressora
    */
-  async connect(): Promise<void> {
+  async connect() {
     try {
       this.port = new SerialPort({
         path: this.defaultConfig.port,
         baudRate: this.defaultConfig.baudRate,
         dataBits: this.defaultConfig.dataBits,
         stopBits: this.defaultConfig.stopBits,
-        parity: this.defaultConfig.parity as any,
+        parity: this.defaultConfig.parity,
         rtscts: this.defaultConfig.rtscts
       });
 
@@ -45,7 +37,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Desconecta da impressora
    */
-  async disconnect(): Promise<void> {
+  async disconnect() {
     return new Promise((resolve, reject) => {
       this.port?.close((err) => {
         if (err) {
@@ -61,7 +53,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Inicializa a impressora
    */
-  private initialize(): void {
+  initialize() {
     // Limpa buffer
     this.sendCommand('\x1B\x40');
     
@@ -75,21 +67,21 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Define o tamanho da etiqueta
    */
-  setLabelSize(width: number, height: number, gap: number = 3): void {
+  setLabelSize(width, height, gap = 3) {
     this.sendCommand(`c${width},${height},${gap}`);
   }
 
   /**
    * Define a velocidade de impressão (1-4)
    */
-  setPrintSpeed(speed: 1 | 2 | 3 | 4): void {
+  setPrintSpeed(speed) {
     this.sendCommand(`S${speed}`);
   }
 
   /**
    * Define a densidade de impressão (0-15)
    */
-  setPrintDensity(density: number): void {
+  setPrintDensity(density) {
     if (density < 0 || density > 15) {
       throw new Error('Densidade deve estar entre 0 e 15');
     }
@@ -99,7 +91,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Adiciona texto
    */
-  addText(text: string, position: PPLAPosition, font: PPLAFont): void {
+  addText(text, position, font) {
     const { x, y } = position;
     const { name, width, height, rotation } = font;
     
@@ -111,7 +103,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Adiciona código de barras
    */
-  addBarcode(data: string, position: PPLAPosition, barcode: PPLABarcode): void {
+  addBarcode(data, position, barcode) {
     const { x, y } = position;
     const { type, width, height, humanReadable, rotation } = barcode;
     
@@ -123,7 +115,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Adiciona QR Code
    */
-  addQRCode(data: string, position: PPLAPosition, size: number = 5): void {
+  addQRCode(data, position, size = 5) {
     const { x, y } = position;
     
     // Comando para QR Code
@@ -134,7 +126,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Adiciona linha
    */
-  addLine(start: PPLAPosition, end: PPLAPosition, thickness: number = 1): void {
+  addLine(start, end, thickness = 1) {
     // Comando para linha
     // La,{x1},{y1},{x2},{y2},{espessura}
     this.sendCommand(`La,${start.x},${start.y},${end.x},${end.y},${thickness}`);
@@ -143,7 +135,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Adiciona retângulo
    */
-  addRectangle(position: PPLAPosition, width: number, height: number, thickness: number = 1): void {
+  addRectangle(position, width, height, thickness = 1) {
     // Comando para retângulo
     // Lb,{x},{y},{largura},{altura},{espessura}
     this.sendCommand(`Lb,${position.x},${position.y},${width},${height},${thickness}`);
@@ -152,28 +144,28 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Define a orientação da impressão
    */
-  setOrientation(degrees: 0 | 90 | 180 | 270): void {
+  setOrientation(degrees) {
     this.sendCommand(`Z${degrees}`);
   }
 
   /**
    * Define a referência de origem
    */
-  setReference(x: number, y: number): void {
+  setReference(x, y) {
     this.sendCommand(`R${x},${y}`);
   }
 
   /**
    * Limpa o buffer de imagem
    */
-  clearBuffer(): void {
+  clearBuffer() {
     this.sendCommand('N');
   }
 
   /**
    * Imprime a etiqueta
    */
-  print(copies: number = 1): void {
+  print(copies = 1) {
     if (copies < 1) {
       throw new Error('Número de cópias deve ser maior que 0');
     }
@@ -185,7 +177,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Envia comando para a impressora
    */
-  private sendCommand(command: string): void {
+  sendCommand(command) {
     if (!this.port?.isOpen) {
       throw new Error('Impressora não está conectada');
     }
@@ -203,7 +195,7 @@ export class PPLAProtocol extends BasePrinterProtocol {
   /**
    * Gera preview do código PPLA
    */
-  generatePreview(elements: any[]): string {
+  generatePreview(elements) {
     let preview = '';
     
     // Adiciona cabeçalho
