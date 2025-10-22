@@ -55,14 +55,13 @@ class PPLAProtocol extends BasePrinterProtocol {
    * Inicializa a impressora
    */
   initialize() {
-    // Limpa buffer
+    // Limpa buffer da impressora
     this.sendCommand('\x1B\x40');
     
-    // Configura para PPLA
-    this.sendCommand('I');
-    
-    // Define unidade para milímetros
-    this.sendCommand('m');
+    // Pequeno delay para garantir que o comando foi processado
+    setTimeout(() => {
+      // Nada adicional aqui, comandos serão enviados conforme necessário
+    }, 100);
   }
 
   /**
@@ -161,7 +160,10 @@ class PPLAProtocol extends BasePrinterProtocol {
    */
   clearBuffer() {
     this.buffer = '';
-    this.sendCommand('N');
+    // Inicia nova etiqueta
+    if (this.port && this.port.isOpen) {
+      this.sendCommand('N');
+    }
   }
 
   /**
@@ -179,6 +181,15 @@ class PPLAProtocol extends BasePrinterProtocol {
     
     // Comando de impressão com número de cópias
     this.sendCommand(`P${copies}`);
+    
+    // Força o envio dos dados (flush)
+    if (this.port && this.port.isOpen) {
+      this.port.drain((err) => {
+        if (err) {
+          console.error('Erro ao enviar dados para impressora:', err);
+        }
+      });
+    }
   }
 
   /**

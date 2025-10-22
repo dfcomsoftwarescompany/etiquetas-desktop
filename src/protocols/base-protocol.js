@@ -3,26 +3,25 @@ const { SerialPort } = require('serialport');
 class BasePrinterProtocol {
   constructor(config = {}) {
     this.port = null;
-    this.config = {
-      port: 'COM1',
-      baudRate: 9600,
-      dataBits: 8,
-      stopBits: 1,
-      parity: 'none',
-      rtscts: true,
-      ...config
+    this.defaultConfig = {
+      port: config.port || 'COM1',
+      baudRate: config.baudRate || 9600,
+      dataBits: config.dataBits || 8,
+      stopBits: config.stopBits || 1,
+      parity: config.parity || 'none',
+      rtscts: config.rtscts !== undefined ? config.rtscts : true
     };
   }
 
   async connect() {
     try {
       this.port = new SerialPort({
-        path: this.config.port,
-        baudRate: this.config.baudRate,
-        dataBits: this.config.dataBits,
-        stopBits: this.config.stopBits,
-        parity: this.config.parity,
-        rtscts: this.config.rtscts
+        path: this.defaultConfig.port,
+        baudRate: this.defaultConfig.baudRate,
+        dataBits: this.defaultConfig.dataBits,
+        stopBits: this.defaultConfig.stopBits,
+        parity: this.defaultConfig.parity,
+        rtscts: this.defaultConfig.rtscts
       });
 
       return new Promise((resolve, reject) => {

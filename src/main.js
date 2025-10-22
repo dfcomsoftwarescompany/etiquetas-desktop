@@ -131,12 +131,20 @@ function createWindow() {
 }
 
 // Eventos do Electron
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow();
 
-  // Configurar impressora Argox OS-214
+  // Detectar e configurar automaticamente impressora Argox OS-2140
+  console.log('🖨️ Inicializando detecção de impressoras...');
   const printerManager = PrinterManager.getInstance();
-  printerManager.configureArgoxOS214();
+  
+  try {
+    await printerManager.autoConfigureArgox();
+    console.log('✅ Detecção de impressoras concluída');
+  } catch (error) {
+    console.error('⚠️ Erro ao detectar impressoras:', error);
+    console.log('ℹ️ Você pode configurar manualmente depois');
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -155,24 +163,40 @@ app.on('window-all-closed', () => {
 ipcMain.handle('get-printers', async () => {
   if (!mainWindow) return [];
   
-  // Obter impressoras do sistema
-  const systemPrinters = await mainWindow.webContents.getPrintersAsync();
-  
-  // Obter impressoras configuradas
-  const printerManager = PrinterManager.getInstance();
-  const configuredPrinters = printerManager.listPrinters();
-  
-  // Combinar as listas
-  return [
-    ...systemPrinters,
-    ...configuredPrinters.map(printer => ({
-      name: printer.name,
-      displayName: `${printer.name} (${printer.model})`,
-      description: `Protocolo: ${printer.protocol}`,
-      isConfigured: true,
-      protocol: printer.protocol
-    }))
-  ];
+  try {
+    // Obter impressoras do sistema
+    const systemPrinters = await mainWindow.webContents.getPrintersAsync();
+    
+    // Obter impressoras configuradas (seriais)
+    const printerManager = PrinterManager.getInstance();
+    const configuredPrinters = printerManager.listPrinters();
+    
+    console.log('🖨️ Impressoras do sistema:', systemPrinters.length);
+    console.log('🔌 Impressoras seriais configuradas:', configuredPrinters.length);
+    
+    // Combinar as listas
+    const allPrinters = [
+      ...configuredPrinters.map(printer => ({
+        name: printer.name,
+        displayName: `🔌 ${printer.name}`,
+        description: `Protocolo: ${printer.protocol} | Porta: ${printer.connection.port}`,
+        isConfigured: true,
+        protocol: printer.protocol,
+        isSerial: true
+      })),
+      ...systemPrinters.map(printer => ({
+        ...printer,
+        displayName: printer.displayName || printer.name,
+        isConfigured: false,
+        isSerial: false
+      }))
+    ];
+    
+    return allPrinters;
+  } catch (error) {
+    console.error('❌ Erro ao obter impressoras:', error);
+    return [];
+  }
 });
 
 ipcMain.handle('save-settings', async (_event, settings) => {
@@ -254,16 +278,35 @@ ipcMain.handle('print-label', async (_event, printData) => {
     const isConfiguredPrinter = configuredPrinters.some(p => p.name === printerName);
     
     if (isConfiguredPrinter) {
-      console.log('🔧 Impressora configurada - usando conexão serial');
+      console.log('🔧 Impressora serial detectada - usando conexão direta');
       
-      // Conectar à impressora serial
-      await printerManager.connect(printerName);
-      
-      // Imprimir
-      await printerManager.printLabel(elements, copies || 1);
-      
-      // Desconectar
-      await printerManager.disconnect();
+      try {
+        // Conectar à impressora serial
+        console.log('🔌 Conectando à impressora...');
+        await printerManager.connect(printerName);
+        console.log('✅ Conectado com sucesso!');
+        
+        // Imprimir
+        console.log('📄 Enviando dados para impressão...');
+        await printerManager.printLabel(elements, copies || 1);
+        console.log('✅ Dados enviados!');
+        
+        // Desconectar
+        console.log('🔌 Desconectando...');
+        await printerManager.disconnect();
+        console.log('✅ Desconectado!');
+      } catch (error) {
+        console.error('❌ Erro na impressão serial:', error);
+        
+        // Garantir que desconecta mesmo em caso de erro
+        try {
+          await printerManager.disconnect();
+        } catch (disconnectError) {
+          console.error('Erro ao desconectar:', disconnectError);
+        }
+        
+        throw error;
+      }
     } else {
       console.log('🖨️ Impressora do sistema - usando impressão nativa');
       
