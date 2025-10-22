@@ -197,11 +197,54 @@ class LabelDesigner {
     switch (property) {
       case 'content':
         element.content = value;
-        this.selectedElement.textContent = value;
+        // Atualizar preview de acordo com o tipo
+        if (element.type === 'text') {
+          this.selectedElement.textContent = value;
+        } else if (element.type === 'barcode') {
+          BarcodeGenerator.updateBarcodePreview(
+            this.selectedElement,
+            value,
+            element.barcodeType || 'CODE128',
+            {
+              width: 2,
+              height: element.height || 100,
+              displayValue: element.humanReadable || true,
+              fontSize: element.fontSize || 16
+            }
+          );
+        } else if (element.type === 'qrcode') {
+          BarcodeGenerator.updateQRCodePreview(
+            this.selectedElement,
+            value,
+            {
+              width: element.width || 200,
+              margin: 0,
+              color: {
+                dark: '#000000',
+                light: '#ffffff'
+              }
+            }
+          );
+        }
         break;
       case 'fontSize':
         element.fontSize = parseInt(value);
-        this.selectedElement.style.fontSize = `${value}px`;
+        if (element.type === 'text') {
+          this.selectedElement.style.fontSize = `${value}px`;
+        } else if (element.type === 'barcode') {
+          // Atualizar preview do barcode com novo tamanho
+          BarcodeGenerator.updateBarcodePreview(
+            this.selectedElement,
+            element.content,
+            element.barcodeType || 'CODE128',
+            {
+              width: 2,
+              height: element.height || 100,
+              displayValue: element.humanReadable || true,
+              fontSize: parseInt(value)
+            }
+          );
+        }
         break;
       case 'fontFamily':
         element.fontFamily = value;
@@ -213,14 +256,94 @@ class LabelDesigner {
         break;
       case 'barcodeType':
         element.barcodeType = value;
+        // Atualizar preview com novo tipo
+        BarcodeGenerator.updateBarcodePreview(
+          this.selectedElement,
+          element.content,
+          value,
+          {
+            width: 2,
+            height: element.height || 100,
+            displayValue: element.humanReadable || true,
+            fontSize: element.fontSize || 16
+          }
+        );
         break;
       case 'humanReadable':
         element.humanReadable = value;
+        // Atualizar preview
+        BarcodeGenerator.updateBarcodePreview(
+          this.selectedElement,
+          element.content,
+          element.barcodeType || 'CODE128',
+          {
+            width: 2,
+            height: element.height || 100,
+            displayValue: value,
+            fontSize: element.fontSize || 16
+          }
+        );
         break;
       case 'thickness':
         element.thickness = parseInt(value);
         if (element.type === 'line' || element.type === 'rectangle') {
           this.selectedElement.style.borderWidth = `${value}px`;
+        }
+        break;
+      case 'width':
+        element.width = parseInt(value);
+        this.selectedElement.style.width = `${value}px`;
+        if (element.type === 'qrcode') {
+          // Atualizar preview do QR Code com novo tamanho
+          BarcodeGenerator.updateQRCodePreview(
+            this.selectedElement,
+            element.content,
+            {
+              width: parseInt(value),
+              margin: 0,
+              color: {
+                dark: '#000000',
+                light: '#ffffff'
+              }
+            }
+          );
+        }
+        break;
+      case 'height':
+        element.height = parseInt(value);
+        this.selectedElement.style.height = `${value}px`;
+        if (element.type === 'barcode') {
+          // Atualizar preview do barcode com nova altura
+          BarcodeGenerator.updateBarcodePreview(
+            this.selectedElement,
+            element.content,
+            element.barcodeType || 'CODE128',
+            {
+              width: 2,
+              height: parseInt(value),
+              displayValue: element.humanReadable || true,
+              fontSize: element.fontSize || 16
+            }
+          );
+        }
+        break;
+      case 'errorCorrection':
+        element.errorCorrection = value;
+        if (element.type === 'qrcode') {
+          // Atualizar preview do QR Code
+          BarcodeGenerator.updateQRCodePreview(
+            this.selectedElement,
+            element.content,
+            {
+              width: element.width || 200,
+              margin: 0,
+              errorCorrectionLevel: value,
+              color: {
+                dark: '#000000',
+                light: '#ffffff'
+              }
+            }
+          );
         }
         break;
     }
