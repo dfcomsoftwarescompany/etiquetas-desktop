@@ -277,6 +277,11 @@ ipcMain.handle('print-label', async (_event, printData) => {
     const configuredPrinters = printerManager.listPrinters();
     const isConfiguredPrinter = configuredPrinters.some(p => p.name === printerName);
     
+    // Verificar se é uma impressora Argox do sistema (instalada com driver Windows)
+    const isArgoxSystemPrinter = printerName.toLowerCase().includes('argox') || 
+                                  printerName.toLowerCase().includes('os-214') ||
+                                  printerName.toLowerCase().includes('os-2140');
+    
     if (isConfiguredPrinter) {
       console.log('🔧 Impressora serial detectada - usando conexão direta');
       
@@ -307,6 +312,197 @@ ipcMain.handle('print-label', async (_event, printData) => {
         
         throw error;
       }
+    } else if (isArgoxSystemPrinter && (protocol === 'PPLA' || protocol === 'EPL2' || protocol === 'ZPL')) {
+      console.log('🔧 Impressora Argox detectada no sistema - enviando comandos RAW');
+      
+      // Importar módulos necessários
+      const fs = require('fs');
+      const path = require('path');
+      const os = require('os');
+      const { execSync } = require('child_process');
+      
+      const { PPLAProtocol } = require('./protocols/ppla.js');
+      const { EPL2Protocol } = require('./protocols/epl2.js');
+      const { ZPLProtocol } = require('./protocols/zpl.js');
+      
+      let protocolInstance;
+      switch (protocol) {
+        case 'PPLA':
+          protocolInstance = new PPLAProtocol();
+          break;
+        case 'EPL2':
+          protocolInstance = new EPL2Protocol();
+          break;
+        case 'ZPL':
+          protocolInstance = new ZPLProtocol();
+          break;
+        default:
+          throw new Error(`Protocolo não suportado: ${protocol}`);
+      }
+      
+      // Gerar código da etiqueta
+      console.log('📝 Gerando código PPLA...');
+      protocolInstance.clearBuffer();
+      
+      // Processar cada elemento
+      elements.forEach(element => {
+        console.log(`  - Adicionando ${element.type}: ${element.content || 'elemento gráfico'}`);
+        
+        // Converter pixels para mm (assumindo 3.78 pixels por mm)
+        const pixelsToMm = (px) => Math.round(px / 3.78);
+        
+        switch (element.type) {
+          case 'text':
+            protocolInstance.addText(
+              element.content || '',
+              { 
+                x: pixelsToMm(element.x), 
+                y: pixelsToMm(element.y) 
+              },
+              {
+                name: element.fontFamily || 'A',
+                width: 1,
+                height: 1,
+                rotation: element.rotation || 0
+              }
+            );
+            break;
+
+          case 'barcode':
+            protocolInstance.addBarcode(
+              element.content || '',
+              { 
+                x: pixelsToMm(element.x), 
+                y: pixelsToMm(element.y) 
+              },
+              {
+                type: element.barcodeType || 'CODE128',
+                width: 2,
+                height: pixelsToMm(element.height) || 10,
+                humanReadable: element.humanReadable !== false,
+                rotation: element.rotation || 0
+              }
+            );
+            break;
+
+          case 'qrcode':
+            protocolInstance.addQRCode(
+              element.content || '',
+              { 
+                x: pixelsToMm(element.x), 
+                y: pixelsToMm(element.y) 
+              },
+              5
+            );
+            break;
+
+          case 'line':
+            const x2 = element.x + (element.width || 100);
+            const y2 = element.y;
+            protocolInstance.addLine(
+              { x: pixelsToMm(element.x), y: pixelsToMm(element.y) },
+              { x: pixelsToMm(x2), y: pixelsToMm(y2) },
+              element.thickness || 1
+            );
+            break;
+
+          case 'rectangle':
+            protocolInstance.addRectangle(
+              { 
+                x: pixelsToMm(element.x), 
+                y: pixelsToMm(element.y) 
+              },
+              pixelsToMm(element.width) || 20,
+              pixelsToMm(element.height) || 20,
+              element.thickness || 1
+            );
+            break;
+        }
+      });
+      
+      // Gerar código
+      const code = protocolInstance.print(copies || 1);
+      console.log('✅ Código gerado:', code.substring(0, 100) + '...');
+      console.log('📄 Código completo:', code);
+      
+      // Salvar em arquivo temporário (ASCII puro, sem BOM)
+      const tempFile = path.join(os.tmpdir(), `etiqueta_${Date.now()}.prn`);
+      fs.writeFileSync(tempFile, code, { encoding: 'ascii' });
+      console.log('💾 Arquivo temporário criado:', tempFile);
+      
+      try {
+        // Enviar arquivo RAW para impressora usando método correto
+        console.log('📤 Enviando arquivo RAW para impressora...');
+        
+        // Método 1: Tentar usar copy /b (comando MS-DOS para cópia binária)
+        // Este é o método mais confiável para envio RAW em Windows
+        try {
+          // Primeiro, tentar via porta LPT/USB direta se disponível
+          const copyCommand = `copy /b "${tempFile}" "\\\\localhost\\${printerName}"`;
+          console.log('🔧 Tentando envio via COPY:', copyCommand);
+          
+          execSync(copyCommand, { 
+            encoding: 'utf8',
+            windowsHide: true,
+            shell: 'cmd.exe'
+          });
+          
+          console.log('✅ Arquivo RAW enviado com sucesso via COPY!');
+        } catch (copyError) {
+          console.warn('⚠️ COPY falhou, tentando método alternativo...', copyError.message);
+          
+          // Método 2: Usar print (MS-DOS print command)
+          try {
+            const printCommand = `print /d:"${printerName}" "${tempFile}"`;
+            console.log('🔧 Tentando envio via PRINT:', printCommand);
+            
+            execSync(printCommand, { 
+              encoding: 'utf8',
+              windowsHide: true,
+              shell: 'cmd.exe'
+            });
+            
+            console.log('✅ Arquivo RAW enviado com sucesso via PRINT!');
+          } catch (printError) {
+            console.warn('⚠️ PRINT falhou, tentando PowerShell com encoding correto...', printError.message);
+            
+            // Método 3: PowerShell com Get-Content -Encoding Byte (RAW bytes)
+            const psCommand = `$bytes = [System.IO.File]::ReadAllBytes("${tempFile}"); $stream = New-Object System.IO.FileStream("\\\\localhost\\${printerName}", 'OpenOrCreate', 'Write'); $stream.Write($bytes, 0, $bytes.Length); $stream.Close()`;
+            
+            console.log('🔧 Tentando envio via PowerShell RAW bytes');
+            
+            execSync(`powershell -Command "${psCommand}"`, { 
+              encoding: 'utf8',
+              windowsHide: true 
+            });
+            
+            console.log('✅ Arquivo RAW enviado com sucesso via PowerShell!');
+          }
+        }
+        
+        console.log('✅ Impressão RAW completada!');
+        
+        // Limpar arquivo temporário
+        setTimeout(() => {
+          try {
+            fs.unlinkSync(tempFile);
+            console.log('🗑️ Arquivo temporário removido');
+          } catch (err) {
+            console.warn('⚠️ Não foi possível remover arquivo temporário:', err);
+          }
+        }, 1000);
+        
+      } catch (error) {
+        console.error('❌ Erro ao enviar RAW:', error);
+        // Tentar remover arquivo mesmo em caso de erro
+        try {
+          fs.unlinkSync(tempFile);
+        } catch (err) {
+          // Ignora erro ao remover
+        }
+        throw new Error(`Erro ao enviar dados RAW: ${error.message}`);
+      }
+      
     } else {
       console.log('🖨️ Impressora do sistema - usando impressão nativa');
       

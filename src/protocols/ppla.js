@@ -221,9 +221,8 @@ class PPLAProtocol extends BasePrinterProtocol {
   generatePreview(elements) {
     let preview = '';
     
-    // Adiciona cabeçalho
-    preview += 'I\n'; // Modo PPLA
-    preview += 'm\n'; // Unidade: mm
+    // Adiciona comando de nova etiqueta
+    preview += 'N\n'; // Nova etiqueta (limpa buffer)
     
     // Processa elementos
     elements.forEach(element => {
