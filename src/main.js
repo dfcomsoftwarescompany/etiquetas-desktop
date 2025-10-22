@@ -2,9 +2,26 @@ const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const { PrinterManager } = require('./printer/printer-manager');
+const { templatesExemplo } = require('./templates/exemplos');
 
 // Inicializar store para configurações
 const store = new Store();
+
+// Carregar templates de exemplo na primeira execução
+function loadDefaultTemplates() {
+  const templates = store.get('templates', []);
+  
+  // Se não houver templates, carregar os exemplos
+  if (templates.length === 0) {
+    console.log('📦 Carregando templates de exemplo...');
+    store.set('templates', templatesExemplo);
+  }
+}
+
+// Carregar templates de exemplo ao iniciar
+app.on('ready', () => {
+  loadDefaultTemplates();
+});
 
 let mainWindow = null;
 
