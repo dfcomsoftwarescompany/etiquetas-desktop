@@ -1,6 +1,6 @@
-import { TemplateManager } from './template-manager.js';
+const { TemplateManager  } = require('./template-manager.js');
 
-export class TemplateUI {
+class TemplateUI {
   manager;
   modal;
   templateList;
@@ -364,3 +364,5 @@ export class TemplateUI {
 document.addEventListener('DOMContentLoaded', () => {
   window.templateUI = new TemplateUI();
 });
+
+module.exports = { TemplateUI };

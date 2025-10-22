@@ -1,14 +1,12 @@
-import { PPLAProtocol } from '../protocols/ppla.js';
-import { EPL2Protocol } from '../protocols/epl2.js';
-import { ZPLProtocol } from '../protocols/zpl.js';
+const { PPLAProtocol } = require('../protocols/ppla.js');
+const { EPL2Protocol } = require('../protocols/epl2.js');
+const { ZPLProtocol } = require('../protocols/zpl.js');
 
-export class PrinterManager {
-  static instance;
-  printers = new Map();
-  activeProtocol = null;
-
+class PrinterManager {
   constructor() {
     // Singleton
+    this.printers = new Map();
+    this.activeProtocol = null;
   }
 
   static getInstance() {

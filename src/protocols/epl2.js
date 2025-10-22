@@ -1,6 +1,6 @@
-import { BasePrinterProtocol } from './base-protocol.js';
+const { BasePrinterProtocol  } = require('./base-protocol.js');
 
-export class EPL2Protocol extends BasePrinterProtocol {
+class EPL2Protocol extends BasePrinterProtocol {
   constructor(config) {
     super(config);
   }
@@ -182,3 +182,5 @@ export class EPL2Protocol extends BasePrinterProtocol {
     return preview;
   }
 }
+
+module.exports = { EPL2Protocol };

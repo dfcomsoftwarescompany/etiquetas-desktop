@@ -1,7 +1,7 @@
-import JsBarcode from 'jsbarcode';
-import QRCode from 'qrcode';
+const JsBarcode = require('jsbarcode');
+const QRCode = require('qrcode');
 
-export class BarcodeGenerator {
+class BarcodeGenerator {
   static validateBarcode(type, value) {
     switch (type) {
       case 'EAN13':
@@ -267,3 +267,5 @@ export class BarcodeGenerator {
     };
   }
 }
+
+module.exports = { BarcodeGenerator };

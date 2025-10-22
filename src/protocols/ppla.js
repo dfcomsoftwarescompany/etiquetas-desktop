@@ -1,6 +1,6 @@
-import { BasePrinterProtocol } from './base-protocol.js';
+const { BasePrinterProtocol  } = require('./base-protocol.js');
 
-export class PPLAProtocol extends BasePrinterProtocol {
+class PPLAProtocol extends BasePrinterProtocol {
   constructor(config = {}) {
     super(config);
   }
@@ -233,3 +233,5 @@ export class PPLAProtocol extends BasePrinterProtocol {
     return preview;
   }
 }
+
+module.exports = { PPLAProtocol };

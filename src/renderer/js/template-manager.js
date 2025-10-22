@@ -1,4 +1,4 @@
-export class TemplateManager {
+class TemplateManager {
   static instance;
   templates = [];
   categories = new Set();
@@ -291,3 +291,5 @@ export class TemplateManager {
     return errors;
   }
 }
+
+module.exports = { TemplateManager };

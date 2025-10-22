@@ -1,6 +1,6 @@
-import { BasePrinterProtocol } from './base-protocol.js';
+const { BasePrinterProtocol  } = require('./base-protocol.js');
 
-export class ZPLProtocol extends BasePrinterProtocol {
+class ZPLProtocol extends BasePrinterProtocol {
   constructor(config) {
     super(config);
   }
@@ -227,3 +227,5 @@ export class ZPLProtocol extends BasePrinterProtocol {
     return preview;
   }
 }
+
+module.exports = { ZPLProtocol };

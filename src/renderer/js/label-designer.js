@@ -1,4 +1,4 @@
-import { BarcodeGenerator } from './barcode-generator.js';
+const { BarcodeGenerator  } = require('./barcode-generator.js');
 
 class LabelDesigner {
   canvas;
@@ -526,3 +526,5 @@ class LabelDesigner {
 document.addEventListener('DOMContentLoaded', () => {
   window.labelDesigner = new LabelDesigner();
 });
+
+module.exports = { LabelDesigner };
