@@ -3,6 +3,7 @@ const { BasePrinterProtocol  } = require('./base-protocol.js');
 class ZPLProtocol extends BasePrinterProtocol {
   constructor(config) {
     super(config);
+    this.buffer = '';
   }
 
   initialize() {
@@ -133,12 +134,37 @@ class ZPLProtocol extends BasePrinterProtocol {
 
   clearBuffer() {
     // Start new label format
+    this.buffer = '';
     this.sendCommand('^XA');
+  }
+
+  sendCommand(command) {
+    // Se não houver porta (modo preview), adiciona ao buffer
+    if (!this.port || !this.port.isOpen) {
+      if (!this.buffer) {
+        this.buffer = '';
+      }
+      this.buffer += command;
+      return;
+    }
+
+    // Enviar para a porta serial
+    this.port.write(command, (err) => {
+      if (err) {
+        throw new Error(`Erro ao enviar comando: ${err}`);
+      }
+    });
   }
 
   print(copies = 1) {
     // ^PQ sets quantity
     // ^XZ ends format
+    
+    // Se não houver porta (modo preview), retorna o comando
+    if (!this.port || !this.port.isOpen) {
+      return this.buffer + `^PQ${copies}^XZ`;
+    }
+    
     this.sendCommand(`^PQ${copies}^XZ`);
   }
 

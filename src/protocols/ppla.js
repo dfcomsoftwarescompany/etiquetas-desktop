@@ -3,6 +3,7 @@ const { BasePrinterProtocol  } = require('./base-protocol.js');
 class PPLAProtocol extends BasePrinterProtocol {
   constructor(config = {}) {
     super(config);
+    this.buffer = '';
   }
 
   /**
@@ -159,6 +160,7 @@ class PPLAProtocol extends BasePrinterProtocol {
    * Limpa o buffer de imagem
    */
   clearBuffer() {
+    this.buffer = '';
     this.sendCommand('N');
   }
 
@@ -170,6 +172,11 @@ class PPLAProtocol extends BasePrinterProtocol {
       throw new Error('Número de cópias deve ser maior que 0');
     }
     
+    // Se não houver porta (modo preview), retorna o comando
+    if (!this.port || !this.port.isOpen) {
+      return this.buffer + `P${copies}\r\n`;
+    }
+    
     // Comando de impressão com número de cópias
     this.sendCommand(`P${copies}`);
   }
@@ -178,8 +185,13 @@ class PPLAProtocol extends BasePrinterProtocol {
    * Envia comando para a impressora
    */
   sendCommand(command) {
-    if (!this.port?.isOpen) {
-      throw new Error('Impressora não está conectada');
+    // Se não houver porta (modo preview), adiciona ao buffer
+    if (!this.port || !this.port.isOpen) {
+      if (!this.buffer) {
+        this.buffer = '';
+      }
+      this.buffer += `${command}\r\n`;
+      return;
     }
 
     // Adiciona quebra de linha ao final do comando

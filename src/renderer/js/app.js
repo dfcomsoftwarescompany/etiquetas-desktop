@@ -301,6 +301,8 @@ class LabelDesignerApp {
   }
 
   async print() {
+    console.log('🖨️ Função print() chamada');
+    
     const printerSelect = document.getElementById('selectPrinter');
     const protocolSelect = document.getElementById('selectProtocol');
     const widthInput = document.getElementById('labelWidth');
@@ -308,27 +310,101 @@ class LabelDesignerApp {
     
     // Validar seleção de impressora
     if (!printerSelect.value) {
-      alert('Por favor, selecione uma impressora');
+      alert('⚠️ Por favor, selecione uma impressora');
+      console.warn('Nenhuma impressora selecionada');
       return;
     }
     
     // Validar que há elementos na etiqueta
     const elements = this.getCanvasElements();
+    console.log('📦 Elementos no canvas:', elements);
+    
     if (elements.length === 0) {
-      alert('Adicione pelo menos um elemento à etiqueta antes de imprimir');
+      alert('⚠️ Adicione pelo menos um elemento à etiqueta antes de imprimir');
+      console.warn('Canvas vazio');
       return;
     }
     
-    // Confirmar impressão
-    const copies = prompt('Quantas cópias deseja imprimir?', '1');
-    if (!copies || parseInt(copies) <= 0) {
-      return;
-    }
+    // Mostrar modal de impressão
+    this.showPrintDialog(printerSelect, protocolSelect, elements, widthInput, heightInput);
+  }
+
+  showPrintDialog(printerSelect, protocolSelect, elements, widthInput, heightInput) {
+    const modal = document.getElementById('printModal');
+    const copiesInput = document.getElementById('printCopies');
+    const elementCount = document.getElementById('printElementCount');
+    const printerName = document.getElementById('printPrinterName');
+    const protocol = document.getElementById('printProtocol');
+    const btnCancel = document.getElementById('btnCancelPrint');
+    const btnConfirm = document.getElementById('btnConfirmPrint');
+    
+    // Preencher informações
+    copiesInput.value = '1';
+    elementCount.textContent = elements.length;
+    printerName.textContent = printerSelect.options[printerSelect.selectedIndex].text;
+    protocol.textContent = protocolSelect.value;
+    
+    // Mostrar modal
+    modal.style.display = 'flex';
+    
+    // Focar no input
+    setTimeout(() => copiesInput.focus(), 100);
+    
+    // Handler de confirmação
+    const handleConfirm = async () => {
+      const copies = parseInt(copiesInput.value);
+      
+      if (!copies || copies <= 0) {
+        alert('⚠️ Número de cópias inválido');
+        return;
+      }
+      
+      // Fechar modal
+      modal.style.display = 'none';
+      
+      // Executar impressão
+      await this.executePrint(printerSelect, protocolSelect, elements, widthInput, heightInput, copies);
+      
+      // Remover listeners
+      btnConfirm.removeEventListener('click', handleConfirm);
+      btnCancel.removeEventListener('click', handleCancel);
+      copiesInput.removeEventListener('keydown', handleKeyDown);
+    };
+    
+    // Handler de cancelamento
+    const handleCancel = () => {
+      modal.style.display = 'none';
+      console.log('Impressão cancelada pelo usuário');
+      
+      // Remover listeners
+      btnConfirm.removeEventListener('click', handleConfirm);
+      btnCancel.removeEventListener('click', handleCancel);
+      copiesInput.removeEventListener('keydown', handleKeyDown);
+    };
+    
+    // Handler de teclas
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter') {
+        handleConfirm();
+      } else if (e.key === 'Escape') {
+        handleCancel();
+      }
+    };
+    
+    // Adicionar listeners
+    btnConfirm.addEventListener('click', handleConfirm);
+    btnCancel.addEventListener('click', handleCancel);
+    copiesInput.addEventListener('keydown', handleKeyDown);
+  }
+
+  async executePrint(printerSelect, protocolSelect, elements, widthInput, heightInput, copies) {
+    const btnPrint = document.getElementById('btnPrint');
+    const originalText = btnPrint.innerHTML;
     
     try {
+      console.log('🔄 Iniciando processo de impressão...');
+      
       // Desabilitar botão de impressão
-      const btnPrint = document.getElementById('btnPrint');
-      const originalText = btnPrint.innerHTML;
       btnPrint.disabled = true;
       btnPrint.innerHTML = '⏳ Imprimindo...';
       
@@ -341,15 +417,22 @@ class LabelDesignerApp {
           width: parseInt(widthInput.value),
           height: parseInt(heightInput.value)
         },
-        copies: parseInt(copies)
+        copies: copies
       };
       
+      console.log('📋 Dados de impressão:', printData);
+      
       // Enviar para impressão
+      console.log('📤 Enviando para impressão...');
       const result = await window.electronAPI.printLabel(printData);
       
+      console.log('📥 Resposta recebida:', result);
+      
       if (result.success) {
-        alert(`✓ Etiqueta enviada para impressão!\n${copies} cópia(s)`);
+        console.log('✅ Impressão bem-sucedida!');
+        alert(`✅ Etiqueta enviada para impressão!\n\n📄 ${copies} cópia(s)\n🖨️ Impressora: ${printerSelect.options[printerSelect.selectedIndex].text}`);
       } else {
+        console.error('❌ Erro na impressão:', result);
         throw new Error(result.error || 'Erro desconhecido');
       }
       
@@ -358,14 +441,25 @@ class LabelDesignerApp {
       btnPrint.innerHTML = originalText;
       
     } catch (error) {
-      console.error('Erro ao imprimir:', error);
-      alert(`❌ Erro ao imprimir: ${error.message}\n\nVerifique se a impressora está conectada e ligada.`);
+      console.error('❌ Exceção ao imprimir:', error);
+      console.error('Stack trace:', error.stack);
+      
+      // Montar mensagem de erro detalhada
+      let errorMessage = '❌ Erro ao imprimir etiqueta\n\n';
+      errorMessage += `Erro: ${error.message}\n\n`;
+      errorMessage += 'Possíveis causas:\n';
+      errorMessage += '• Impressora desligada ou desconectada\n';
+      errorMessage += '• Driver da impressora não instalado\n';
+      errorMessage += '• Falta de permissão para acessar a impressora\n';
+      errorMessage += '• Protocolo incompatível com a impressora\n\n';
+      errorMessage += 'Verifique o console (F12) para mais detalhes.';
+      
+      alert(errorMessage);
       
       // Restaurar botão em caso de erro
-      const btnPrint = document.getElementById('btnPrint');
       if (btnPrint) {
         btnPrint.disabled = false;
-        btnPrint.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke-width="2"/><rect x="6" y="14" width="12" height="8" stroke-width="2"/></svg>Imprimir';
+        btnPrint.innerHTML = originalText;
       }
     }
   }

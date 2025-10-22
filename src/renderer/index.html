@@ -239,6 +239,39 @@
         </div>
     </div>
 
+    <!-- Modal de Impressão -->
+    <div id="printModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Imprimir Etiqueta</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Número de Cópias</label>
+                    <input type="number" id="printCopies" value="1" min="1" max="999" class="input" autofocus>
+                </div>
+                <div class="form-group">
+                    <p style="margin: 0; font-size: 14px; color: #6b7280;">
+                        📄 Elementos: <strong id="printElementCount">0</strong><br>
+                        🖨️ Impressora: <strong id="printPrinterName">-</strong><br>
+                        📋 Protocolo: <strong id="printProtocol">-</strong>
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btnCancelPrint" class="btn">Cancelar</button>
+                <button id="btnConfirmPrint" class="btn btn-success">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke-width="2"/>
+                        <rect x="6" y="14" width="12" height="8" stroke-width="2"/>
+                    </svg>
+                    Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/barcode-generator.js"></script>
     <script src="js/label-designer.js"></script>
     <script src="js/template-manager.js"></script>

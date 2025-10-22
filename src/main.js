@@ -224,27 +224,204 @@ ipcMain.handle('delete-template', async (_event, templateId) => {
 // Handler de impressão
 ipcMain.handle('print-label', async (_event, printData) => {
   try {
+    console.log('📄 Iniciando impressão...', printData);
+    
     const { printerName, protocol, elements, labelSize, copies } = printData;
+    
+    // Validações
+    if (!printerName) {
+      throw new Error('Nome da impressora não fornecido');
+    }
+    
+    if (!protocol) {
+      throw new Error('Protocolo não especificado');
+    }
+    
+    if (!elements || elements.length === 0) {
+      throw new Error('Nenhum elemento para imprimir');
+    }
+    
+    console.log(`🖨️ Impressora: ${printerName}`);
+    console.log(`📋 Protocolo: ${protocol}`);
+    console.log(`📦 Elementos: ${elements.length}`);
+    console.log(`🔢 Cópias: ${copies}`);
     
     // Obter o gerenciador de impressoras
     const printerManager = PrinterManager.getInstance();
     
-    // Conectar à impressora
-    await printerManager.connect(printerName);
+    // Verificar se é impressora configurada (Argox) ou do sistema
+    const configuredPrinters = printerManager.listPrinters();
+    const isConfiguredPrinter = configuredPrinters.some(p => p.name === printerName);
     
-    // Configurar tamanho da etiqueta
-    // (Isso será feito pelo protocolo específico)
+    if (isConfiguredPrinter) {
+      console.log('🔧 Impressora configurada - usando conexão serial');
+      
+      // Conectar à impressora serial
+      await printerManager.connect(printerName);
+      
+      // Imprimir
+      await printerManager.printLabel(elements, copies || 1);
+      
+      // Desconectar
+      await printerManager.disconnect();
+    } else {
+      console.log('🖨️ Impressora do sistema - usando impressão nativa');
+      
+      // Usar impressão nativa do Electron para impressoras do sistema
+      const { PPLAProtocol } = require('./protocols/ppla.js');
+      const { EPL2Protocol } = require('./protocols/epl2.js');
+      const { ZPLProtocol } = require('./protocols/zpl.js');
+      
+      let protocolInstance;
+      switch (protocol) {
+        case 'PPLA':
+          protocolInstance = new PPLAProtocol();
+          break;
+        case 'EPL2':
+          protocolInstance = new EPL2Protocol();
+          break;
+        case 'ZPL':
+          protocolInstance = new ZPLProtocol();
+          break;
+        default:
+          throw new Error(`Protocolo não suportado: ${protocol}`);
+      }
+      
+      // Gerar código da etiqueta
+      console.log('📝 Gerando código da etiqueta...');
+      protocolInstance.clearBuffer();
+      
+      // Processar cada elemento
+      elements.forEach(element => {
+        console.log(`  - Adicionando ${element.type}: ${element.content}`);
+        
+        // Converter pixels para mm (assumindo 3.78 pixels por mm)
+        const pixelsToMm = (px) => Math.round(px / 3.78);
+        
+        switch (element.type) {
+          case 'text':
+            protocolInstance.addText(
+              element.content || '',
+              { 
+                x: pixelsToMm(element.x), 
+                y: pixelsToMm(element.y) 
+              },
+              {
+                name: element.fontFamily || 'A',
+                width: 1,
+                height: 1,
+                rotation: element.rotation || 0
+              }
+            );
+            break;
+
+          case 'barcode':
+            protocolInstance.addBarcode(
+              element.content || '',
+              { 
+                x: pixelsToMm(element.x), 
+                y: pixelsToMm(element.y) 
+              },
+              {
+                type: element.barcodeType || 'CODE128',
+                width: 2,
+                height: pixelsToMm(element.height) || 10,
+                humanReadable: element.humanReadable !== false,
+                rotation: element.rotation || 0
+              }
+            );
+            break;
+
+          case 'qrcode':
+            protocolInstance.addQRCode(
+              element.content || '',
+              { 
+                x: pixelsToMm(element.x), 
+                y: pixelsToMm(element.y) 
+              },
+              5
+            );
+            break;
+
+          case 'line':
+            const x2 = element.x + (element.width || 100);
+            const y2 = element.y;
+            protocolInstance.addLine(
+              { x: pixelsToMm(element.x), y: pixelsToMm(element.y) },
+              { x: pixelsToMm(x2), y: pixelsToMm(y2) },
+              element.thickness || 1
+            );
+            break;
+
+          case 'rectangle':
+            protocolInstance.addRectangle(
+              { 
+                x: pixelsToMm(element.x), 
+                y: pixelsToMm(element.y) 
+              },
+              pixelsToMm(element.width) || 20,
+              pixelsToMm(element.height) || 20,
+              element.thickness || 1
+            );
+            break;
+        }
+      });
+      
+      // Gerar código
+      const code = protocolInstance.print(copies || 1);
+      console.log('✅ Código gerado:', code.substring(0, 100) + '...');
+      
+      // Enviar para impressora do sistema
+      if (mainWindow) {
+        const printOptions = {
+          silent: true, // Imprimir sem diálogo
+          printBackground: false,
+          deviceName: printerName,
+          color: false,
+          margins: {
+            marginType: 'none'
+          },
+          landscape: false,
+          scaleFactor: 100,
+          pagesPerSheet: 1,
+          collate: false,
+          copies: copies || 1
+        };
+        
+        // Criar uma janela oculta para impressão
+        const printWindow = new BrowserWindow({
+          show: false,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+          }
+        });
+        
+        // Carregar conteúdo (código da etiqueta)
+        await printWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent(code)}`);
+        
+        // Imprimir
+        await printWindow.webContents.print(printOptions);
+        
+        // Fechar janela
+        printWindow.close();
+        
+        console.log('✅ Impressão enviada para a impressora');
+      }
+    }
     
-    // Imprimir
-    await printerManager.printLabel(elements, copies || 1);
-    
-    // Desconectar
-    await printerManager.disconnect();
-    
+    console.log('✅ Impressão concluída com sucesso!');
     return { success: true };
+    
   } catch (error) {
-    console.error('Erro ao imprimir:', error);
-    return { success: false, error: error.message };
+    console.error('❌ Erro ao imprimir:', error);
+    console.error('Stack trace:', error.stack);
+    
+    return { 
+      success: false, 
+      error: error.message || 'Erro desconhecido ao imprimir',
+      details: error.stack
+    };
   }
 });
 

@@ -3,6 +3,7 @@ const { BasePrinterProtocol  } = require('./base-protocol.js');
 class EPL2Protocol extends BasePrinterProtocol {
   constructor(config) {
     super(config);
+    this.buffer = '';
   }
 
   initialize() {
@@ -117,11 +118,36 @@ class EPL2Protocol extends BasePrinterProtocol {
 
   clearBuffer() {
     // Clear image buffer
+    this.buffer = '';
     this.sendCommand('N\n');
+  }
+
+  sendCommand(command) {
+    // Se não houver porta (modo preview), adiciona ao buffer
+    if (!this.port || !this.port.isOpen) {
+      if (!this.buffer) {
+        this.buffer = '';
+      }
+      this.buffer += command;
+      return;
+    }
+
+    // Enviar para a porta serial
+    this.port.write(command, (err) => {
+      if (err) {
+        throw new Error(`Erro ao enviar comando: ${err}`);
+      }
+    });
   }
 
   print(copies = 1) {
     // P command prints
+    
+    // Se não houver porta (modo preview), retorna o comando
+    if (!this.port || !this.port.isOpen) {
+      return this.buffer + `P${copies}\n`;
+    }
+    
     this.sendCommand(`P${copies}\n`);
   }
 
