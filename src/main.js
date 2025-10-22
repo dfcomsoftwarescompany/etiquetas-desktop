@@ -11,11 +11,17 @@ const store = new Store();
 function loadDefaultTemplates() {
   const templates = store.get('templates', []);
   
-  // Se não houver templates, carregar os exemplos
-  if (templates.length === 0) {
-    console.log('📦 Carregando templates de exemplo...');
-    store.set('templates', templatesExemplo);
-  }
+  // IDs dos templates de exemplo
+  const exemploIds = ['exemplo-produto-simples', 'exemplo-qrcode-rastreio'];
+  
+  // Remover templates de exemplo antigos
+  const templatesLimpos = templates.filter(t => !exemploIds.includes(t.id));
+  
+  // Adicionar os novos templates de exemplo
+  const templatesAtualizados = [...templatesLimpos, ...templatesExemplo];
+  
+  console.log('📦 Carregando/Atualizando templates de exemplo...');
+  store.set('templates', templatesAtualizados);
 }
 
 // Carregar templates de exemplo ao iniciar
