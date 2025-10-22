@@ -3,12 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline';">
     <title>Etiquetas Desktop</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/label-designer.css">
     <link rel="stylesheet" href="styles/templates.css">
+    
+    <!-- Bibliotecas de terceiros -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
     <!-- Barra de Ferramentas -->
@@ -235,9 +239,10 @@
         </div>
     </div>
 
-    <script src="js/app.js"></script>
-    <script src="js/label-designer.js"></script>
-    <script src="js/protocols.js"></script>
     <script src="js/barcode-generator.js"></script>
+    <script src="js/label-designer.js"></script>
+    <script src="js/template-manager.js"></script>
+    <script src="js/template-ui.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>

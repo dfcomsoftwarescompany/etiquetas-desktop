@@ -1,5 +1,4 @@
-const { TemplateManager  } = require('./template-manager.js');
-
+// TemplateManager será carregado antes deste arquivo
 class TemplateUI {
   manager;
   modal;

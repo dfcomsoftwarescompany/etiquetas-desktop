@@ -1,5 +1,4 @@
-const { BarcodeGenerator  } = require('./barcode-generator.js');
-
+// BarcodeGenerator será carregado antes deste arquivo
 class LabelDesigner {
   canvas;
   selectedElement = null;
@@ -526,5 +525,3 @@ class LabelDesigner {
 document.addEventListener('DOMContentLoaded', () => {
   window.labelDesigner = new LabelDesigner();
 });
-
-module.exports = { LabelDesigner };

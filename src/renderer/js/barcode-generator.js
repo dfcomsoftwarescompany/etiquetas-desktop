@@ -1,6 +1,4 @@
-const JsBarcode = require('jsbarcode');
-const QRCode = require('qrcode');
-
+// As bibliotecas JsBarcode e QRCode serão carregadas via CDN no HTML
 class BarcodeGenerator {
   static validateBarcode(type, value) {
     switch (type) {
