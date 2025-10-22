@@ -168,17 +168,42 @@ class BarcodeGenerator {
   static async updateBarcodePreview(element, value, type, options = {}) {
     try {
       const svg = await this.generateBarcode(value, type, options);
-      element.innerHTML = svg;
+      
+      // Guardar os resize handles antes de substituir o conteúdo
+      const handles = Array.from(element.querySelectorAll('.resize-handle'));
+      
+      // Criar container para o SVG
+      const container = document.createElement('div');
+      container.className = 'barcode-container';
+      container.innerHTML = svg;
+      
+      // Limpar apenas o conteúdo, não os handles
+      const existingContainer = element.querySelector('.barcode-container, .preview-placeholder');
+      if (existingContainer) {
+        existingContainer.remove();
+      }
+      
+      // Adicionar o novo container antes dos handles
+      element.insertBefore(container, element.firstChild);
       
       // Ajustar SVG para caber no elemento
-      const svgElement = element.querySelector('svg');
+      const svgElement = container.querySelector('svg');
       if (svgElement) {
         svgElement.style.width = '100%';
         svgElement.style.height = '100%';
+        svgElement.style.pointerEvents = 'none'; // Permitir cliques no elemento pai
       }
     } catch (error) {
       console.error('Erro ao gerar código de barras:', error);
-      element.innerHTML = `<div class="preview-placeholder">Erro: ${error.message}</div>`;
+      const existingContainer = element.querySelector('.barcode-container, .preview-placeholder');
+      if (existingContainer) {
+        existingContainer.innerHTML = `<div class="preview-placeholder">Erro: ${error.message}</div>`;
+      } else {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'preview-placeholder';
+        errorDiv.textContent = `Erro: ${error.message}`;
+        element.insertBefore(errorDiv, element.firstChild);
+      }
     }
   }
 
@@ -188,17 +213,39 @@ class BarcodeGenerator {
   static async updateQRCodePreview(element, value, options = {}) {
     try {
       const svg = await this.generateQRCode(value, options);
-      element.innerHTML = svg;
+      
+      // Criar container para o SVG
+      const container = document.createElement('div');
+      container.className = 'qrcode-container';
+      container.innerHTML = svg;
+      
+      // Limpar apenas o conteúdo, não os handles
+      const existingContainer = element.querySelector('.qrcode-container, .preview-placeholder');
+      if (existingContainer) {
+        existingContainer.remove();
+      }
+      
+      // Adicionar o novo container antes dos handles
+      element.insertBefore(container, element.firstChild);
       
       // Ajustar SVG para caber no elemento
-      const svgElement = element.querySelector('svg');
+      const svgElement = container.querySelector('svg');
       if (svgElement) {
         svgElement.style.width = '100%';
         svgElement.style.height = '100%';
+        svgElement.style.pointerEvents = 'none'; // Permitir cliques no elemento pai
       }
     } catch (error) {
       console.error('Erro ao gerar QR Code:', error);
-      element.innerHTML = `<div class="preview-placeholder">Erro: ${error.message}</div>`;
+      const existingContainer = element.querySelector('.qrcode-container, .preview-placeholder');
+      if (existingContainer) {
+        existingContainer.innerHTML = `<div class="preview-placeholder">Erro: ${error.message}</div>`;
+      } else {
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'preview-placeholder';
+        errorDiv.textContent = `Erro: ${error.message}`;
+        element.insertBefore(errorDiv, element.firstChild);
+      }
     }
   }
 
