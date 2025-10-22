@@ -227,15 +227,10 @@ class LabelDesignerApp {
       heightInput.value = template.labelSize.height.toString();
       this.updateCanvasSize();
       
-      // Limpar canvas
-      const canvas = document.getElementById('labelCanvas');
-      if (!canvas) return;
-      canvas.innerHTML = '';
-      
-      // Recriar elementos
-      template.elements.forEach(element => {
-        this.recreateElement(element);
-      });
+      // Carregar elementos usando o labelDesigner
+      if (window.labelDesigner) {
+        window.labelDesigner.loadElements(template.elements);
+      }
       
       // Fechar modal
       const modal = document.getElementById('templateModal');
@@ -299,18 +294,10 @@ class LabelDesignerApp {
   }
 
   getCanvasElements() {
-    // Implementação será adicionada no arquivo label-designer.ts
     if (window.labelDesigner) {
       return window.labelDesigner.getElements();
     }
     return [];
-  }
-
-  recreateElement(element) {
-    // Implementação será adicionada no arquivo label-designer.ts
-    if (window.labelDesigner) {
-      window.labelDesigner.recreateElement(element);
-    }
   }
 
   async print() {
