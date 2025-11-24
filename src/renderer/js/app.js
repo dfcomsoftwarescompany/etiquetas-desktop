@@ -1,538 +1,313 @@
-// Classe principal da aplicação
-class LabelDesignerApp {
-  settings = null;
-  currentTemplate = null;
-  selectedElement = null;
+/**
+ * Etiquetas Desktop - Renderer Process
+ * Interface para impressão de etiquetas em Argox OS-2140
+ */
 
+class App {
   constructor() {
+    this.printers = [];
+    this.selectedPrinter = null;
+    
     this.init();
   }
 
   async init() {
-    // Carregar configurações
-    await this.loadSettings();
-    
-    // Carregar impressoras
+    // Inicializa elementos do DOM
+    this.elements = {
+      printerSelect: document.getElementById('printer-select'),
+      btnRefresh: document.getElementById('btn-refresh'),
+      btnPrintTest: document.getElementById('btn-print-test'),
+      btnCheckUpdate: document.getElementById('btn-check-update'),
+      printerStatus: document.getElementById('printer-status'),
+      printerPort: document.getElementById('printer-port'),
+      printerDriver: document.getElementById('printer-driver'),
+      statusMessage: document.getElementById('status-message'),
+      appVersion: document.getElementById('app-version'),
+      updateModal: document.getElementById('update-modal'),
+      btnUpdateLater: document.getElementById('btn-update-later'),
+      btnUpdateNow: document.getElementById('btn-update-now'),
+      toastContainer: document.getElementById('toast-container')
+    };
+
+    // Carrega versão do app
+    await this.loadVersion();
+
+    // Bind de eventos
+    this.bindEvents();
+
+    // Carrega impressoras
     await this.loadPrinters();
-    
-    // Configurar event listeners
-    this.setupEventListeners();
-    
-    // Configurar IPC listeners
-    this.setupIPCListeners();
-    
-    // Inicializar canvas
-    this.updateCanvasSize();
+
+    // Configura listeners de atualização
+    this.setupUpdateListeners();
+
+    this.setStatus('Pronto');
   }
 
-  async loadSettings() {
+  bindEvents() {
+    // Atualizar lista de impressoras
+    this.elements.btnRefresh.addEventListener('click', () => this.loadPrinters());
+
+    // Seleção de impressora
+    this.elements.printerSelect.addEventListener('change', (e) => {
+      this.selectPrinter(e.target.value);
+    });
+
+    // Botão de impressão de teste
+    this.elements.btnPrintTest.addEventListener('click', () => this.printTest());
+
+    // Verificar atualizações
+    this.elements.btnCheckUpdate.addEventListener('click', () => this.checkUpdates());
+
+    // Modal de atualização
+    this.elements.btnUpdateLater.addEventListener('click', () => this.hideUpdateModal());
+    this.elements.btnUpdateNow.addEventListener('click', () => this.installUpdate());
+  }
+
+  async loadVersion() {
     try {
-      this.settings = await window.electronAPI.getSettings();
-      
-      // Aplicar configurações na UI
-      const protocolSelect = document.getElementById('selectProtocol');
-      const printerSelect = document.getElementById('selectPrinter');
-      const widthInput = document.getElementById('labelWidth');
-      const heightInput = document.getElementById('labelHeight');
-      
-      if (this.settings) {
-        protocolSelect.value = this.settings.defaultProtocol;
-        printerSelect.value = this.settings.defaultPrinter;
-        widthInput.value = this.settings.defaultLabelSize.width.toString();
-        heightInput.value = this.settings.defaultLabelSize.height.toString();
-      }
+      const version = await window.electronAPI.app.getVersion();
+      this.elements.appVersion.textContent = `v${version}`;
     } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
+      console.error('Erro ao carregar versão:', error);
     }
   }
 
   async loadPrinters() {
+    // Feedback visual
+    this.elements.btnRefresh.classList.add('spinning');
+    this.elements.printerSelect.disabled = true;
+    this.setStatus('Buscando impressoras...');
+
     try {
-      const printers = await window.electronAPI.getPrinters();
-      const printerSelect = document.getElementById('selectPrinter');
-      
-      // Limpar opções existentes
-      printerSelect.innerHTML = '<option value="">Selecione a impressora...</option>';
-      
-      // Adicionar impressoras
-      printers.forEach(printer => {
-        const option = document.createElement('option');
-        option.value = printer.name;
-        option.textContent = printer.displayName || printer.name;
-        if (printer.isDefault) {
-          option.textContent += ' (Padrão)';
-        }
-        printerSelect.appendChild(option);
-      });
-      
-      // Selecionar impressora padrão se configurada
-      if (this.settings?.defaultPrinter) {
-        printerSelect.value = this.settings.defaultPrinter;
+      const result = await window.electronAPI.printer.list();
+
+      if (!result.success) {
+        throw new Error(result.error);
       }
-    } catch (error) {
-      console.error('Erro ao carregar impressoras:', error);
-    }
-  }
 
-  setupEventListeners() {
-    // Botões da toolbar
-    document.getElementById('btnNew')?.addEventListener('click', () => this.newLabel());
-    document.getElementById('btnSaveTemplate')?.addEventListener('click', () => this.saveTemplate());
-    document.getElementById('btnLoadTemplate')?.addEventListener('click', () => this.showTemplates());
-    document.getElementById('btnPrint')?.addEventListener('click', () => this.print());
-    document.getElementById('btnCopyCode')?.addEventListener('click', () => this.copyCode());
-    
-    // Botões de elementos
-    document.getElementById('btnAddText')?.addEventListener('click', () => this.addElement('text'));
-    document.getElementById('btnAddBarcode')?.addEventListener('click', () => this.addElement('barcode'));
-    document.getElementById('btnAddQRCode')?.addEventListener('click', () => this.addElement('qrcode'));
-    document.getElementById('btnAddLine')?.addEventListener('click', () => this.addElement('line'));
-    document.getElementById('btnAddRectangle')?.addEventListener('click', () => this.addElement('rectangle'));
-    
-    // Propriedades da etiqueta
-    document.getElementById('labelWidth')?.addEventListener('change', () => this.updateCanvasSize());
-    document.getElementById('labelHeight')?.addEventListener('change', () => this.updateCanvasSize());
-    document.getElementById('labelOrientation')?.addEventListener('change', () => this.updateCanvasSize());
-    
-    // Modais
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-      const closeBtn = modal.querySelector('.close-btn');
-      closeBtn?.addEventListener('click', () => {
-        modal.style.display = 'none';
-      });
-    });
-    
-    // Fechar modal ao clicar fora
-    window.addEventListener('click', (event) => {
-      const target = event.target;
-      if (target.classList.contains('modal')) {
-        target.style.display = 'none';
-      }
-    });
-  }
+      this.printers = result.printers || [];
+      this.updatePrinterList();
 
-  setupIPCListeners() {
-    window.electronAPI.onNewLabel(() => this.newLabel());
-    window.electronAPI.onOpenTemplate(() => this.showTemplates());
-    window.electronAPI.onShowAbout(() => this.showAbout());
-  }
-
-  newLabel() {
-    // Limpar canvas
-    const canvas = document.getElementById('labelCanvas');
-    if (canvas) {
-      canvas.innerHTML = '';
-    }
-    
-    // Resetar para tamanho padrão
-    const widthInput = document.getElementById('labelWidth');
-    const heightInput = document.getElementById('labelHeight');
-    widthInput.value = '100';
-    heightInput.value = '50';
-    
-    this.updateCanvasSize();
-    this.updateCodePreview();
-  }
-
-  async saveTemplate() {
-    const name = prompt('Nome do template:');
-    if (!name) return;
-    
-    const description = prompt('Descrição (opcional):');
-    
-    const elements = this.getCanvasElements();
-    const widthInput = document.getElementById('labelWidth');
-    const heightInput = document.getElementById('labelHeight');
-    
-    const template = {
-      id: Date.now().toString(),
-      name,
-      description: description || '',
-      elements,
-      labelSize: {
-        width: parseInt(widthInput.value),
-        height: parseInt(heightInput.value)
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    try {
-      await window.electronAPI.saveTemplate(template);
-      alert('Template salvo com sucesso!');
-    } catch (error) {
-      console.error('Erro ao salvar template:', error);
-      alert('Erro ao salvar template');
-    }
-  }
-
-  async showTemplates() {
-    const modal = document.getElementById('templateModal');
-    if (!modal) return;
-    
-    try {
-      const templates = await window.electronAPI.getTemplates();
-      const templateList = document.getElementById('templateList');
-      if (!templateList) return;
-      
-      templateList.innerHTML = '';
-      
-      if (templates.length === 0) {
-        templateList.innerHTML = '<p style="text-align: center; color: #6b7280;">Nenhum template salvo</p>';
+      if (this.printers.length === 0) {
+        this.showToast('Nenhuma impressora encontrada', 'info');
       } else {
-        templates.forEach(template => {
-          const item = this.createTemplateItem(template);
-          templateList.appendChild(item);
-        });
+        this.showToast(`${this.printers.length} impressora(s) encontrada(s)`, 'success');
       }
-      
-      modal.style.display = 'flex';
+
+      this.setStatus('Pronto');
     } catch (error) {
-      console.error('Erro ao carregar templates:', error);
+      console.error('Erro ao listar impressoras:', error);
+      this.showToast(`Erro: ${error.message}`, 'error');
+      this.setStatus('Erro ao buscar impressoras', 'error');
+    } finally {
+      this.elements.btnRefresh.classList.remove('spinning');
+      this.elements.printerSelect.disabled = false;
     }
   }
 
-  createTemplateItem(template) {
-    const div = document.createElement('div');
-    div.className = 'template-item';
+  updatePrinterList() {
+    const select = this.elements.printerSelect;
+    select.innerHTML = '';
+
+    if (this.printers.length === 0) {
+      select.innerHTML = '<option value="">Nenhuma impressora encontrada</option>';
+      this.elements.btnPrintTest.disabled = true;
+      return;
+    }
+
+    // Opção padrão
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Selecione uma impressora...';
+    select.appendChild(defaultOption);
+
+    // Lista de impressoras
+    this.printers.forEach((printer) => {
+      const option = document.createElement('option');
+      option.value = printer.Name;
+      option.textContent = printer.Name;
+      
+      // Marca impressoras Argox
+      if (printer.Name.toLowerCase().includes('argox')) {
+        option.textContent += ' ★';
+      }
+      
+      select.appendChild(option);
+    });
+
+    // Tenta selecionar Argox automaticamente
+    const argoxPrinter = this.printers.find(p => 
+      p.Name.toLowerCase().includes('argox') || 
+      p.Name.toLowerCase().includes('os-2140')
+    );
+
+    if (argoxPrinter) {
+      select.value = argoxPrinter.Name;
+      this.selectPrinter(argoxPrinter.Name);
+    }
+  }
+
+  selectPrinter(printerName) {
+    this.selectedPrinter = this.printers.find(p => p.Name === printerName);
     
-    div.innerHTML = `
-      <h4>${template.name}</h4>
-      <p>${template.description || 'Sem descrição'}</p>
-      <p style="font-size: 11px;">Tamanho: ${template.labelSize.width}x${template.labelSize.height}mm</p>
-      <div class="template-item-actions">
-        <button class="btn btn-sm" onclick="app.loadTemplate('${template.id}')">Carregar</button>
-        <button class="btn btn-sm btn-danger" onclick="app.deleteTemplate('${template.id}')">Excluir</button>
-      </div>
+    if (this.selectedPrinter) {
+      // Atualiza informações
+      this.elements.printerStatus.textContent = this.getPrinterStatus(this.selectedPrinter.PrinterStatus);
+      this.elements.printerPort.textContent = this.selectedPrinter.PortName || '--';
+      this.elements.printerDriver.textContent = this.truncateText(this.selectedPrinter.DriverName, 30) || '--';
+      
+      // Habilita botão de impressão
+      this.elements.btnPrintTest.disabled = false;
+    } else {
+      // Limpa informações
+      this.elements.printerStatus.textContent = '--';
+      this.elements.printerPort.textContent = '--';
+      this.elements.printerDriver.textContent = '--';
+      this.elements.btnPrintTest.disabled = true;
+    }
+  }
+
+  getPrinterStatus(status) {
+    const statusMap = {
+      0: 'Desconhecido',
+      1: 'Outro',
+      2: 'Desconhecido',
+      3: 'Pronta',
+      4: 'Imprimindo',
+      5: 'Aquecendo',
+      6: 'Parada',
+      7: 'Offline'
+    };
+    return statusMap[status] || 'Desconhecido';
+  }
+
+  truncateText(text, maxLength) {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  }
+
+  async printTest() {
+    if (!this.selectedPrinter) {
+      this.showToast('Selecione uma impressora', 'error');
+      return;
+    }
+
+    // Feedback visual
+    this.elements.btnPrintTest.disabled = true;
+    this.elements.btnPrintTest.innerHTML = `
+      <svg class="spinning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+      </svg>
+      Imprimindo...
     `;
-    
-    return div;
-  }
+    this.setStatus('Enviando para impressora...');
 
-  async loadTemplate(templateId) {
     try {
-      const templates = await window.electronAPI.getTemplates();
-      const template = templates.find(t => t.id === templateId);
-      
-      if (!template) {
-        alert('Template não encontrado');
-        return;
+      const result = await window.electronAPI.printer.test(this.selectedPrinter.Name);
+
+      if (!result.success) {
+        throw new Error(result.error);
       }
-      
-      // Aplicar tamanho da etiqueta
-      const widthInput = document.getElementById('labelWidth');
-      const heightInput = document.getElementById('labelHeight');
-      widthInput.value = template.labelSize.width.toString();
-      heightInput.value = template.labelSize.height.toString();
-      this.updateCanvasSize();
-      
-      // Carregar elementos usando o labelDesigner
-      if (window.labelDesigner) {
-        window.labelDesigner.loadElements(template.elements);
-      }
-      
-      // Fechar modal
-      const modal = document.getElementById('templateModal');
-      if (modal) {
-        modal.style.display = 'none';
-      }
-      
-      this.updateCodePreview();
+
+      this.showToast('Etiqueta enviada com sucesso!', 'success');
+      this.setStatus('Impressão concluída');
     } catch (error) {
-      console.error('Erro ao carregar template:', error);
-      alert('Erro ao carregar template');
+      console.error('Erro ao imprimir:', error);
+      this.showToast(`Erro: ${error.message}`, 'error');
+      this.setStatus('Erro na impressão', 'error');
+    } finally {
+      this.elements.btnPrintTest.disabled = false;
+      this.elements.btnPrintTest.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9V2h12v7"/>
+          <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        Imprimir Etiqueta de Teste
+      `;
     }
   }
 
-  async deleteTemplate(templateId) {
-    if (!confirm('Tem certeza que deseja excluir este template?')) return;
-    
-    try {
-      await window.electronAPI.deleteTemplate(templateId);
-      this.showTemplates(); // Recarregar lista
-    } catch (error) {
-      console.error('Erro ao excluir template:', error);
-      alert('Erro ao excluir template');
-    }
-  }
+  // ==================== Updates ====================
 
-  showAbout() {
-    const modal = document.getElementById('aboutModal');
-    if (modal) {
-      modal.style.display = 'flex';
-    }
-  }
+  setupUpdateListeners() {
+    window.electronAPI.updates.onAvailable(() => {
+      this.showToast('Nova atualização disponível', 'info');
+    });
 
-  updateCanvasSize() {
-    const canvas = document.getElementById('labelCanvas');
-    const widthInput = document.getElementById('labelWidth');
-    const heightInput = document.getElementById('labelHeight');
-    const orientationSelect = document.getElementById('labelOrientation');
-    
-    let width = parseInt(widthInput.value);
-    let height = parseInt(heightInput.value);
-    
-    // Aplicar orientação
-    if (orientationSelect.value === 'landscape') {
-      [width, height] = [height, width];
-    }
-    
-    // Converter mm para pixels (assumindo 3.78 pixels por mm para 96 DPI)
-    const mmToPixels = 3.78;
-    canvas.style.width = `${width * mmToPixels}px`;
-    canvas.style.height = `${height * mmToPixels}px`;
-    
-    this.updateCodePreview();
-  }
-
-  addElement(type) {
-    // Implementação será adicionada no arquivo label-designer.ts
-    if (window.labelDesigner) {
-      window.labelDesigner.addElement(type);
-    }
-  }
-
-  getCanvasElements() {
-    if (window.labelDesigner) {
-      return window.labelDesigner.getElements();
-    }
-    return [];
-  }
-
-  async print() {
-    console.log('🖨️ Função print() chamada');
-    
-    const printerSelect = document.getElementById('selectPrinter');
-    const protocolSelect = document.getElementById('selectProtocol');
-    const widthInput = document.getElementById('labelWidth');
-    const heightInput = document.getElementById('labelHeight');
-    
-    // Validar seleção de impressora
-    if (!printerSelect.value) {
-      alert('⚠️ Por favor, selecione uma impressora');
-      console.warn('Nenhuma impressora selecionada');
-      return;
-    }
-    
-    // Validar que há elementos na etiqueta
-    const elements = this.getCanvasElements();
-    console.log('📦 Elementos no canvas:', elements);
-    
-    if (elements.length === 0) {
-      alert('⚠️ Adicione pelo menos um elemento à etiqueta antes de imprimir');
-      console.warn('Canvas vazio');
-      return;
-    }
-    
-    // Mostrar modal de impressão
-    this.showPrintDialog(printerSelect, protocolSelect, elements, widthInput, heightInput);
-  }
-
-  showPrintDialog(printerSelect, protocolSelect, elements, widthInput, heightInput) {
-    const modal = document.getElementById('printModal');
-    const copiesInput = document.getElementById('printCopies');
-    const elementCount = document.getElementById('printElementCount');
-    const printerName = document.getElementById('printPrinterName');
-    const protocol = document.getElementById('printProtocol');
-    const btnCancel = document.getElementById('btnCancelPrint');
-    const btnConfirm = document.getElementById('btnConfirmPrint');
-    
-    // Preencher informações
-    copiesInput.value = '1';
-    elementCount.textContent = elements.length;
-    printerName.textContent = printerSelect.options[printerSelect.selectedIndex].text;
-    protocol.textContent = protocolSelect.value;
-    
-    // Mostrar modal
-    modal.style.display = 'flex';
-    
-    // Focar no input
-    setTimeout(() => copiesInput.focus(), 100);
-    
-    // Handler de confirmação
-    const handleConfirm = async () => {
-      const copies = parseInt(copiesInput.value);
-      
-      if (!copies || copies <= 0) {
-        alert('⚠️ Número de cópias inválido');
-        return;
-      }
-      
-      // Fechar modal
-      modal.style.display = 'none';
-      
-      // Executar impressão
-      await this.executePrint(printerSelect, protocolSelect, elements, widthInput, heightInput, copies);
-      
-      // Remover listeners
-      btnConfirm.removeEventListener('click', handleConfirm);
-      btnCancel.removeEventListener('click', handleCancel);
-      copiesInput.removeEventListener('keydown', handleKeyDown);
-    };
-    
-    // Handler de cancelamento
-    const handleCancel = () => {
-      modal.style.display = 'none';
-      console.log('Impressão cancelada pelo usuário');
-      
-      // Remover listeners
-      btnConfirm.removeEventListener('click', handleConfirm);
-      btnCancel.removeEventListener('click', handleCancel);
-      copiesInput.removeEventListener('keydown', handleKeyDown);
-    };
-    
-    // Handler de teclas
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter') {
-        handleConfirm();
-      } else if (e.key === 'Escape') {
-        handleCancel();
-      }
-    };
-    
-    // Adicionar listeners
-    btnConfirm.addEventListener('click', handleConfirm);
-    btnCancel.addEventListener('click', handleCancel);
-    copiesInput.addEventListener('keydown', handleKeyDown);
-  }
-
-  async executePrint(printerSelect, protocolSelect, elements, widthInput, heightInput, copies) {
-    const btnPrint = document.getElementById('btnPrint');
-    const originalText = btnPrint.innerHTML;
-    
-    try {
-      console.log('🔄 Iniciando processo de impressão...');
-      
-      // Desabilitar botão de impressão
-      btnPrint.disabled = true;
-      btnPrint.innerHTML = '⏳ Imprimindo...';
-      
-      // Preparar dados para impressão
-      const printData = {
-        printerName: printerSelect.value,
-        protocol: protocolSelect.value,
-        elements: elements,
-        labelSize: {
-          width: parseInt(widthInput.value),
-          height: parseInt(heightInput.value)
-        },
-        copies: copies
-      };
-      
-      console.log('📋 Dados de impressão:', printData);
-      
-      // Enviar para impressão
-      console.log('📤 Enviando para impressão...');
-      const result = await window.electronAPI.printLabel(printData);
-      
-      console.log('📥 Resposta recebida:', result);
-      
-      if (result.success) {
-        console.log('✅ Impressão bem-sucedida!');
-        alert(`✅ Etiqueta enviada para impressão!\n\n📄 ${copies} cópia(s)\n🖨️ Impressora: ${printerSelect.options[printerSelect.selectedIndex].text}`);
-      } else {
-        console.error('❌ Erro na impressão:', result);
-        throw new Error(result.error || 'Erro desconhecido');
-      }
-      
-      // Restaurar botão
-      btnPrint.disabled = false;
-      btnPrint.innerHTML = originalText;
-      
-    } catch (error) {
-      console.error('❌ Exceção ao imprimir:', error);
-      console.error('Stack trace:', error.stack);
-      
-      // Montar mensagem de erro detalhada
-      let errorMessage = '❌ Erro ao imprimir etiqueta\n\n';
-      errorMessage += `Erro: ${error.message}\n\n`;
-      errorMessage += 'Possíveis causas:\n';
-      errorMessage += '• Impressora desligada ou desconectada\n';
-      errorMessage += '• Driver da impressora não instalado\n';
-      errorMessage += '• Falta de permissão para acessar a impressora\n';
-      errorMessage += '• Protocolo incompatível com a impressora\n\n';
-      errorMessage += 'Verifique o console (F12) para mais detalhes.';
-      
-      alert(errorMessage);
-      
-      // Restaurar botão em caso de erro
-      if (btnPrint) {
-        btnPrint.disabled = false;
-        btnPrint.innerHTML = originalText;
-      }
-    }
-  }
-
-  copyCode() {
-    const codePreview = document.getElementById('codePreview');
-    if (!codePreview) return;
-    
-    const text = codePreview.textContent || '';
-    
-    navigator.clipboard.writeText(text).then(() => {
-      // Feedback visual
-      const btn = document.getElementById('btnCopyCode');
-      if (btn) {
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '✓ Copiado!';
-        setTimeout(() => {
-          btn.innerHTML = originalText;
-        }, 2000);
-      }
-    }).catch(err => {
-      console.error('Erro ao copiar:', err);
+    window.electronAPI.updates.onDownloaded(() => {
+      this.showUpdateModal();
     });
   }
 
-  async updateCodePreview() {
+  async checkUpdates() {
+    this.setStatus('Verificando atualizações...');
+    
     try {
-      const protocolSelect = document.getElementById('selectProtocol');
-      const widthInput = document.getElementById('labelWidth');
-      const heightInput = document.getElementById('labelHeight');
-      const codePreview = document.getElementById('codePreview');
-      
-      if (!codePreview) return;
-      
-      // Obter elementos da etiqueta
-      const elements = this.getCanvasElements();
-      
-      // Se não houver elementos, mostrar mensagem
-      if (elements.length === 0) {
-        codePreview.textContent = '; Adicione elementos à etiqueta para ver o código gerado';
-        return;
-      }
-      
-      // Preparar dados para preview
-      const previewData = {
-        protocol: protocolSelect.value,
-        elements: elements,
-        labelSize: {
-          width: parseInt(widthInput.value),
-          height: parseInt(heightInput.value)
-        }
-      };
-      
-      // Gerar preview
-      const result = await window.electronAPI.generatePreview(previewData);
+      const result = await window.electronAPI.updates.check();
       
       if (result.success) {
-        codePreview.textContent = result.code;
+        this.showToast('Verificação concluída', 'success');
       } else {
-        codePreview.textContent = `; Erro ao gerar código: ${result.error}`;
+        this.showToast('Você está na versão mais recente', 'info');
       }
-      
     } catch (error) {
-      console.error('Erro ao atualizar preview:', error);
-      const codePreview = document.getElementById('codePreview');
-      if (codePreview) {
-        codePreview.textContent = `; Erro: ${error.message}`;
-      }
+      this.showToast('Erro ao verificar atualizações', 'error');
     }
+    
+    this.setStatus('Pronto');
+  }
+
+  showUpdateModal() {
+    this.elements.updateModal.classList.add('active');
+  }
+
+  hideUpdateModal() {
+    this.elements.updateModal.classList.remove('active');
+  }
+
+  installUpdate() {
+    window.electronAPI.updates.install();
+  }
+
+  // ==================== UI Helpers ====================
+
+  setStatus(message, type = '') {
+    const statusItem = this.elements.statusMessage;
+    statusItem.className = 'status-item ' + type;
+    statusItem.querySelector('span:last-child').textContent = message;
+  }
+
+  showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+
+    toast.innerHTML = `
+      <span class="toast-icon">${icons[type] || icons.info}</span>
+      <span class="toast-message">${message}</span>
+    `;
+
+    this.elements.toastContainer.appendChild(toast);
+
+    // Auto-remove após 4 segundos
+    setTimeout(() => {
+      toast.classList.add('hiding');
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
   }
 }
 
-// Inicializar aplicação quando o DOM estiver pronto
+// Inicializa a aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
-  window.app = new LabelDesignerApp();
+  window.app = new App();
 });
+

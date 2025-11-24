@@ -1,281 +1,170 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline';">
-    <title>Etiquetas Desktop</title>
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/components.css">
-    <link rel="stylesheet" href="styles/label-designer.css">
-    <link rel="stylesheet" href="styles/templates.css">
-    
-    <!-- Bibliotecas de terceiros -->
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;">
+  <title>Etiquetas Desktop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
-    <!-- Barra de Ferramentas -->
-    <div class="toolbar">
-        <div class="toolbar-section">
-            <button id="btnNew" class="btn btn-primary" title="Nova Etiqueta">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M12 5v14M5 12h14" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Nova
-            </button>
-            <button id="btnSaveTemplate" class="btn" title="Salvar como Template">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke-width="2"/>
-                    <path d="M17 21v-8H7v8M7 3v5h8" stroke-width="2"/>
-                </svg>
-                Salvar Template
-            </button>
-            <button id="btnLoadTemplate" class="btn" title="Carregar Template">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2"/>
-                    <path d="M14 2v6h6M12 12v6M9 15l3-3 3 3" stroke-width="2"/>
-                </svg>
-                Carregar
-            </button>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M7 7h10M7 12h10M7 17h6"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Etiquetas</h1>
+          <span class="version" id="app-version">v1.0.0</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-ghost" id="btn-check-update" title="Verificar atualizações">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+            <path d="M21 3v5h-5"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Printer Selection Card -->
+      <section class="card printer-card">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9V2h12v7"/>
+              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+          </div>
+          <div class="card-title">
+            <h2>Impressora</h2>
+            <p>Selecione a impressora Argox OS-2140</p>
+          </div>
         </div>
         
-        <div class="toolbar-section">
-            <select id="selectProtocol" class="select">
-                <option value="PPLA">PPLA (Argox)</option>
-                <option value="EPL2">EPL2 (Zebra)</option>
-                <option value="ZPL">ZPL (Zebra)</option>
-            </select>
-            
-            <select id="selectPrinter" class="select">
-                <option value="">Selecione a impressora...</option>
-            </select>
-            
-            <button id="btnPrint" class="btn btn-success" title="Imprimir">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke-width="2"/>
-                    <rect x="6" y="14" width="12" height="8" stroke-width="2"/>
+        <div class="card-body">
+          <div class="form-group">
+            <label for="printer-select">Impressora disponível</label>
+            <div class="select-wrapper">
+              <select id="printer-select" disabled>
+                <option value="">Carregando impressoras...</option>
+              </select>
+              <button class="btn btn-icon" id="btn-refresh" title="Atualizar lista">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                  <path d="M21 3v5h-5"/>
                 </svg>
-                Imprimir
-            </button>
+              </button>
+            </div>
+          </div>
+
+          <div class="printer-info" id="printer-info">
+            <div class="info-item">
+              <span class="info-label">Status</span>
+              <span class="info-value" id="printer-status">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Porta</span>
+              <span class="info-value" id="printer-port">--</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Driver</span>
+              <span class="info-value" id="printer-driver">--</span>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <!-- Test Print Card -->
+      <section class="card test-card">
+        <div class="card-header">
+          <div class="card-icon success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="card-title">
+            <h2>Teste de Impressão</h2>
+            <p>Imprima "Olá Mundo" para testar</p>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="test-preview">
+            <div class="label-preview">
+              <div class="label-content">
+                <span class="label-title">ETIQUETAS DESKTOP</span>
+                <hr>
+                <span class="label-text">Olá Mundo!</span>
+                <span class="label-info">Impressora: Argox OS-2140</span>
+                <span class="label-info">Protocolo: PPLA</span>
+              </div>
+            </div>
+            <p class="preview-hint">Prévia da etiqueta de teste</p>
+          </div>
+
+          <button class="btn btn-primary btn-lg" id="btn-print-test" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9V2h12v7"/>
+              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir Etiqueta de Teste
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+      <div class="status-item" id="status-message">
+        <span class="status-dot"></span>
+        <span>Pronto</span>
+      </div>
+      <div class="status-item">
+        <span>PPLA Protocol</span>
+      </div>
+    </footer>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Update Modal -->
+    <div class="modal" id="update-modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </div>
+        <h3>Atualização Disponível</h3>
+        <p>Uma nova versão foi baixada e está pronta para instalar.</p>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="btn-update-later">Depois</button>
+          <button class="btn btn-primary" id="btn-update-now">Reiniciar e Atualizar</button>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Container Principal -->
-    <div class="main-container">
-        <!-- Painel Lateral -->
-        <div class="sidebar">
-            <div class="panel">
-                <h3>Propriedades da Etiqueta</h3>
-                
-                <div class="form-group">
-                    <label>Largura (mm)</label>
-                    <input type="number" id="labelWidth" value="100" min="10" max="200" class="input">
-                </div>
-                
-                <div class="form-group">
-                    <label>Altura (mm)</label>
-                    <input type="number" id="labelHeight" value="50" min="10" max="200" class="input">
-                </div>
-                
-                <div class="form-group">
-                    <label>Orientação</label>
-                    <select id="labelOrientation" class="select">
-                        <option value="portrait">Retrato</option>
-                        <option value="landscape">Paisagem</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="panel">
-                <h3>Elementos</h3>
-                
-                <button id="btnAddText" class="btn btn-block">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" stroke-width="2"/>
-                        <path d="M13 2v7h7" stroke-width="2"/>
-                    </svg>
-                    Adicionar Texto
-                </button>
-                
-                <button id="btnAddBarcode" class="btn btn-block">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M2 5v14M6 5v14M10 5v14M13 5v14M17 5v14M20 5v14M22 5v14" stroke-width="2"/>
-                    </svg>
-                    Adicionar Código de Barras
-                </button>
-                
-                <button id="btnAddQRCode" class="btn btn-block">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <rect x="3" y="3" width="7" height="7" stroke-width="2"/>
-                        <rect x="14" y="3" width="7" height="7" stroke-width="2"/>
-                        <rect x="3" y="14" width="7" height="7" stroke-width="2"/>
-                        <rect x="14" y="14" width="7" height="7" stroke-width="2"/>
-                    </svg>
-                    Adicionar QR Code
-                </button>
-                
-                <button id="btnAddLine" class="btn btn-block">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M5 12h14" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                    Adicionar Linha
-                </button>
-                
-                <button id="btnAddRectangle" class="btn btn-block">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
-                    </svg>
-                    Adicionar Retângulo
-                </button>
-            </div>
-            
-            <div class="panel" id="elementProperties" style="display: none;">
-                <h3>Propriedades do Elemento</h3>
-                <div id="propertiesContent"></div>
-            </div>
-        </div>
-
-        <!-- Área de Design -->
-        <div class="design-area">
-            <div class="canvas-container">
-                <div id="labelCanvas" class="label-canvas">
-                    <!-- Elementos da etiqueta serão adicionados aqui -->
-                </div>
-                <div class="ruler ruler-horizontal"></div>
-                <div class="ruler ruler-vertical"></div>
-            </div>
-        </div>
-
-        <!-- Painel de Preview -->
-        <div class="preview-panel">
-            <h3>Preview do Código</h3>
-            <div class="code-preview">
-                <pre id="codePreview">; Código da etiqueta aparecerá aqui</pre>
-            </div>
-            <button id="btnCopyCode" class="btn btn-sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <rect x="9" y="9" width="13" height="13" rx="2" stroke-width="2"/>
-                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2"/>
-                </svg>
-                Copiar Código
-            </button>
-        </div>
-    </div>
-
-    <!-- Modal de Templates -->
-    <div id="templateModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Templates Salvos</h2>
-                <div class="modal-actions">
-                    <button id="btnNewTemplate" class="btn btn-primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M12 5v14M5 12h14" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Novo Template
-                    </button>
-                    <button id="btnImportTemplate" class="btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Importar
-                    </button>
-                    <button class="close-btn">&times;</button>
-                </div>
-            </div>
-            <div class="template-filters">
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label>Buscar</label>
-                        <input type="text" id="templateSearch" class="input" placeholder="Buscar templates...">
-                    </div>
-                    <div class="filter-group">
-                        <label>Categoria</label>
-                        <select id="templateCategory" class="select">
-                            <option value="">Todas as Categorias</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Ordenar por</label>
-                        <select id="templateSort" class="select">
-                            <option value="name">Nome</option>
-                            <option value="createdAt">Data de Criação</option>
-                            <option value="updatedAt">Última Atualização</option>
-                            <option value="lastUsed">Último Uso</option>
-                            <option value="useCount">Mais Usados</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label>Tags</label>
-                        <div id="templateTags" class="tag-container"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-body">
-                <div id="templateList" class="template-list"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Sobre -->
-    <div id="aboutModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Sobre</h2>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="about-content">
-                    <h3>Etiquetas Desktop</h3>
-                    <p>Versão 1.0.0</p>
-                    <p>Sistema de geração de etiquetas para impressoras térmicas</p>
-                    <p>Suporte para protocolos PPLA, EPL2 e ZPL</p>
-                    <p>&copy; 2025 WhiteLabel</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Impressão -->
-    <div id="printModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h2>Imprimir Etiqueta</h2>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Número de Cópias</label>
-                    <input type="number" id="printCopies" value="1" min="1" max="999" class="input" autofocus>
-                </div>
-                <div class="form-group">
-                    <p style="margin: 0; font-size: 14px; color: #6b7280;">
-                        📄 Elementos: <strong id="printElementCount">0</strong><br>
-                        🖨️ Impressora: <strong id="printPrinterName">-</strong><br>
-                        📋 Protocolo: <strong id="printProtocol">-</strong>
-                    </p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="btnCancelPrint" class="btn">Cancelar</button>
-                <button id="btnConfirmPrint" class="btn btn-success">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke-width="2"/>
-                        <rect x="6" y="14" width="12" height="8" stroke-width="2"/>
-                    </svg>
-                    Imprimir
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script src="js/barcode-generator.js"></script>
-    <script src="js/label-designer.js"></script>
-    <script src="js/template-manager.js"></script>
-    <script src="js/template-ui.js"></script>
-    <script src="js/app.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
+

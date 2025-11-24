@@ -1,137 +1,109 @@
-# 🏷️ Etiquetas Desktop
+# Etiquetas Desktop
 
-Sistema desktop para geração e impressão de etiquetas para impressoras térmicas.
-
-## 📋 Sobre o Projeto
-
-O **Etiquetas Desktop** é uma aplicação que permite criar e imprimir etiquetas personalizadas de forma simples e intuitiva. Desenvolvido com Electron e TypeScript, oferece suporte para múltiplos protocolos de impressão e diversos tipos de elementos visuais.
+Aplicativo desktop para impressão de etiquetas em impressoras **Argox OS-2140** usando protocolo PPLA.
 
 ## 🚀 Funcionalidades
 
-- ✨ Interface intuitiva para design de etiquetas
-- 📐 Editor visual drag-and-drop
-- 📊 Geração de código de barras
-- 🔲 Criação de QR Codes
-- 💾 Sistema de templates reutilizáveis
-- 🖨️ Suporte para múltiplas impressoras
-- 🔧 Compatível com protocolos PPLA, EPL2 e ZPL
+- ✅ Listagem automática de impressoras do sistema
+- ✅ Impressão via protocolo PPLA (Printer Programming Language Argox)
+- ✅ Interface moderna e intuitiva
+- ✅ Auto-atualização via web (electron-updater)
+- ✅ Instalador para Windows
 
-## 🛠️ Tecnologias Utilizadas
+## 📋 Pré-requisitos
 
-- **Electron** - Framework para aplicações desktop
-- **TypeScript** - Linguagem de programação
-- **Node.js** - Runtime JavaScript
-- **HTML/CSS** - Interface do usuário
-
-## 📦 Instalação
-
-### Pré-requisitos
-
-- Node.js 16 ou superior
+- Node.js 18+ 
 - npm ou yarn
+- Windows 10/11
+- Impressora Argox OS-2140 instalada
 
-### Passos para instalação
+## 🛠️ Instalação
 
-1. Clone o repositório
 ```bash
+# Clone o repositório
 git clone https://github.com/seu-usuario/etiquetas-desktop.git
+
+# Entre na pasta
 cd etiquetas-desktop
-```
 
-2. Instale as dependências
-```bash
+# Instale as dependências
 npm install
-```
-
-3. Compile o TypeScript
-```bash
-npm run build
-```
-
-4. Execute a aplicação
-```bash
-npm start
 ```
 
 ## 💻 Desenvolvimento
 
-Para executar em modo de desenvolvimento com hot reload:
-
 ```bash
+# Executar em modo desenvolvimento
 npm run dev
+
+# Executar normalmente
+npm start
 ```
 
-Para compilar o TypeScript em modo watch:
+## 📦 Build
 
 ```bash
-npm run watch
+# Gerar instalador Windows
+npm run build:win
+
+# Publicar atualização
+npm run publish
 ```
 
-## 🏗️ Build
+## 🏗️ Estrutura do Projeto
 
-Para gerar o executável da aplicação:
-
-```bash
-npm run dist
+```
+etiquetas-desktop/
+├── package.json
+├── src/
+│   ├── main/
+│   │   ├── index.js        # Processo principal Electron
+│   │   ├── printer.js      # Módulo de comunicação com impressora
+│   │   └── preload.js      # Bridge segura para renderer
+│   └── renderer/
+│       ├── index.html      # Interface principal
+│       ├── styles/
+│       │   └── main.css    # Estilos
+│       └── js/
+│           └── app.js      # Lógica da interface
+├── assets/
+│   └── icon.ico            # Ícone do aplicativo
+└── dist/                   # Build de produção
 ```
 
-Os arquivos compilados serão gerados na pasta `dist/`.
+## 🖨️ Protocolo PPLA
 
-## 🖨️ Impressoras Suportadas
+O aplicativo usa o protocolo PPLA (Printer Programming Language Argox) para comunicação direta com a impressora. Comandos principais:
 
-### Atualmente compatível:
-- **Argox OS-214** (Protocolo PPLA)
+| Comando | Descrição |
+|---------|-----------|
+| `STX + L` | Início do modo de impressão |
+| `D11` | Densidade de impressão |
+| `Qn` | Quantidade de cópias |
+| `Ax,y,r,f,h,w,N,"texto"` | Texto com posição e formatação |
+| `E` | Fim e imprimir |
 
-### Planejado para futuras versões:
-- Zebra (Protocolos EPL2 e ZPL)
-- Outras impressoras térmicas
+## 🔄 Auto-atualização
 
-## 📝 Como Usar
+Configure o `publish` no `package.json` para seu repositório GitHub:
 
-1. **Criar uma nova etiqueta**
-   - Clique em "Nova" ou use `Ctrl+N`
-   - Defina o tamanho da etiqueta (largura e altura)
+```json
+"publish": {
+  "provider": "github",
+  "owner": "seu-usuario",
+  "repo": "etiquetas-desktop"
+}
+```
 
-2. **Adicionar elementos**
-   - Use os botões na barra lateral para adicionar:
-     - Textos
-     - Códigos de barras
-     - QR Codes
-     - Linhas e retângulos
+## 📝 Roadmap
 
-3. **Editar elementos**
-   - Clique e arraste para posicionar
-   - Use as alças para redimensionar
-   - Configure propriedades no painel lateral
-
-4. **Salvar como template**
-   - Clique em "Salvar Template"
-   - Dê um nome e descrição
-   - Reutilize quando necessário
-
-5. **Imprimir**
-   - Selecione a impressora
-   - Escolha o protocolo adequado
-   - Clique em "Imprimir"
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Sinta-se à vontade para:
-
-- Reportar bugs
-- Sugerir novas funcionalidades
-- Enviar pull requests
+- [ ] Integração com API externa
+- [ ] Templates de etiquetas de roupas
+- [ ] Editor visual de etiquetas
+- [ ] Suporte a código de barras
+- [ ] Múltiplos protocolos (ZPL, EPL)
 
 ## 📄 Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+MIT
 
-## 📞 Suporte
-
-Em caso de dúvidas ou problemas:
-- Abra uma issue no GitHub
-- Entre em contato com a equipe de desenvolvimento
-
----
-
-Desenvolvido com ❤️ por WhiteLabel
