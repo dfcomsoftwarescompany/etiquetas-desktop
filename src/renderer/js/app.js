@@ -26,7 +26,10 @@ class App {
       updateModal: document.getElementById('update-modal'),
       btnUpdateLater: document.getElementById('btn-update-later'),
       btnUpdateNow: document.getElementById('btn-update-now'),
-      toastContainer: document.getElementById('toast-container')
+      toastContainer: document.getElementById('toast-container'),
+      // Novos elementos para porta direta
+      portInput: document.getElementById('port-input'),
+      btnPrintPort: document.getElementById('btn-print-port')
     };
 
     // Carrega versão do app
@@ -55,6 +58,9 @@ class App {
 
     // Botão de impressão de teste
     this.elements.btnPrintTest.addEventListener('click', () => this.printTest());
+
+    // Botão de impressão direta na porta
+    this.elements.btnPrintPort.addEventListener('click', () => this.printToPort());
 
     // Verificar atualizações
     this.elements.btnCheckUpdate.addEventListener('click', () => this.checkUpdates());
@@ -228,6 +234,48 @@ class App {
         </svg>
         Imprimir Etiqueta de Teste
       `;
+    }
+  }
+
+  /**
+   * Imprime diretamente na porta (USB001, COM1, etc)
+   */
+  async printToPort() {
+    const portName = this.elements.portInput.value.trim();
+    
+    if (!portName) {
+      this.showToast('Digite o nome da porta (ex: USB001)', 'error');
+      return;
+    }
+
+    // Feedback visual
+    this.elements.btnPrintPort.disabled = true;
+    const originalHTML = this.elements.btnPrintPort.innerHTML;
+    this.elements.btnPrintPort.innerHTML = `
+      <svg class="spinning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+      </svg>
+      Enviando...
+    `;
+    this.setStatus(`Enviando para porta ${portName}...`);
+
+    try {
+      const result = await window.electronAPI.printer.printToPort(portName);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      this.showToast(`Enviado para ${portName} com sucesso!`, 'success');
+      this.setStatus('Impressão concluída');
+    } catch (error) {
+      console.error('Erro ao imprimir na porta:', error);
+      this.showToast(`Erro: ${error.message}`, 'error');
+      this.setStatus('Erro na impressão', 'error');
+    } finally {
+      this.elements.btnPrintPort.disabled = false;
+      this.elements.btnPrintPort.innerHTML = originalHTML;
     }
   }
 

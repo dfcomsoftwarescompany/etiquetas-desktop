@@ -24,7 +24,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
      * Imprime etiqueta de teste "Olá Mundo"
      * @param {string} printerName - Nome da impressora
      */
-    test: (printerName) => ipcRenderer.invoke('printer:test', { printerName })
+    test: (printerName) => ipcRenderer.invoke('printer:test', { printerName }),
+
+    /**
+     * Imprime direto na porta (USB001, COM1, LPT1, etc)
+     * @param {string} portName - Nome da porta
+     */
+    printToPort: (portName) => ipcRenderer.invoke('printer:printToPort', { portName })
   },
 
   // ==================== App ====================

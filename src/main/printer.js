@@ -18,26 +18,106 @@ class PrinterManager {
    */
   async listPrinters() {
     return new Promise((resolve, reject) => {
+      // Script melhorado para detectar impressoras
       const script = `
-        Get-WmiObject -Query "SELECT * FROM Win32_Printer" | 
-        Select-Object Name, PortName, DriverName, PrinterStatus |
-        ConvertTo-Json
+        $printers = Get-WmiObject -Class Win32_Printer | Select-Object Name, PortName, DriverName, PrinterStatus, Default
+        if ($printers) {
+          $printers | ConvertTo-Json -Compress
+        } else {
+          Write-Output "[]"
+        }
       `;
 
-      exec(`powershell -Command "${script}"`, { encoding: 'utf8' }, (error, stdout, stderr) => {
+      console.log('[PrinterManager] Listando impressoras...');
+
+      exec(
+        `powershell -NoProfile -ExecutionPolicy Bypass -Command "${script}"`,
+        { encoding: 'utf8', maxBuffer: 1024 * 1024 },
+        (error, stdout, stderr) => {
+          if (error) {
+            console.error('[PrinterManager] Erro ao listar:', error.message);
+            console.error('[PrinterManager] Stderr:', stderr);
+            reject(new Error(`Erro ao listar impressoras: ${error.message}`));
+            return;
+          }
+
+          try {
+            const output = stdout.trim();
+            console.log('[PrinterManager] Output bruto:', output);
+            
+            if (!output || output === '[]') {
+              console.log('[PrinterManager] Nenhuma impressora encontrada');
+              resolve([]);
+              return;
+            }
+            
+            let printers = JSON.parse(output);
+            
+            // Garante que seja sempre um array
+            if (!Array.isArray(printers)) {
+              printers = [printers];
+            }
+            
+            console.log(`[PrinterManager] ${printers.length} impressora(s) encontrada(s):`);
+            printers.forEach(p => console.log(`  - ${p.Name} (${p.PortName})`));
+            
+            resolve(printers);
+          } catch (parseError) {
+            console.error('[PrinterManager] Erro ao parsear JSON:', parseError.message);
+            console.error('[PrinterManager] Output:', stdout);
+            resolve([]);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Lista impressoras usando WMIC (método alternativo mais compatível)
+   */
+  async listPrintersWMIC() {
+    return new Promise((resolve, reject) => {
+      console.log('[PrinterManager] Tentando WMIC...');
+      
+      exec('wmic printer list brief', { encoding: 'utf8' }, (error, stdout, stderr) => {
         if (error) {
-          reject(new Error(`Erro ao listar impressoras: ${error.message}`));
+          console.error('[PrinterManager] Erro WMIC:', error.message);
+          reject(error);
           return;
         }
 
         try {
-          let printers = JSON.parse(stdout || '[]');
-          // Garante que seja sempre um array
-          if (!Array.isArray(printers)) {
-            printers = [printers];
+          const lines = stdout.trim().split('\n').filter(l => l.trim());
+          console.log('[PrinterManager] WMIC retornou', lines.length, 'linhas');
+          
+          if (lines.length < 2) {
+            resolve([]);
+            return;
           }
+
+          // Primeira linha tem os headers
+          const headers = lines[0].split(/\s{2,}/).map(h => h.trim());
+          const printers = [];
+
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(/\s{2,}/).map(v => v.trim());
+            
+            if (values.length > 0 && values[0]) {
+              const printer = {
+                Name: values[0] || '',
+                PortName: values[1] || '',
+                DriverName: values[2] || '',
+                PrinterStatus: values[3] || ''
+              };
+              
+              console.log(`[PrinterManager] WMIC encontrou: ${printer.Name}`);
+              printers.push(printer);
+            }
+          }
+
           resolve(printers);
-        } catch (parseError) {
+        } catch (e) {
+          console.error('[PrinterManager] Erro ao processar WMIC:', e.message);
           resolve([]);
         }
       });
@@ -189,6 +269,42 @@ class PrinterManager {
   async printText(printerName, text, options = {}) {
     const commands = this.generatePPLA(text, options);
     return this.printPPLA(printerName, commands);
+  }
+
+  /**
+   * Envia dados RAW diretamente para uma porta (USB001, COM1, etc)
+   * @param {string} portName - Nome da porta (ex: USB001, COM1, LPT1)
+   * @param {string} commands - Comandos PPLA
+   */
+  async printToPort(portName, commands) {
+    return new Promise((resolve, reject) => {
+      const tempFile = path.join(this.tempDir, `label_${Date.now()}.prn`);
+      
+      fs.writeFile(tempFile, commands, 'binary', (err) => {
+        if (err) {
+          reject(new Error(`Erro ao criar arquivo: ${err.message}`));
+          return;
+        }
+
+        // Formata o nome da porta para Windows (\\.\USB001)
+        let targetPort = portName;
+        if (!portName.startsWith('\\\\.\\')) {
+          targetPort = `\\\\.\\${portName}`;
+        }
+
+        const cmd = `copy /b "${tempFile}" "${targetPort}"`;
+        
+        exec(cmd, { shell: 'cmd.exe', timeout: 10000 }, (error, stdout, stderr) => {
+          fs.unlink(tempFile, () => {});
+          
+          if (error) {
+            reject(new Error(`Erro ao enviar para porta ${portName}: ${error.message}`));
+            return;
+          }
+          resolve();
+        });
+      });
+    });
   }
 }
 

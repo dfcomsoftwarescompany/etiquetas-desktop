@@ -84,6 +84,28 @@
               <span class="info-value" id="printer-driver">--</span>
             </div>
           </div>
+
+          <!-- Impressão direta na porta -->
+          <div class="direct-port-section">
+            <div class="section-divider">
+              <span>ou imprima direto na porta</span>
+            </div>
+            <div class="form-group">
+              <label for="port-input">Porta USB/COM/LPT</label>
+              <div class="input-wrapper">
+                <input type="text" id="port-input" placeholder="USB001" value="USB001">
+                <button class="btn btn-secondary" id="btn-print-port">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9V2h12v7"/>
+                    <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                    <rect x="6" y="14" width="12" height="8"/>
+                  </svg>
+                  Enviar para Porta
+                </button>
+              </div>
+              <span class="input-hint">Ex: USB001, COM1, LPT1</span>
+            </div>
+          </div>
         </div>
       </section>
 

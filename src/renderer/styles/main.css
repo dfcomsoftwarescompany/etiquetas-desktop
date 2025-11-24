@@ -354,6 +354,74 @@ select:disabled {
   color: var(--text-muted);
 }
 
+/* ==================== Direct Port Section ==================== */
+.direct-port-section {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+}
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.section-divider span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.input-wrapper {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+input[type="text"] {
+  flex: 1;
+  appearance: none;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+input[type="text"]:hover {
+  border-color: var(--border-light);
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-glow);
+}
+
+input[type="text"]::placeholder {
+  color: var(--text-muted);
+}
+
+.input-hint {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: var(--spacing-xs);
+}
+
 /* ==================== Buttons ==================== */
 .btn {
   display: inline-flex;
@@ -408,6 +476,18 @@ select:disabled {
   border-color: var(--border-light);
 }
 
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 15px var(--accent-primary-glow);
+}
+
 .btn-icon {
   width: 40px;
   height: 40px;
@@ -430,7 +510,9 @@ select:disabled {
 }
 
 /* Spinning animation for refresh */
-.btn-icon.spinning svg {
+.btn-icon.spinning svg,
+.btn .spinning,
+svg.spinning {
   animation: spin 1s linear infinite;
 }
 

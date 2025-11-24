@@ -40,9 +40,21 @@ function createWindow() {
 // Listar impressoras disponíveis
 ipcMain.handle('printer:list', async () => {
   try {
-    const printers = await printerManager.listPrinters();
-    return { success: true, printers };
+    console.log('[Main] Iniciando listagem de impressoras...');
+    
+    // Tenta primeiro com PowerShell
+    let printers = await printerManager.listPrinters();
+    
+    // Se não encontrou, tenta WMIC
+    if (!printers || printers.length === 0) {
+      console.log('[Main] Tentando método alternativo WMIC...');
+      printers = await printerManager.listPrintersWMIC();
+    }
+    
+    console.log(`[Main] Total de impressoras: ${printers ? printers.length : 0}`);
+    return { success: true, printers: printers || [] };
   } catch (error) {
+    console.error('[Main] Erro ao listar impressoras:', error.message);
     return { success: false, error: error.message };
   }
 });
@@ -61,6 +73,17 @@ ipcMain.handle('printer:print', async (event, { printerName, text }) => {
 ipcMain.handle('printer:test', async (event, { printerName }) => {
   try {
     await printerManager.printTestLabel(printerName);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Imprimir direto na porta (USB001, COM1, etc)
+ipcMain.handle('printer:printToPort', async (event, { portName }) => {
+  try {
+    const commands = printerManager.generateTestLabel();
+    await printerManager.printToPort(portName, commands);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
