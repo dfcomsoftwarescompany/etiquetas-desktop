@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "ZXLu9mJak/Y=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\matheussilva\\Documents\\projetos\\dfcom\\etiquetas-desktop\\EtiquetasDesktop\\EtiquetasDesktop.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\matheussilva\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.0\\microsoft.win32.systemevents.10.0.0.nupkg.sha512",
+    "C:\\Users\\matheussilva\\.nuget\\packages\\system.drawing.common\\10.0.0\\system.drawing.common.10.0.0.nupkg.sha512",
+    "C:\\Users\\matheussilva\\.nuget\\packages\\zxing.net\\0.16.11\\zxing.net.0.16.11.nupkg.sha512"
+  ],
+  "logs": []
+}
