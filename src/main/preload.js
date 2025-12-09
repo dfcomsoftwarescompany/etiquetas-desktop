@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 /**
  * Preload script - Ponte segura entre renderer e main process
- * Expõe APIs específicas sem dar acesso direto ao Node.js
+ * Expõe APIs específicas para impressão de etiquetas Argox OS-2140
  */
 contextBridge.exposeInMainWorld('electronAPI', {
   // ==================== Printer ====================
@@ -14,11 +14,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     list: () => ipcRenderer.invoke('printer:list'),
 
     /**
-     * Imprime comandos PPLA
+     * Imprime etiqueta completa com QR Code
      * @param {string} printerName - Nome da impressora
-     * @param {string} text - Texto/comandos a imprimir
+     * @param {object} labelData - Dados da etiqueta
      */
-    print: (printerName, text) => ipcRenderer.invoke('printer:print', { printerName, text }),
+    printLabel: (printerName, labelData) => 
+      ipcRenderer.invoke('printer:printLabel', { printerName, labelData }),
 
     /**
      * Imprime etiqueta de teste "Olá Mundo"
@@ -27,10 +28,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
     test: (printerName) => ipcRenderer.invoke('printer:test', { printerName }),
 
     /**
-     * Imprime direto na porta (USB001, COM1, LPT1, etc)
-     * @param {string} portName - Nome da porta
+     * Obtém status de uma impressora
+     * @param {string} printerName - Nome da impressora
      */
-    printToPort: (portName) => ipcRenderer.invoke('printer:printToPort', { portName })
+    status: (printerName) => ipcRenderer.invoke('printer:status', { printerName }),
+
+    /**
+     * Obtém configurações da impressora
+     */
+    getConfig: () => ipcRenderer.invoke('printer:getConfig'),
+
+    /**
+     * Atualiza configurações da impressora
+     */
+    setConfig: (config) => ipcRenderer.invoke('printer:setConfig', config)
+  },
+
+  // ==================== QR Code ====================
+  qrcode: {
+    /**
+     * Gera QR Code como Data URL para preview
+     * @param {string} data - Dados para o QR Code
+     * @param {object} options - Opções (width, margin, etc)
+     */
+    generate: (data, options) => ipcRenderer.invoke('qrcode:generate', { data, options })
   },
 
   // ==================== App ====================
@@ -38,7 +59,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     /**
      * Obtém a versão atual do aplicativo
      */
-    getVersion: () => ipcRenderer.invoke('app:version')
+    getVersion: () => ipcRenderer.invoke('app:version'),
+
+    /**
+     * Obtém informações do sistema
+     */
+    getSystemInfo: () => ipcRenderer.invoke('app:systemInfo')
   },
 
   // ==================== Updates ====================
@@ -68,4 +94,3 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   }
 });
-

@@ -1,123 +1,84 @@
-const { exec } = require('child_process');
+const { createCanvas } = require('canvas');
+const QRCode = require('qrcode');
+const { BrowserWindow } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { exec } = require('child_process');
 
 /**
  * Gerenciador de impressoras para Argox OS-2140
- * Protocolo: PPLA (Printer Programming Language Argox)
+ * ABORDAGEM CORRETA: Canvas + Electron Print API
+ * 
+ * Etiquetas: 40mm x 60mm (Tag Roupas/Preço)
+ * Layout: TOPO (44mm) Info + EMBAIXO (16mm) Preço
  */
 class PrinterManager {
   constructor() {
-    this.STX = '\x02'; // Start of Text
     this.tempDir = os.tmpdir();
+    
+    // Configurações da etiqueta
+    // Etiqueta individual: 40x60mm
+    // Papel: 80mm (2 colunas de 40mm)
+    this.config = {
+      dpi: 203,
+      larguraMm: 40,
+      alturaMm: 60,
+      larguraPx: 320,  // 40mm * (203/25.4) ≈ 320 pixels
+      alturaPx: 480,   // 60mm * (203/25.4) ≈ 480 pixels
+      papelLarguraMm: 80,  // Papel com 2 colunas
+      papelLarguraPx: 640, // 80mm * (203/25.4) ≈ 640 pixels
+      colunas: 2
+    };
+    
+    console.log('[PrinterManager] Inicializado com Canvas + Electron Print API');
   }
 
-  /**
-   * Lista todas as impressoras instaladas no Windows
-   */
+  mmToPixels(mm) {
+    return Math.round(mm * (this.config.dpi / 25.4));
+  }
+
   async listPrinters() {
     return new Promise((resolve, reject) => {
-      // Script melhorado para detectar impressoras
-      const script = `
-        $printers = Get-WmiObject -Class Win32_Printer | Select-Object Name, PortName, DriverName, PrinterStatus, Default
-        if ($printers) {
-          $printers | ConvertTo-Json -Compress
-        } else {
-          Write-Output "[]"
-        }
-      `;
-
-      console.log('[PrinterManager] Listando impressoras...');
-
-      exec(
-        `powershell -NoProfile -ExecutionPolicy Bypass -Command "${script}"`,
-        { encoding: 'utf8', maxBuffer: 1024 * 1024 },
-        (error, stdout, stderr) => {
-          if (error) {
-            console.error('[PrinterManager] Erro ao listar:', error.message);
-            console.error('[PrinterManager] Stderr:', stderr);
-            reject(new Error(`Erro ao listar impressoras: ${error.message}`));
-            return;
-          }
-
-          try {
-            const output = stdout.trim();
-            console.log('[PrinterManager] Output bruto:', output);
-            
-            if (!output || output === '[]') {
-              console.log('[PrinterManager] Nenhuma impressora encontrada');
-              resolve([]);
-              return;
-            }
-            
-            let printers = JSON.parse(output);
-            
-            // Garante que seja sempre um array
-            if (!Array.isArray(printers)) {
-              printers = [printers];
-            }
-            
-            console.log(`[PrinterManager] ${printers.length} impressora(s) encontrada(s):`);
-            printers.forEach(p => console.log(`  - ${p.Name} (${p.PortName})`));
-            
-            resolve(printers);
-          } catch (parseError) {
-            console.error('[PrinterManager] Erro ao parsear JSON:', parseError.message);
-            console.error('[PrinterManager] Output:', stdout);
-            resolve([]);
-          }
-        }
-      );
-    });
-  }
-
-  /**
-   * Lista impressoras usando WMIC (método alternativo mais compatível)
-   */
-  async listPrintersWMIC() {
-    return new Promise((resolve, reject) => {
-      console.log('[PrinterManager] Tentando WMIC...');
+      console.log('[PrinterManager] Listando impressoras via PowerShell...');
       
-      exec('wmic printer list brief', { encoding: 'utf8' }, (error, stdout, stderr) => {
+      const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Printer | Select-Object Name, PortName, DriverName, PrinterStatus | ConvertTo-Json -Compress"`;
+
+      exec(cmd, { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
         if (error) {
-          console.error('[PrinterManager] Erro WMIC:', error.message);
-          reject(error);
+          console.error('[PrinterManager] Erro ao listar:', error.message);
+          resolve([]);
           return;
         }
 
         try {
-          const lines = stdout.trim().split('\n').filter(l => l.trim());
-          console.log('[PrinterManager] WMIC retornou', lines.length, 'linhas');
+          const output = stdout.trim();
           
-          if (lines.length < 2) {
+          if (!output || output === '[]' || output === 'null') {
             resolve([]);
             return;
           }
-
-          // Primeira linha tem os headers
-          const headers = lines[0].split(/\s{2,}/).map(h => h.trim());
-          const printers = [];
-
-          for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(/\s{2,}/).map(v => v.trim());
-            
-            if (values.length > 0 && values[0]) {
-              const printer = {
-                Name: values[0] || '',
-                PortName: values[1] || '',
-                DriverName: values[2] || '',
-                PrinterStatus: values[3] || ''
-              };
-              
-              console.log(`[PrinterManager] WMIC encontrou: ${printer.Name}`);
-              printers.push(printer);
-            }
+          
+          let printers = JSON.parse(output);
+          
+          if (!Array.isArray(printers)) {
+            printers = [printers];
           }
-
-          resolve(printers);
-        } catch (e) {
-          console.error('[PrinterManager] Erro ao processar WMIC:', e.message);
+          
+          const formatted = printers.map(p => ({
+            Name: p.Name,
+            PortName: p.PortName || 'N/A',
+            DriverName: p.DriverName || 'N/A',
+            PrinterStatus: p.PrinterStatus || 'Ready',
+            Default: false
+          }));
+          
+          console.log(`[PrinterManager] ${formatted.length} impressora(s) encontrada(s):`);
+          formatted.forEach(p => console.log(`  - ${p.Name} (${p.PortName})`));
+          
+          resolve(formatted);
+        } catch (parseError) {
+          console.error('[PrinterManager] Erro ao parsear:', parseError.message);
           resolve([]);
         }
       });
@@ -125,188 +86,413 @@ class PrinterManager {
   }
 
   /**
-   * Gera comandos PPLA para imprimir texto
-   * @param {string} text - Texto a ser impresso
-   * @param {object} options - Opções de formatação
+   * Gera etiqueta individual (uma coluna)
    */
-  generatePPLA(text, options = {}) {
+  async generateSingleLabelCanvas(labelData) {
     const {
-      x = 100,           // Posição X (em dots, 203 dpi)
-      y = 100,           // Posição Y
-      fontHeight = 2,    // Altura da fonte (1-5)
-      fontWidth = 2,     // Largura da fonte (1-5)
-      rotation = 0,      // Rotação: 0, 1, 2, 3 (0°, 90°, 180°, 270°)
-      copies = 1         // Número de cópias
-    } = options;
+      texto = 'PRODUTO',
+      codigo = '123456789',
+      preco = '',
+      tamanho = '',
+    } = labelData;
 
-    // Comandos PPLA
-    const commands = [
-      this.STX + 'L',                    // Início do modo de impressão
-      'D11',                              // Densidade de impressão (00-15)
-      `H${Math.min(fontHeight, 9)}`,     // Altura do caractere
-      `Q${copies}`,                       // Quantidade de cópias
-      // Formato: Acoluna,linha,rotação,fonte,mult_horiz,mult_vert,N/R,"texto"
-      `A${x},${y},${rotation},${fontHeight},${fontWidth},${fontWidth},N,"${text}"`,
-      'E'                                 // Fim e imprimir
-    ].join('\n');
+    const canvas = createCanvas(this.config.larguraPx, this.config.alturaPx);
+    const ctx = canvas.getContext('2d');
 
-    return commands;
-  }
+    ctx.antialias = 'subpixel';
+    ctx.patternQuality = 'best';
 
-  /**
-   * Gera etiqueta de teste "Olá Mundo"
-   */
-  generateTestLabel() {
-    const commands = [
-      this.STX + 'L',           // Início do modo de impressão
-      'D11',                     // Densidade
-      'H15',                     // Altura da etiqueta
-      'Q1',                      // 1 cópia
-      'S3',                      // Velocidade
-      // Título
-      'A50,30,0,4,1,1,N,"ETIQUETAS DESKTOP"',
-      // Linha separadora
-      'LO50,80,400,2',
-      // Texto principal
-      'A50,100,0,3,1,1,N,"Ola Mundo!"',
-      // Info adicional
-      'A50,150,0,2,1,1,N,"Impressora: Argox OS-2140"',
-      'A50,180,0,2,1,1,N,"Protocolo: PPLA"',
-      // Borda decorativa
-      'X50,20,2,460,220',
-      'E'                        // Fim e imprimir
-    ].join('\n');
+    // ========== ROTAÇÃO 180° (CABEÇA PRA BAIXO) ==========
+    ctx.translate(this.config.larguraPx, this.config.alturaPx);
+    ctx.rotate(Math.PI);
 
-    return commands;
-  }
+    // ========== CONFIGURAÇÕES ==========
+    const margin = 16;
+    const areaInfoAltura = 350;   // 44mm TOPO
+    const areaPrecoAltura = 130;  // 16mm EMBAIXO
+    const qrSize = 130;
+    
+    // FUNDO BRANCO
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, this.config.larguraPx, this.config.alturaPx);
 
-  /**
-   * Envia comandos PPLA para a impressora
-   * @param {string} printerName - Nome da impressora
-   * @param {string} commands - Comandos PPLA
-   */
-  async printPPLA(printerName, commands) {
-    return new Promise((resolve, reject) => {
-      // Cria arquivo temporário com os comandos
-      const tempFile = path.join(this.tempDir, `label_${Date.now()}.prn`);
+    // ========== ÁREA SUPERIOR (44mm) - INFORMAÇÕES ==========
+    
+    // TÍTULO DFCOM - FONTE MAIOR
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.font = 'bold 30px Arial';
+    ctx.fillText('DFCOM', this.config.larguraPx / 2, 10);
+
+    // Linha decorativa
+    ctx.strokeStyle = '#666666';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(margin + 40, 48);
+    ctx.lineTo(this.config.larguraPx - margin - 40, 48);
+    ctx.stroke();
+
+    // QR CODE CENTRALIZADO
+    const qrCanvas = createCanvas(qrSize, qrSize);
+    await QRCode.toCanvas(qrCanvas, codigo, {
+      width: qrSize,
+      margin: 0,
+      color: { dark: '#000000', light: '#FFFFFF' },
+      errorCorrectionLevel: 'H'
+    });
+
+    const qrX = (this.config.larguraPx - qrSize) / 2;
+    const qrY = 65;
+    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+    // INFORMAÇÕES ABAIXO DO QR - FONTES MAIORES
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    let currentY = qrY + qrSize + 14;
+
+    // REF - FONTE BEM MAIOR
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText(`REF: ${codigo}`, this.config.larguraPx / 2, currentY);
+    currentY += 32;
+
+    // Nome do Produto - FONTE BEM MAIOR E NEGRITO
+    ctx.font = 'bold 20px Arial';
+    const maxWidth = this.config.larguraPx - (margin * 2);
+    const palavras = texto.split(' ');
+    let linha = '';
+    const linhaAltura = 24;
+    let linhasDesenhadas = 0;
+    const maxLinhas = 2;
+
+    for (let i = 0; i < palavras.length && linhasDesenhadas < maxLinhas; i++) {
+      const testeLinha = linha + palavras[i] + ' ';
+      const metricas = ctx.measureText(testeLinha);
       
-      fs.writeFile(tempFile, commands, 'binary', (err) => {
-        if (err) {
-          reject(new Error(`Erro ao criar arquivo temporário: ${err.message}`));
-          return;
-        }
+      if (metricas.width > maxWidth && linha !== '') {
+        ctx.fillText(linha.trim(), this.config.larguraPx / 2, currentY);
+        linha = palavras[i] + ' ';
+        currentY += linhaAltura;
+        linhasDesenhadas++;
+      } else {
+        linha = testeLinha;
+      }
+    }
+    
+    if (linha.trim() !== '' && linhasDesenhadas < maxLinhas) {
+      ctx.fillText(linha.trim(), this.config.larguraPx / 2, currentY);
+      currentY += linhaAltura;
+    }
 
-        // Envia para a impressora usando COPY do Windows
-        const printCmd = `copy /b "${tempFile}" "${printerName}"`;
-        
-        exec(printCmd, { shell: 'cmd.exe' }, (error, stdout, stderr) => {
-          // Remove arquivo temporário
-          fs.unlink(tempFile, () => {});
+    // Tamanho - FONTE BEM MAIOR
+    if (tamanho) {
+      currentY += 10;
+      ctx.font = 'bold 22px Arial';
+      ctx.fillText(`TAMANHO: ${tamanho}`, this.config.larguraPx / 2, currentY);
+    }
 
-          if (error) {
-            // Tenta método alternativo via PowerShell
-            this.printViaPowerShell(printerName, commands)
-              .then(resolve)
-              .catch(reject);
-            return;
-          }
+    // ========== LINHA DIVISÓRIA ==========
+    const divisoriaY = areaInfoAltura;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, divisoriaY);
+    ctx.lineTo(this.config.larguraPx, divisoriaY);
+    ctx.stroke();
 
-          resolve();
-        });
+    // ========== ÁREA INFERIOR (16mm) - PREÇO ==========
+    const areaPrecoY = divisoriaY;
+    
+    // Fundo cinza
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fillRect(0, areaPrecoY, this.config.larguraPx, areaPrecoAltura);
+
+    // Preço MUITO GRANDE E NEGRITO
+    const precoTexto = preco ? `R$ ${preco}` : 'R$ ___,__';
+    ctx.fillStyle = preco ? 'black' : '#999999';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 54px Arial';
+    
+    const precoX = this.config.larguraPx / 2;
+    const precoY = areaPrecoY + (areaPrecoAltura / 2);
+    ctx.fillText(precoTexto, precoX, precoY);
+
+    // BORDA EXTERNA
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(1, 1, this.config.larguraPx - 2, this.config.alturaPx - 2);
+
+    return canvas;
+  }
+
+  /**
+   * Gera canvas com 2 colunas (80mm de largura)
+   * Duplica a mesma etiqueta lado a lado
+   */
+  async generateLabelCanvas(labelData) {
+    // Cria canvas largo (80mm = 2 colunas de 40mm)
+    const canvasLargo = createCanvas(this.config.papelLarguraPx, this.config.alturaPx);
+    const ctxLargo = canvasLargo.getContext('2d');
+
+    // Rotação 180° para todo o canvas
+    ctxLargo.translate(this.config.papelLarguraPx, this.config.alturaPx);
+    ctxLargo.rotate(Math.PI);
+
+    // Gera etiqueta individual
+    const etiquetaIndividual = await this.generateSingleLabelCanvas(labelData);
+
+    // Desenha COLUNA 1 (esquerda)
+    ctxLargo.drawImage(etiquetaIndividual, 0, 0);
+
+    // Desenha COLUNA 2 (direita) - mesma etiqueta
+    ctxLargo.drawImage(etiquetaIndividual, this.config.larguraPx, 0);
+
+    console.log('[PrinterManager] Canvas gerado: 2 colunas (80mm x 60mm)');
+
+    return canvasLargo;
+  }
+
+  /**
+   * Etiqueta de teste (também em 2 colunas)
+   */
+  async generateTestCanvas() {
+    // Cria canvas largo (80mm = 2 colunas)
+    const canvas = createCanvas(this.config.papelLarguraPx, this.config.alturaPx);
+    const ctx = canvas.getContext('2d');
+
+    ctx.translate(this.config.papelLarguraPx, this.config.alturaPx);
+    ctx.rotate(Math.PI);
+
+    const margin = 16;
+    const areaInfoAltura = 350;
+    const areaPrecoAltura = 130;
+    const qrSize = 130;
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, this.config.papelLarguraPx, this.config.alturaPx);
+
+    // Função auxiliar para desenhar uma coluna
+    const desenharColuna = async (offsetX) => {
+      // TÍTULO
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.font = 'bold 30px Arial';
+      ctx.fillText('DFCOM', offsetX + (this.config.larguraPx / 2), 10);
+
+      ctx.strokeStyle = '#666666';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(offsetX + margin + 40, 48);
+      ctx.lineTo(offsetX + this.config.larguraPx - margin - 40, 48);
+      ctx.stroke();
+
+      // QR CODE
+      const qrCanvas = createCanvas(qrSize, qrSize);
+      await QRCode.toCanvas(qrCanvas, 'TESTE-DFCOM', {
+        width: qrSize,
+        margin: 0,
+        errorCorrectionLevel: 'H'
       });
+
+      const qrX = offsetX + (this.config.larguraPx - qrSize) / 2;
+      const qrY = 65;
+      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+      // INFO - FONTES MAIORES
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      let currentY = qrY + qrSize + 14;
+
+      ctx.font = 'bold 24px Arial';
+      ctx.fillText('REF: TEST001', offsetX + (this.config.larguraPx / 2), currentY);
+      currentY += 32;
+
+      ctx.font = 'bold 20px Arial';
+      ctx.fillText('Etiqueta Teste', offsetX + (this.config.larguraPx / 2), currentY);
+      currentY += 26;
+
+      ctx.font = 'bold 22px Arial';
+      ctx.fillText('TAMANHO: M', offsetX + (this.config.larguraPx / 2), currentY);
+
+      // DIVISÓRIA
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(offsetX, areaInfoAltura);
+      ctx.lineTo(offsetX + this.config.larguraPx, areaInfoAltura);
+      ctx.stroke();
+
+      // PREÇO
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(offsetX, areaInfoAltura, this.config.larguraPx, areaPrecoAltura);
+
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 54px Arial';
+      ctx.fillText('R$ 00,00', offsetX + (this.config.larguraPx / 2), areaInfoAltura + (areaPrecoAltura / 2));
+
+      // BORDA COLUNA
+      ctx.strokeStyle = '#cccccc';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(offsetX + 1, 1, this.config.larguraPx - 2, this.config.alturaPx - 2);
+    };
+
+    // Desenha COLUNA 1 (esquerda)
+    await desenharColuna(0);
+
+    // Desenha COLUNA 2 (direita)
+    await desenharColuna(this.config.larguraPx);
+
+    return canvas;
+  }
+
+  async printCanvas(printerName, canvas, copies = 1) {
+    return new Promise((resolve, reject) => {
+      try {
+        console.log(`[PrinterManager] Imprimindo em: ${printerName}`);
+        console.log(`[PrinterManager] Cópias: ${copies}`);
+
+        const dataUrl = canvas.toDataURL('image/png');
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      width: 80mm; 
+      height: 60mm;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    img { 
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body>
+  <img src="${dataUrl}" />
+</body>
+</html>`;
+
+        const printWindow = new BrowserWindow({
+          show: false,
+          webPreferences: {
+            offscreen: true,
+            nodeIntegration: false
+          }
+        });
+
+        printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+        printWindow.webContents.once('did-finish-load', () => {
+          const printOptions = {
+            silent: true,
+            printBackground: true,
+            deviceName: printerName,
+            color: false,
+            margins: { marginType: 'none' },
+            pageSize: {
+              width: 80000,  // 80mm (2 colunas)
+              height: 60000  // 60mm
+            },
+            dpi: {
+              horizontal: 203,
+              vertical: 203
+            },
+            copies: copies,
+            landscape: false,
+            scaleFactor: 100,
+            shouldPrintBackgrounds: true
+          };
+
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            printWindow.close();
+
+            if (success) {
+              console.log(`[PrinterManager] ✓ Impressão OK!`);
+              resolve();
+            } else {
+              console.error(`[PrinterManager] ✗ Falha:`, failureReason);
+              reject(new Error(`Falha: ${failureReason || 'Desconhecida'}`));
+            }
+          });
+        });
+
+        setTimeout(() => {
+          if (!printWindow.isDestroyed()) {
+            printWindow.close();
+            reject(new Error('Timeout'));
+          }
+        }, 10000);
+
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
-  /**
-   * Método alternativo de impressão via PowerShell
-   */
-  async printViaPowerShell(printerName, commands) {
-    return new Promise((resolve, reject) => {
-      const tempFile = path.join(this.tempDir, `label_${Date.now()}.prn`);
-      
-      fs.writeFile(tempFile, commands, 'binary', (err) => {
-        if (err) {
-          reject(new Error(`Erro ao criar arquivo: ${err.message}`));
-          return;
-        }
-
-        const psScript = `
-          $printer = Get-WmiObject -Query "SELECT * FROM Win32_Printer WHERE Name='${printerName.replace(/'/g, "''")}'";
-          if ($printer) {
-            $printer.PrintFile("${tempFile.replace(/\\/g, '\\\\')}");
-          } else {
-            # Método alternativo: Out-Printer
-            Get-Content -Path "${tempFile.replace(/\\/g, '\\\\')}" -Raw | Out-Printer -Name "${printerName}"
-          }
-        `;
-
-        exec(`powershell -Command "${psScript}"`, (error, stdout, stderr) => {
-          // Limpa arquivo temporário após delay
-          setTimeout(() => fs.unlink(tempFile, () => {}), 2000);
-
-          if (error) {
-            reject(new Error(`Erro ao imprimir: ${error.message}`));
-            return;
-          }
-
-          resolve();
-        });
-      });
-    });
-  }
-
-  /**
-   * Imprime etiqueta de teste
-   */
   async printTestLabel(printerName) {
-    const commands = this.generateTestLabel();
-    return this.printPPLA(printerName, commands);
+    try {
+      const canvas = await this.generateTestCanvas();
+      await this.printCanvas(printerName, canvas, 1);
+      console.log('[PrinterManager] ✓ Teste OK!');
+    } catch (error) {
+      console.error('[PrinterManager] Erro teste:', error.message);
+      throw error;
+    }
   }
 
-  /**
-   * Imprime texto simples
-   */
-  async printText(printerName, text, options = {}) {
-    const commands = this.generatePPLA(text, options);
-    return this.printPPLA(printerName, commands);
-  }
-
-  /**
-   * Envia dados RAW diretamente para uma porta (USB001, COM1, etc)
-   * @param {string} portName - Nome da porta (ex: USB001, COM1, LPT1)
-   * @param {string} commands - Comandos PPLA
-   */
-  async printToPort(portName, commands) {
-    return new Promise((resolve, reject) => {
-      const tempFile = path.join(this.tempDir, `label_${Date.now()}.prn`);
+  async printLabel(printerName, labelData) {
+    try {
+      console.log('[PrinterManager] Gerando etiqueta:', labelData);
+      const canvas = await this.generateLabelCanvas(labelData);
       
-      fs.writeFile(tempFile, commands, 'binary', (err) => {
-        if (err) {
-          reject(new Error(`Erro ao criar arquivo: ${err.message}`));
-          return;
-        }
+      const copies = parseInt(labelData.copies) || 1;
+      await this.printCanvas(printerName, canvas, copies);
+      
+      console.log('[PrinterManager] ✓ Etiqueta(s) OK!');
+    } catch (error) {
+      console.error('[PrinterManager] Erro:', error.message);
+      throw error;
+    }
+  }
 
-        // Formata o nome da porta para Windows (\\.\USB001)
-        let targetPort = portName;
-        if (!portName.startsWith('\\\\.\\')) {
-          targetPort = `\\\\.\\${portName}`;
-        }
+  getConfig() {
+    return { ...this.config };
+  }
 
-        const cmd = `copy /b "${tempFile}" "${targetPort}"`;
-        
-        exec(cmd, { shell: 'cmd.exe', timeout: 10000 }, (error, stdout, stderr) => {
-          fs.unlink(tempFile, () => {});
-          
-          if (error) {
-            reject(new Error(`Erro ao enviar para porta ${portName}: ${error.message}`));
-            return;
-          }
-          resolve();
-        });
+  setConfig(newConfig) {
+    this.config = { ...this.config, ...newConfig };
+    
+    if (newConfig.larguraMm) {
+      this.config.larguraPx = this.mmToPixels(newConfig.larguraMm);
+    }
+    if (newConfig.alturaMm) {
+      this.config.alturaPx = this.mmToPixels(newConfig.alturaMm);
+    }
+  }
+
+  async getPrinterStatus(printerName) {
+    return new Promise((resolve) => {
+      const cmd = `powershell -NoProfile -Command "Get-Printer -Name '${printerName.replace(/'/g, "''")}' | Select-Object -ExpandProperty PrinterStatus"`;
+      
+      exec(cmd, (error, stdout) => {
+        resolve(error ? 'Error' : (stdout.trim() || 'Ready'));
       });
     });
   }
 }
 
 module.exports = PrinterManager;
-
