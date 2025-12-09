@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("EtiquetasDesktop")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a49ebdb934ec72db0ad8f5402880131329088bf8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6d95d973fe884b63ff2b8565dd70f373890196cf")]
 [assembly: System.Reflection.AssemblyProductAttribute("EtiquetasDesktop")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EtiquetasDesktop")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
