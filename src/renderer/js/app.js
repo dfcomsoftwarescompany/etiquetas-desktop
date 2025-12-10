@@ -1,538 +1,407 @@
-// Classe principal da aplicação
-class LabelDesignerApp {
-  settings = null;
-  currentTemplate = null;
-  selectedElement = null;
+/**
+ * Etiquetas DFCOM - Renderer
+ * Interface para impressão de etiquetas 40x60mm
+ * v2.0.0
+ */
 
+// ==================== Helpers ====================
+
+const UI = {
+  setStatus(element, message, type = 'default') {
+    element.className = 'status-item ' + type;
+    element.querySelector('span:last-child').textContent = message;
+  },
+
+  showToast(container, message, type = 'info') {
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `${icons[type] || icons.info}<span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3500);
+  },
+
+  formatarPreco(valor) {
+    if (!valor && valor !== 0) return '0,00';
+    return parseFloat(valor).toFixed(2).replace('.', ',');
+  },
+
+  setButtonLoading(button, loading, text = 'Enviando...') {
+    button.disabled = loading;
+    if (loading) {
+      button.dataset.originalHtml = button.innerHTML;
+      button.innerHTML = `<svg class="spinning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/></svg>${text}`;
+    } else {
+      button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+    }
+  }
+};
+
+// ==================== Printer Manager ====================
+
+class PrinterManager {
+  constructor(select, onSelect) {
+    this.select = select;
+    this.onSelect = onSelect;
+    this.printers = [];
+    this.selected = null;
+  }
+
+  async load() {
+    this.select.disabled = true;
+    this.select.innerHTML = '<option value="">Carregando...</option>';
+    
+    const result = await window.electronAPI.printer.list();
+    if (!result.success) throw new Error(result.error);
+
+    this.printers = result.printers || [];
+    this.render();
+    return this.printers.length;
+  }
+
+  render() {
+    if (this.printers.length === 0) {
+      this.select.innerHTML = '<option value="">Nenhuma impressora</option>';
+      this.select.disabled = true;
+      return;
+    }
+
+    this.select.innerHTML = '<option value="">Selecione...</option>';
+    this.printers.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.Name;
+      opt.textContent = p.Name;
+      this.select.appendChild(opt);
+    });
+    this.select.disabled = false;
+
+    // Auto-select Argox
+    const argox = this.printers.find(p => p.Name.toLowerCase().includes('argox'));
+    if (argox) {
+      this.select.value = argox.Name;
+      this.selectPrinter(argox.Name);
+    }
+  }
+
+  selectPrinter(name) {
+    this.selected = name ? this.printers.find(p => p.Name === name) : null;
+    if (this.onSelect) this.onSelect(this.selected);
+  }
+
+  async print(labelData) {
+    if (!this.selected) throw new Error('Selecione uma impressora');
+    const result = await window.electronAPI.printer.printLabel(this.selected.Name, labelData);
+    if (!result.success) throw new Error(result.error);
+    return result;
+  }
+}
+
+// ==================== Produtos Manager ====================
+
+class ProdutosManager {
+  constructor(tbody, emptyState, countEl, onPrint) {
+    this.tbody = tbody;
+    this.emptyState = emptyState;
+    this.countEl = countEl;
+    this.onPrint = onPrint;
+    this.produtos = [];
+  }
+
+  async carregar(termo = '') {
+    const result = termo
+      ? await window.electronAPI.api.buscarProdutoPorNome(termo)
+      : await window.electronAPI.api.buscarProdutos();
+    
+    if (!result.success) throw new Error(result.error);
+    this.produtos = result.data || [];
+    this.render();
+    return this.produtos.length;
+  }
+
+  render() {
+    this.tbody.innerHTML = '';
+
+    if (this.produtos.length === 0) {
+      this.emptyState.classList.remove('hidden');
+      this.countEl.textContent = '0 produtos';
+      return;
+    }
+
+    this.emptyState.classList.add('hidden');
+    this.countEl.textContent = `${this.produtos.length} produto${this.produtos.length > 1 ? 's' : ''}`;
+
+    this.produtos.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="codigo">${p.codBarras}</td>
+        <td class="descricao">${p.descricao}</td>
+        <td class="preco">R$ ${UI.formatarPreco(p.vlrVenda)}</td>
+        <td class="col-acoes">
+          <button class="btn btn-print-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>Etiqueta
+          </button>
+        </td>
+      `;
+      tr.querySelector('.btn-print-row').addEventListener('click', () => this.onPrint(p));
+      this.tbody.appendChild(tr);
+    });
+  }
+}
+
+// ==================== Print Modal ====================
+
+class PrintModal {
+  constructor(elements, onPrint) {
+    this.modal = elements.modal;
+    this.el = elements;
+    this.onPrint = onPrint;
+    this.produto = null;
+    this.bindEvents();
+  }
+
+  bindEvents() {
+    this.el.btnClose.addEventListener('click', () => this.close());
+    this.el.btnCancel.addEventListener('click', () => this.close());
+    this.modal.querySelector('.modal-backdrop').addEventListener('click', () => this.close());
+    this.el.descricao.addEventListener('input', () => this.updatePreview());
+    this.el.preco.addEventListener('input', () => this.updatePreview());
+    this.el.btnQtyMinus.addEventListener('click', () => this.adjustQty(-1));
+    this.el.btnQtyPlus.addEventListener('click', () => this.adjustQty(1));
+    this.el.quantidade.addEventListener('change', () => this.validateQty());
+    this.el.btnPrint.addEventListener('click', () => this.onPrint(this.getLabelData()));
+  }
+
+  async open(produto) {
+    this.produto = { ...produto };
+    this.el.codigo.value = produto.codBarras;
+    this.el.descricao.value = produto.descricao.substring(0, 25);
+    this.el.preco.value = UI.formatarPreco(produto.vlrVenda);
+    this.el.quantidade.value = 1;
+    this.el.descricaoCount.textContent = this.el.descricao.value.length;
+    
+    // Limpar prévia anterior
+    this.el.previewQr.innerHTML = '';
+    this.el.previewDesc.textContent = 'Carregando...';
+    this.el.previewPrice.textContent = 'R$ 0,00';
+    
+    // Gerar QR Code
+    try {
+      const qr = await window.electronAPI.qrcode.generate(produto.codBarras, { width: 70, margin: 1 });
+      if (qr.success) {
+        this.el.previewQr.innerHTML = `<img src="${qr.dataUrl}" alt="QR Code">`;
+      } else {
+        this.el.previewQr.innerHTML = '<span style="font-size: 0.5rem; color: #999;">Erro QR</span>';
+      }
+    } catch (error) {
+      console.error('[Modal] Erro ao gerar QR:', error);
+      this.el.previewQr.innerHTML = '<span style="font-size: 0.5rem; color: #999;">Erro QR</span>';
+    }
+    
+    // Atualizar prévia
+    this.updatePreview();
+    
+    // Mostrar modal
+    this.modal.classList.add('active');
+    
+    // Pequeno delay para garantir renderização
+    setTimeout(() => {
+      this.updatePreview();
+    }, 100);
+  }
+
+  close() {
+    this.modal.classList.remove('active');
+    this.produto = null;
+  }
+
+  updatePreview() {
+    const descricao = this.el.descricao.value || 'Descrição';
+    const preco = this.el.preco.value || '0,00';
+    
+    this.el.previewDesc.textContent = descricao;
+    this.el.previewPrice.textContent = `R$ ${preco}`;
+    this.el.descricaoCount.textContent = this.el.descricao.value.length;
+    
+    // Forçar re-render para garantir visibilidade
+    this.el.previewDesc.style.display = 'none';
+    this.el.previewDesc.offsetHeight; // Trigger reflow
+    this.el.previewDesc.style.display = '';
+  }
+
+  adjustQty(delta) {
+    let v = parseInt(this.el.quantidade.value) || 1;
+    this.el.quantidade.value = Math.max(1, Math.min(100, v + delta));
+  }
+
+  validateQty() {
+    let v = parseInt(this.el.quantidade.value) || 1;
+    this.el.quantidade.value = Math.max(1, Math.min(100, v));
+  }
+
+  getLabelData() {
+    return {
+      texto: this.el.descricao.value,
+      codigo: this.el.codigo.value,
+      preco: this.el.preco.value,
+      copies: parseInt(this.el.quantidade.value) || 1
+    };
+  }
+
+  setLoading(loading) {
+    UI.setButtonLoading(this.el.btnPrint, loading);
+  }
+}
+
+// ==================== App ====================
+
+class EtiquetasApp {
   constructor() {
     this.init();
   }
 
   async init() {
-    // Carregar configurações
-    await this.loadSettings();
+    this.getElements();
+    this.setupModules();
+    this.bindEvents();
     
-    // Carregar impressoras
-    await this.loadPrinters();
+    await this.loadVersion();
+    await this.printerManager.load().catch(() => UI.showToast(this.el.toastContainer, 'Erro ao carregar impressoras', 'error'));
+    await this.produtosManager.carregar().catch(() => {});
     
-    // Configurar event listeners
-    this.setupEventListeners();
-    
-    // Configurar IPC listeners
-    this.setupIPCListeners();
-    
-    // Inicializar canvas
-    this.updateCanvasSize();
+    UI.setStatus(this.el.statusMessage, 'Pronto', 'success');
   }
 
-  async loadSettings() {
-    try {
-      this.settings = await window.electronAPI.getSettings();
-      
-      // Aplicar configurações na UI
-      const protocolSelect = document.getElementById('selectProtocol');
-      const printerSelect = document.getElementById('selectPrinter');
-      const widthInput = document.getElementById('labelWidth');
-      const heightInput = document.getElementById('labelHeight');
-      
-      if (this.settings) {
-        protocolSelect.value = this.settings.defaultProtocol;
-        printerSelect.value = this.settings.defaultPrinter;
-        widthInput.value = this.settings.defaultLabelSize.width.toString();
-        heightInput.value = this.settings.defaultLabelSize.height.toString();
-      }
-    } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
-    }
-  }
-
-  async loadPrinters() {
-    try {
-      const printers = await window.electronAPI.getPrinters();
-      const printerSelect = document.getElementById('selectPrinter');
-      
-      // Limpar opções existentes
-      printerSelect.innerHTML = '<option value="">Selecione a impressora...</option>';
-      
-      // Adicionar impressoras
-      printers.forEach(printer => {
-        const option = document.createElement('option');
-        option.value = printer.name;
-        option.textContent = printer.displayName || printer.name;
-        if (printer.isDefault) {
-          option.textContent += ' (Padrão)';
-        }
-        printerSelect.appendChild(option);
-      });
-      
-      // Selecionar impressora padrão se configurada
-      if (this.settings?.defaultPrinter) {
-        printerSelect.value = this.settings.defaultPrinter;
-      }
-    } catch (error) {
-      console.error('Erro ao carregar impressoras:', error);
-    }
-  }
-
-  setupEventListeners() {
-    // Botões da toolbar
-    document.getElementById('btnNew')?.addEventListener('click', () => this.newLabel());
-    document.getElementById('btnSaveTemplate')?.addEventListener('click', () => this.saveTemplate());
-    document.getElementById('btnLoadTemplate')?.addEventListener('click', () => this.showTemplates());
-    document.getElementById('btnPrint')?.addEventListener('click', () => this.print());
-    document.getElementById('btnCopyCode')?.addEventListener('click', () => this.copyCode());
-    
-    // Botões de elementos
-    document.getElementById('btnAddText')?.addEventListener('click', () => this.addElement('text'));
-    document.getElementById('btnAddBarcode')?.addEventListener('click', () => this.addElement('barcode'));
-    document.getElementById('btnAddQRCode')?.addEventListener('click', () => this.addElement('qrcode'));
-    document.getElementById('btnAddLine')?.addEventListener('click', () => this.addElement('line'));
-    document.getElementById('btnAddRectangle')?.addEventListener('click', () => this.addElement('rectangle'));
-    
-    // Propriedades da etiqueta
-    document.getElementById('labelWidth')?.addEventListener('change', () => this.updateCanvasSize());
-    document.getElementById('labelHeight')?.addEventListener('change', () => this.updateCanvasSize());
-    document.getElementById('labelOrientation')?.addEventListener('change', () => this.updateCanvasSize());
-    
-    // Modais
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-      const closeBtn = modal.querySelector('.close-btn');
-      closeBtn?.addEventListener('click', () => {
-        modal.style.display = 'none';
-      });
-    });
-    
-    // Fechar modal ao clicar fora
-    window.addEventListener('click', (event) => {
-      const target = event.target;
-      if (target.classList.contains('modal')) {
-        target.style.display = 'none';
-      }
-    });
-  }
-
-  setupIPCListeners() {
-    window.electronAPI.onNewLabel(() => this.newLabel());
-    window.electronAPI.onOpenTemplate(() => this.showTemplates());
-    window.electronAPI.onShowAbout(() => this.showAbout());
-  }
-
-  newLabel() {
-    // Limpar canvas
-    const canvas = document.getElementById('labelCanvas');
-    if (canvas) {
-      canvas.innerHTML = '';
-    }
-    
-    // Resetar para tamanho padrão
-    const widthInput = document.getElementById('labelWidth');
-    const heightInput = document.getElementById('labelHeight');
-    widthInput.value = '100';
-    heightInput.value = '50';
-    
-    this.updateCanvasSize();
-    this.updateCodePreview();
-  }
-
-  async saveTemplate() {
-    const name = prompt('Nome do template:');
-    if (!name) return;
-    
-    const description = prompt('Descrição (opcional):');
-    
-    const elements = this.getCanvasElements();
-    const widthInput = document.getElementById('labelWidth');
-    const heightInput = document.getElementById('labelHeight');
-    
-    const template = {
-      id: Date.now().toString(),
-      name,
-      description: description || '',
-      elements,
-      labelSize: {
-        width: parseInt(widthInput.value),
-        height: parseInt(heightInput.value)
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  getElements() {
+    this.el = {
+      // Header
+      printerSelect: document.getElementById('printer-select'),
+      btnRefresh: document.getElementById('btn-refresh'),
+      // Search
+      inputBusca: document.getElementById('input-busca'),
+      btnBuscar: document.getElementById('btn-buscar'),
+      produtosCount: document.getElementById('produtos-count'),
+      // Table
+      produtosTbody: document.getElementById('produtos-tbody'),
+      emptyState: document.getElementById('empty-state'),
+      // Modal
+      printModal: document.getElementById('print-modal'),
+      btnModalClose: document.getElementById('btn-modal-close'),
+      btnCancel: document.getElementById('btn-cancel'),
+      btnPrint: document.getElementById('btn-print'),
+      editCodigo: document.getElementById('edit-codigo'),
+      editDescricao: document.getElementById('edit-descricao'),
+      editPreco: document.getElementById('edit-preco'),
+      editQuantidade: document.getElementById('edit-quantidade'),
+      descricaoCount: document.getElementById('descricao-count'),
+      btnQtyMinus: document.getElementById('btn-qty-minus'),
+      btnQtyPlus: document.getElementById('btn-qty-plus'),
+      previewQr: document.getElementById('preview-qr'),
+      previewDesc: document.getElementById('preview-desc'),
+      previewPrice: document.getElementById('preview-price'),
+      // UI
+      statusMessage: document.getElementById('status-message'),
+      appVersion: document.getElementById('app-version'),
+      toastContainer: document.getElementById('toast-container')
     };
-    
+  }
+
+  setupModules() {
+    // Printer
+    this.printerManager = new PrinterManager(
+      this.el.printerSelect,
+      (printer) => console.log('[App] Impressora:', printer?.Name)
+    );
+
+    // Produtos
+    this.produtosManager = new ProdutosManager(
+      this.el.produtosTbody,
+      this.el.emptyState,
+      this.el.produtosCount,
+      (produto) => this.printModal.open(produto)
+    );
+
+    // Modal
+    this.printModal = new PrintModal({
+      modal: this.el.printModal,
+      btnClose: this.el.btnModalClose,
+      btnCancel: this.el.btnCancel,
+      btnPrint: this.el.btnPrint,
+      codigo: this.el.editCodigo,
+      descricao: this.el.editDescricao,
+      preco: this.el.editPreco,
+      quantidade: this.el.editQuantidade,
+      descricaoCount: this.el.descricaoCount,
+      btnQtyMinus: this.el.btnQtyMinus,
+      btnQtyPlus: this.el.btnQtyPlus,
+      previewQr: this.el.previewQr,
+      previewDesc: this.el.previewDesc,
+      previewPrice: this.el.previewPrice
+    }, (labelData) => this.imprimir(labelData));
+  }
+
+  bindEvents() {
+    this.el.btnRefresh.addEventListener('click', () => this.refreshPrinters());
+    this.el.printerSelect.addEventListener('change', (e) => this.printerManager.selectPrinter(e.target.value));
+    this.el.btnBuscar.addEventListener('click', () => this.buscarProdutos());
+    this.el.inputBusca.addEventListener('keypress', (e) => e.key === 'Enter' && this.buscarProdutos());
+  }
+
+  async loadVersion() {
     try {
-      await window.electronAPI.saveTemplate(template);
-      alert('Template salvo com sucesso!');
-    } catch (error) {
-      console.error('Erro ao salvar template:', error);
-      alert('Erro ao salvar template');
-    }
+      const version = await window.electronAPI.app.getVersion();
+      this.el.appVersion.textContent = `v${version}`;
+    } catch {}
   }
 
-  async showTemplates() {
-    const modal = document.getElementById('templateModal');
-    if (!modal) return;
-    
+  async refreshPrinters() {
     try {
-      const templates = await window.electronAPI.getTemplates();
-      const templateList = document.getElementById('templateList');
-      if (!templateList) return;
-      
-      templateList.innerHTML = '';
-      
-      if (templates.length === 0) {
-        templateList.innerHTML = '<p style="text-align: center; color: #6b7280;">Nenhum template salvo</p>';
-      } else {
-        templates.forEach(template => {
-          const item = this.createTemplateItem(template);
-          templateList.appendChild(item);
-        });
-      }
-      
-      modal.style.display = 'flex';
-    } catch (error) {
-      console.error('Erro ao carregar templates:', error);
+      const count = await this.printerManager.load();
+      if (count === 0) UI.showToast(this.el.toastContainer, 'Nenhuma impressora', 'warning');
+    } catch {
+      UI.showToast(this.el.toastContainer, 'Erro ao carregar impressoras', 'error');
     }
   }
 
-  createTemplateItem(template) {
-    const div = document.createElement('div');
-    div.className = 'template-item';
-    
-    div.innerHTML = `
-      <h4>${template.name}</h4>
-      <p>${template.description || 'Sem descrição'}</p>
-      <p style="font-size: 11px;">Tamanho: ${template.labelSize.width}x${template.labelSize.height}mm</p>
-      <div class="template-item-actions">
-        <button class="btn btn-sm" onclick="app.loadTemplate('${template.id}')">Carregar</button>
-        <button class="btn btn-sm btn-danger" onclick="app.deleteTemplate('${template.id}')">Excluir</button>
-      </div>
-    `;
-    
-    return div;
-  }
-
-  async loadTemplate(templateId) {
+  async buscarProdutos() {
+    UI.setStatus(this.el.statusMessage, 'Buscando...', 'loading');
     try {
-      const templates = await window.electronAPI.getTemplates();
-      const template = templates.find(t => t.id === templateId);
-      
-      if (!template) {
-        alert('Template não encontrado');
-        return;
-      }
-      
-      // Aplicar tamanho da etiqueta
-      const widthInput = document.getElementById('labelWidth');
-      const heightInput = document.getElementById('labelHeight');
-      widthInput.value = template.labelSize.width.toString();
-      heightInput.value = template.labelSize.height.toString();
-      this.updateCanvasSize();
-      
-      // Carregar elementos usando o labelDesigner
-      if (window.labelDesigner) {
-        window.labelDesigner.loadElements(template.elements);
-      }
-      
-      // Fechar modal
-      const modal = document.getElementById('templateModal');
-      if (modal) {
-        modal.style.display = 'none';
-      }
-      
-      this.updateCodePreview();
+      const count = await this.produtosManager.carregar(this.el.inputBusca.value.trim());
+      UI.setStatus(this.el.statusMessage, 'Pronto', 'success');
+      if (count === 0) UI.showToast(this.el.toastContainer, 'Nenhum produto encontrado', 'info');
     } catch (error) {
-      console.error('Erro ao carregar template:', error);
-      alert('Erro ao carregar template');
+      UI.setStatus(this.el.statusMessage, 'Erro', 'error');
+      UI.showToast(this.el.toastContainer, error.message, 'error');
     }
   }
 
-  async deleteTemplate(templateId) {
-    if (!confirm('Tem certeza que deseja excluir este template?')) return;
-    
+  async imprimir(labelData) {
+    UI.setStatus(this.el.statusMessage, `Imprimindo ${labelData.copies} etiqueta(s)...`, 'loading');
+    this.printModal.setLoading(true);
+
     try {
-      await window.electronAPI.deleteTemplate(templateId);
-      this.showTemplates(); // Recarregar lista
+      await this.printerManager.print(labelData);
+      UI.showToast(this.el.toastContainer, `${labelData.copies} etiqueta(s) enviada(s)!`, 'success');
+      UI.setStatus(this.el.statusMessage, 'Impresso', 'success');
+      this.printModal.close();
     } catch (error) {
-      console.error('Erro ao excluir template:', error);
-      alert('Erro ao excluir template');
-    }
-  }
-
-  showAbout() {
-    const modal = document.getElementById('aboutModal');
-    if (modal) {
-      modal.style.display = 'flex';
-    }
-  }
-
-  updateCanvasSize() {
-    const canvas = document.getElementById('labelCanvas');
-    const widthInput = document.getElementById('labelWidth');
-    const heightInput = document.getElementById('labelHeight');
-    const orientationSelect = document.getElementById('labelOrientation');
-    
-    let width = parseInt(widthInput.value);
-    let height = parseInt(heightInput.value);
-    
-    // Aplicar orientação
-    if (orientationSelect.value === 'landscape') {
-      [width, height] = [height, width];
-    }
-    
-    // Converter mm para pixels (assumindo 3.78 pixels por mm para 96 DPI)
-    const mmToPixels = 3.78;
-    canvas.style.width = `${width * mmToPixels}px`;
-    canvas.style.height = `${height * mmToPixels}px`;
-    
-    this.updateCodePreview();
-  }
-
-  addElement(type) {
-    // Implementação será adicionada no arquivo label-designer.ts
-    if (window.labelDesigner) {
-      window.labelDesigner.addElement(type);
-    }
-  }
-
-  getCanvasElements() {
-    if (window.labelDesigner) {
-      return window.labelDesigner.getElements();
-    }
-    return [];
-  }
-
-  async print() {
-    console.log('🖨️ Função print() chamada');
-    
-    const printerSelect = document.getElementById('selectPrinter');
-    const protocolSelect = document.getElementById('selectProtocol');
-    const widthInput = document.getElementById('labelWidth');
-    const heightInput = document.getElementById('labelHeight');
-    
-    // Validar seleção de impressora
-    if (!printerSelect.value) {
-      alert('⚠️ Por favor, selecione uma impressora');
-      console.warn('Nenhuma impressora selecionada');
-      return;
-    }
-    
-    // Validar que há elementos na etiqueta
-    const elements = this.getCanvasElements();
-    console.log('📦 Elementos no canvas:', elements);
-    
-    if (elements.length === 0) {
-      alert('⚠️ Adicione pelo menos um elemento à etiqueta antes de imprimir');
-      console.warn('Canvas vazio');
-      return;
-    }
-    
-    // Mostrar modal de impressão
-    this.showPrintDialog(printerSelect, protocolSelect, elements, widthInput, heightInput);
-  }
-
-  showPrintDialog(printerSelect, protocolSelect, elements, widthInput, heightInput) {
-    const modal = document.getElementById('printModal');
-    const copiesInput = document.getElementById('printCopies');
-    const elementCount = document.getElementById('printElementCount');
-    const printerName = document.getElementById('printPrinterName');
-    const protocol = document.getElementById('printProtocol');
-    const btnCancel = document.getElementById('btnCancelPrint');
-    const btnConfirm = document.getElementById('btnConfirmPrint');
-    
-    // Preencher informações
-    copiesInput.value = '1';
-    elementCount.textContent = elements.length;
-    printerName.textContent = printerSelect.options[printerSelect.selectedIndex].text;
-    protocol.textContent = protocolSelect.value;
-    
-    // Mostrar modal
-    modal.style.display = 'flex';
-    
-    // Focar no input
-    setTimeout(() => copiesInput.focus(), 100);
-    
-    // Handler de confirmação
-    const handleConfirm = async () => {
-      const copies = parseInt(copiesInput.value);
-      
-      if (!copies || copies <= 0) {
-        alert('⚠️ Número de cópias inválido');
-        return;
-      }
-      
-      // Fechar modal
-      modal.style.display = 'none';
-      
-      // Executar impressão
-      await this.executePrint(printerSelect, protocolSelect, elements, widthInput, heightInput, copies);
-      
-      // Remover listeners
-      btnConfirm.removeEventListener('click', handleConfirm);
-      btnCancel.removeEventListener('click', handleCancel);
-      copiesInput.removeEventListener('keydown', handleKeyDown);
-    };
-    
-    // Handler de cancelamento
-    const handleCancel = () => {
-      modal.style.display = 'none';
-      console.log('Impressão cancelada pelo usuário');
-      
-      // Remover listeners
-      btnConfirm.removeEventListener('click', handleConfirm);
-      btnCancel.removeEventListener('click', handleCancel);
-      copiesInput.removeEventListener('keydown', handleKeyDown);
-    };
-    
-    // Handler de teclas
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter') {
-        handleConfirm();
-      } else if (e.key === 'Escape') {
-        handleCancel();
-      }
-    };
-    
-    // Adicionar listeners
-    btnConfirm.addEventListener('click', handleConfirm);
-    btnCancel.addEventListener('click', handleCancel);
-    copiesInput.addEventListener('keydown', handleKeyDown);
-  }
-
-  async executePrint(printerSelect, protocolSelect, elements, widthInput, heightInput, copies) {
-    const btnPrint = document.getElementById('btnPrint');
-    const originalText = btnPrint.innerHTML;
-    
-    try {
-      console.log('🔄 Iniciando processo de impressão...');
-      
-      // Desabilitar botão de impressão
-      btnPrint.disabled = true;
-      btnPrint.innerHTML = '⏳ Imprimindo...';
-      
-      // Preparar dados para impressão
-      const printData = {
-        printerName: printerSelect.value,
-        protocol: protocolSelect.value,
-        elements: elements,
-        labelSize: {
-          width: parseInt(widthInput.value),
-          height: parseInt(heightInput.value)
-        },
-        copies: copies
-      };
-      
-      console.log('📋 Dados de impressão:', printData);
-      
-      // Enviar para impressão
-      console.log('📤 Enviando para impressão...');
-      const result = await window.electronAPI.printLabel(printData);
-      
-      console.log('📥 Resposta recebida:', result);
-      
-      if (result.success) {
-        console.log('✅ Impressão bem-sucedida!');
-        alert(`✅ Etiqueta enviada para impressão!\n\n📄 ${copies} cópia(s)\n🖨️ Impressora: ${printerSelect.options[printerSelect.selectedIndex].text}`);
-      } else {
-        console.error('❌ Erro na impressão:', result);
-        throw new Error(result.error || 'Erro desconhecido');
-      }
-      
-      // Restaurar botão
-      btnPrint.disabled = false;
-      btnPrint.innerHTML = originalText;
-      
-    } catch (error) {
-      console.error('❌ Exceção ao imprimir:', error);
-      console.error('Stack trace:', error.stack);
-      
-      // Montar mensagem de erro detalhada
-      let errorMessage = '❌ Erro ao imprimir etiqueta\n\n';
-      errorMessage += `Erro: ${error.message}\n\n`;
-      errorMessage += 'Possíveis causas:\n';
-      errorMessage += '• Impressora desligada ou desconectada\n';
-      errorMessage += '• Driver da impressora não instalado\n';
-      errorMessage += '• Falta de permissão para acessar a impressora\n';
-      errorMessage += '• Protocolo incompatível com a impressora\n\n';
-      errorMessage += 'Verifique o console (F12) para mais detalhes.';
-      
-      alert(errorMessage);
-      
-      // Restaurar botão em caso de erro
-      if (btnPrint) {
-        btnPrint.disabled = false;
-        btnPrint.innerHTML = originalText;
-      }
-    }
-  }
-
-  copyCode() {
-    const codePreview = document.getElementById('codePreview');
-    if (!codePreview) return;
-    
-    const text = codePreview.textContent || '';
-    
-    navigator.clipboard.writeText(text).then(() => {
-      // Feedback visual
-      const btn = document.getElementById('btnCopyCode');
-      if (btn) {
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '✓ Copiado!';
-        setTimeout(() => {
-          btn.innerHTML = originalText;
-        }, 2000);
-      }
-    }).catch(err => {
-      console.error('Erro ao copiar:', err);
-    });
-  }
-
-  async updateCodePreview() {
-    try {
-      const protocolSelect = document.getElementById('selectProtocol');
-      const widthInput = document.getElementById('labelWidth');
-      const heightInput = document.getElementById('labelHeight');
-      const codePreview = document.getElementById('codePreview');
-      
-      if (!codePreview) return;
-      
-      // Obter elementos da etiqueta
-      const elements = this.getCanvasElements();
-      
-      // Se não houver elementos, mostrar mensagem
-      if (elements.length === 0) {
-        codePreview.textContent = '; Adicione elementos à etiqueta para ver o código gerado';
-        return;
-      }
-      
-      // Preparar dados para preview
-      const previewData = {
-        protocol: protocolSelect.value,
-        elements: elements,
-        labelSize: {
-          width: parseInt(widthInput.value),
-          height: parseInt(heightInput.value)
-        }
-      };
-      
-      // Gerar preview
-      const result = await window.electronAPI.generatePreview(previewData);
-      
-      if (result.success) {
-        codePreview.textContent = result.code;
-      } else {
-        codePreview.textContent = `; Erro ao gerar código: ${result.error}`;
-      }
-      
-    } catch (error) {
-      console.error('Erro ao atualizar preview:', error);
-      const codePreview = document.getElementById('codePreview');
-      if (codePreview) {
-        codePreview.textContent = `; Erro: ${error.message}`;
-      }
+      UI.showToast(this.el.toastContainer, error.message, 'error');
+      UI.setStatus(this.el.statusMessage, 'Erro', 'error');
+    } finally {
+      this.printModal.setLoading(false);
     }
   }
 }
 
-// Inicializar aplicação quando o DOM estiver pronto
+// ==================== Init ====================
+
 document.addEventListener('DOMContentLoaded', () => {
-  window.app = new LabelDesignerApp();
+  window.app = new EtiquetasApp();
 });
