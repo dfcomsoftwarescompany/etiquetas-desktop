@@ -646,7 +646,8 @@ body {
 }
 
 .modal-print {
-  max-width: 520px;
+  max-width: 600px;
+  width: 95%;
 }
 
 .modal-header {
@@ -699,6 +700,15 @@ body {
   padding: var(--space-6);
   display: flex;
   gap: var(--space-6);
+  align-items: stretch;
+  min-height: 260px;
+}
+
+/* Garantir que a prévia seja visível */
+.modal-body .mini-preview {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .modal-footer {
@@ -843,36 +853,58 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: flex-start;
+  gap: var(--space-3);
+  min-width: 140px;
+  width: 140px;
+  flex-shrink: 0;
+  padding: var(--space-2);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-default);
 }
 
 .preview-label {
   width: 120px;
   height: 180px;
-  background: #fff;
+  background: #ffffff;
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--space-3);
-  gap: var(--space-2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  gap: 8px;
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .preview-qr {
   width: 70px;
   height: 70px;
-  background: #f5f5f5;
+  min-width: 70px;
+  min-height: 70px;
+  background: #f0f0f0;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #e0e0e0;
 }
 
 .preview-qr img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  display: block;
+}
+
+.preview-qr:empty::after {
+  content: 'QR';
+  font-size: 10px;
+  color: #bbb;
+  font-family: var(--font-mono);
 }
 
 .preview-info {
@@ -882,29 +914,50 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 4px;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 0;
 }
 
 .preview-desc {
-  font-size: 0.625rem;
+  font-size: 9px;
   font-weight: 600;
-  color: #333;
-  line-height: 1.2;
-  max-height: 2.4em;
+  color: #222;
+  line-height: 1.3;
+  max-height: 3em;
   overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+  width: 100%;
 }
 
 .preview-price {
-  font-size: 0.875rem;
+  font-size: 14px;
   font-weight: 700;
   color: #000;
   font-family: var(--font-mono);
+  white-space: nowrap;
+  margin-top: auto;
+}
+
+.preview-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
 }
 
 .preview-size {
-  font-size: 0.625rem;
-  color: var(--text-muted);
+  font-size: 10px;
+  color: var(--text-secondary);
   font-family: var(--font-mono);
+  background: var(--bg-hover);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 /* ==================== Scrollbar ==================== */

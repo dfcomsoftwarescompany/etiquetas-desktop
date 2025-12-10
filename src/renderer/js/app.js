@@ -187,11 +187,34 @@ class PrintModal {
     this.el.quantidade.value = 1;
     this.el.descricaoCount.textContent = this.el.descricao.value.length;
     
-    const qr = await window.electronAPI.qrcode.generate(produto.codBarras, { width: 70, margin: 1 });
-    if (qr.success) this.el.previewQr.innerHTML = `<img src="${qr.dataUrl}" alt="QR">`;
+    // Limpar prévia anterior
+    this.el.previewQr.innerHTML = '';
+    this.el.previewDesc.textContent = 'Carregando...';
+    this.el.previewPrice.textContent = 'R$ 0,00';
     
+    // Gerar QR Code
+    try {
+      const qr = await window.electronAPI.qrcode.generate(produto.codBarras, { width: 70, margin: 1 });
+      if (qr.success) {
+        this.el.previewQr.innerHTML = `<img src="${qr.dataUrl}" alt="QR Code">`;
+      } else {
+        this.el.previewQr.innerHTML = '<span style="font-size: 0.5rem; color: #999;">Erro QR</span>';
+      }
+    } catch (error) {
+      console.error('[Modal] Erro ao gerar QR:', error);
+      this.el.previewQr.innerHTML = '<span style="font-size: 0.5rem; color: #999;">Erro QR</span>';
+    }
+    
+    // Atualizar prévia
     this.updatePreview();
+    
+    // Mostrar modal
     this.modal.classList.add('active');
+    
+    // Pequeno delay para garantir renderização
+    setTimeout(() => {
+      this.updatePreview();
+    }, 100);
   }
 
   close() {
@@ -200,9 +223,17 @@ class PrintModal {
   }
 
   updatePreview() {
-    this.el.previewDesc.textContent = this.el.descricao.value || 'Descrição';
-    this.el.previewPrice.textContent = `R$ ${this.el.preco.value || '0,00'}`;
+    const descricao = this.el.descricao.value || 'Descrição';
+    const preco = this.el.preco.value || '0,00';
+    
+    this.el.previewDesc.textContent = descricao;
+    this.el.previewPrice.textContent = `R$ ${preco}`;
     this.el.descricaoCount.textContent = this.el.descricao.value.length;
+    
+    // Forçar re-render para garantir visibilidade
+    this.el.previewDesc.style.display = 'none';
+    this.el.previewDesc.offsetHeight; // Trigger reflow
+    this.el.previewDesc.style.display = '';
   }
 
   adjustQty(delta) {

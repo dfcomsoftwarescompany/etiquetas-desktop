@@ -60,12 +60,19 @@ app.whenReady().then(() => {
   // Criar janela
   createWindow();
 
-  // Verificar atualizações (produção)
-  if (!process.argv.includes('--dev')) {
+  // Verificar atualizações (apenas em produção)
+  if (app.isPackaged) {
+    // Verificação inicial após 5 segundos
     setTimeout(() => {
-      updateManager?.checkForUpdates();
       console.log('[App] Verificando atualizações...');
+      updateManager?.checkForUpdates();
     }, 5000);
+
+    // Verificação periódica a cada 4 horas
+    setInterval(() => {
+      console.log('[App] Verificação periódica de atualizações...');
+      updateManager?.checkForUpdates();
+    }, 4 * 60 * 60 * 1000);
   }
 
   app.on('activate', () => {
