@@ -53,22 +53,26 @@ npm run publish
 ## 🏗️ Estrutura do Projeto
 
 ```
-etiquetas-desktop/
-├── package.json
-├── src/
-│   ├── main/
-│   │   ├── index.js        # Processo principal Electron
-│   │   ├── printer.js      # Módulo de comunicação com impressora
-│   │   └── preload.js      # Bridge segura para renderer
-│   └── renderer/
-│       ├── index.html      # Interface principal
-│       ├── styles/
-│       │   └── main.css    # Estilos
-│       └── js/
-│           └── app.js      # Lógica da interface
-├── assets/
-│   └── icon.ico            # Ícone do aplicativo
-└── dist/                   # Build de produção
+src/
+├── main/
+│   ├── index.js          # Entry point (limpo, ~80 linhas)
+│   ├── preload.js        # Bridge IPC
+│   ├── modules/
+│   │   ├── printer.js    # Comunicação com impressoras Argox
+│   │   ├── api.js        # Cliente API externa + mock
+│   │   └── updater.js    # Auto-update silencioso
+│   └── ipc/
+│       ├── index.js      # Registra todos os handlers
+│       ├── printer.js    # Handlers de impressora
+│       ├── api.js        # Handlers de API
+│       └── app.js        # Handlers do app (versão, QR, updates)
+│
+└── renderer/
+    ├── index.html        # Nova interface com tabela
+    ├── js/
+    │   └── app.js        # Classes organizadas (~250 linhas)
+    └── styles/
+        └── main.css      # Estilos do tema dark                 # Build de produção
 ```
 
 ## 🖨️ Protocolo PPLA

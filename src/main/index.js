@@ -1,12 +1,24 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-const os = require('os');
-const { autoUpdater } = require('electron-updater');
-const QRCode = require('qrcode');
-const PrinterManager = require('./printer');
+/**
+ * Etiquetas DFCOM - Main Process
+ * Aplicativo Electron para impressão de etiquetas
+ */
 
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+
+// Módulos
+const PrinterManager = require('./modules/printer');
+const APIClient = require('./modules/api');
+const UpdateManager = require('./modules/updater');
+const { registerAllHandlers } = require('./ipc');
+
+// Instâncias
 let mainWindow;
 const printerManager = new PrinterManager();
+const apiClient = new APIClient();
+let updateManager;
+
+// ==================== Window ====================
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -27,152 +39,33 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
-  // Mostra a janela quando estiver pronta
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // DevTools em modo dev
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools();
   }
+
+  // Inicializar UpdateManager após criar janela
+  updateManager = new UpdateManager(mainWindow);
 }
-
-// ==================== IPC Handlers - Printer ====================
-
-// Listar impressoras disponíveis
-ipcMain.handle('printer:list', async () => {
-  try {
-    console.log('[Main] Iniciando listagem de impressoras...');
-    
-    const printers = await printerManager.listPrinters();
-    
-    console.log(`[Main] Total de impressoras: ${printers ? printers.length : 0}`);
-    return { success: true, printers: printers || [] };
-  } catch (error) {
-    console.error('[Main] Erro ao listar impressoras:', error.message);
-    return { success: false, error: error.message };
-  }
-});
-
-// Imprimir etiqueta completa com QR Code
-ipcMain.handle('printer:printLabel', async (event, { printerName, labelData }) => {
-  try {
-    console.log('[Main] Imprimindo etiqueta:', labelData);
-    await printerManager.printLabel(printerName, labelData);
-    return { success: true };
-  } catch (error) {
-    console.error('[Main] Erro ao imprimir etiqueta:', error.message);
-    return { success: false, error: error.message };
-  }
-});
-
-// Teste de impressão "Olá Mundo"
-ipcMain.handle('printer:test', async (event, { printerName }) => {
-  try {
-    console.log('[Main] Imprimindo teste em:', printerName);
-    await printerManager.printTestLabel(printerName);
-    return { success: true };
-  } catch (error) {
-    console.error('[Main] Erro ao imprimir teste:', error.message);
-    return { success: false, error: error.message };
-  }
-});
-
-// Status da impressora
-ipcMain.handle('printer:status', async (event, { printerName }) => {
-  try {
-    const status = printerManager.getPrinterStatus(printerName);
-    return { success: true, status };
-  } catch (error) {
-    console.error('[Main] Erro ao obter status:', error.message);
-    return { success: false, error: error.message };
-  }
-});
-
-// Obter configurações
-ipcMain.handle('printer:getConfig', () => {
-  return printerManager.getConfig();
-});
-
-// Atualizar configurações
-ipcMain.handle('printer:setConfig', (event, config) => {
-  printerManager.setConfig(config);
-  return printerManager.getConfig();
-});
-
-// ==================== IPC Handlers - QR Code ====================
-
-// Gera QR Code como Data URL para preview
-ipcMain.handle('qrcode:generate', async (event, { data, options = {} }) => {
-  try {
-    const qrOptions = {
-      width: options.width || 150,
-      margin: options.margin || 1,
-      color: {
-        dark: '#000000',
-        light: '#ffffff'
-      },
-      errorCorrectionLevel: 'M'
-    };
-
-    const dataUrl = await QRCode.toDataURL(data || 'DFCOM', qrOptions);
-    return { success: true, dataUrl };
-  } catch (error) {
-    console.error('[Main] Erro ao gerar QR Code:', error.message);
-    return { success: false, error: error.message };
-  }
-});
-
-// ==================== IPC Handlers - App ====================
-
-// Obter versão do app
-ipcMain.handle('app:version', () => {
-  return app.getVersion();
-});
-
-// Obter informações do sistema
-ipcMain.handle('app:systemInfo', () => {
-  return {
-    platform: os.platform(),
-    arch: os.arch(),
-    hostname: os.hostname(),
-    nodeVersion: process.versions.node,
-    electronVersion: process.versions.electron
-  };
-});
-
-// ==================== Auto Updater ====================
-
-autoUpdater.on('update-available', () => {
-  mainWindow?.webContents.send('update:available');
-});
-
-autoUpdater.on('update-downloaded', () => {
-  mainWindow?.webContents.send('update:downloaded');
-});
-
-ipcMain.handle('update:check', async () => {
-  try {
-    const result = await autoUpdater.checkForUpdates();
-    return { success: true, result };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('update:install', () => {
-  autoUpdater.quitAndInstall();
-});
 
 // ==================== App Lifecycle ====================
 
 app.whenReady().then(() => {
+  // Registrar handlers IPC
+  registerAllHandlers({ printerManager, apiClient, updateManager });
+  
+  // Criar janela
   createWindow();
 
-  // Verifica atualizações após iniciar (apenas em produção)
+  // Verificar atualizações (produção)
   if (!process.argv.includes('--dev')) {
-    autoUpdater.checkForUpdatesAndNotify();
+    setTimeout(() => {
+      updateManager?.checkForUpdates();
+      console.log('[App] Verificando atualizações...');
+    }, 5000);
   }
 
   app.on('activate', () => {
@@ -180,6 +73,10 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  console.log('[App] Fechando...');
 });
 
 app.on('window-all-closed', () => {

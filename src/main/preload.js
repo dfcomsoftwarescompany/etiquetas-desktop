@@ -67,6 +67,55 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSystemInfo: () => ipcRenderer.invoke('app:systemInfo')
   },
 
+  // ==================== API Externa ====================
+  api: {
+    /**
+     * Configura a URL base da API
+     * @param {string} url - URL base da API
+     */
+    setBaseURL: (url) => ipcRenderer.invoke('api:setBaseURL', url),
+
+    /**
+     * Ativa ou desativa o modo mock (dados de teste)
+     * @param {boolean} enabled - true para usar dados mock
+     */
+    setMockMode: (enabled) => ipcRenderer.invoke('api:setMockMode', enabled),
+
+    /**
+     * Busca lista de produtos com filtros opcionais
+     * @param {object} filters - Filtros de busca
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    buscarProdutos: (filters) => ipcRenderer.invoke('api:buscarProdutos', filters),
+
+    /**
+     * Busca um produto específico por código
+     * @param {string} codigo - Código do produto
+     * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+     */
+    buscarProdutoPorCodigo: (codigo) => ipcRenderer.invoke('api:buscarProdutoPorCodigo', codigo),
+
+    /**
+     * Busca produtos por nome ou descrição
+     * @param {string} termo - Termo de busca
+     * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+     */
+    buscarProdutoPorNome: (termo) => ipcRenderer.invoke('api:buscarProdutoPorNome', termo),
+
+    /**
+     * Testa conexão com a API
+     * @returns {Promise<{success: boolean, connected?: boolean, error?: string}>}
+     */
+    testarConexao: () => ipcRenderer.invoke('api:testarConexao'),
+
+    /**
+     * Registra impressão de etiqueta (log/auditoria)
+     * @param {object} labelData - Dados da etiqueta impressa
+     * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+     */
+    registrarImpressao: (labelData) => ipcRenderer.invoke('api:registrarImpressao', labelData)
+  },
+
   // ==================== Updates ====================
   updates: {
     /**

@@ -1,447 +1,376 @@
 /**
- * Etiquetas DFCOM - Renderer Process
- * Interface para impressão de etiquetas 40x60mm em Argox OS-2140
+ * Etiquetas DFCOM - Renderer
+ * Interface para impressão de etiquetas 40x60mm
  * v2.0.0
  */
 
+// ==================== Helpers ====================
+
+const UI = {
+  setStatus(element, message, type = 'default') {
+    element.className = 'status-item ' + type;
+    element.querySelector('span:last-child').textContent = message;
+  },
+
+  showToast(container, message, type = 'info') {
+    const icons = {
+      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+    };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `${icons[type] || icons.info}<span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3500);
+  },
+
+  formatarPreco(valor) {
+    if (!valor && valor !== 0) return '0,00';
+    return parseFloat(valor).toFixed(2).replace('.', ',');
+  },
+
+  setButtonLoading(button, loading, text = 'Enviando...') {
+    button.disabled = loading;
+    if (loading) {
+      button.dataset.originalHtml = button.innerHTML;
+      button.innerHTML = `<svg class="spinning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/></svg>${text}`;
+    } else {
+      button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+    }
+  }
+};
+
+// ==================== Printer Manager ====================
+
+class PrinterManager {
+  constructor(select, onSelect) {
+    this.select = select;
+    this.onSelect = onSelect;
+    this.printers = [];
+    this.selected = null;
+  }
+
+  async load() {
+    this.select.disabled = true;
+    this.select.innerHTML = '<option value="">Carregando...</option>';
+    
+    const result = await window.electronAPI.printer.list();
+    if (!result.success) throw new Error(result.error);
+
+    this.printers = result.printers || [];
+    this.render();
+    return this.printers.length;
+  }
+
+  render() {
+    if (this.printers.length === 0) {
+      this.select.innerHTML = '<option value="">Nenhuma impressora</option>';
+      this.select.disabled = true;
+      return;
+    }
+
+    this.select.innerHTML = '<option value="">Selecione...</option>';
+    this.printers.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.Name;
+      opt.textContent = p.Name;
+      this.select.appendChild(opt);
+    });
+    this.select.disabled = false;
+
+    // Auto-select Argox
+    const argox = this.printers.find(p => p.Name.toLowerCase().includes('argox'));
+    if (argox) {
+      this.select.value = argox.Name;
+      this.selectPrinter(argox.Name);
+    }
+  }
+
+  selectPrinter(name) {
+    this.selected = name ? this.printers.find(p => p.Name === name) : null;
+    if (this.onSelect) this.onSelect(this.selected);
+  }
+
+  async print(labelData) {
+    if (!this.selected) throw new Error('Selecione uma impressora');
+    const result = await window.electronAPI.printer.printLabel(this.selected.Name, labelData);
+    if (!result.success) throw new Error(result.error);
+    return result;
+  }
+}
+
+// ==================== Produtos Manager ====================
+
+class ProdutosManager {
+  constructor(tbody, emptyState, countEl, onPrint) {
+    this.tbody = tbody;
+    this.emptyState = emptyState;
+    this.countEl = countEl;
+    this.onPrint = onPrint;
+    this.produtos = [];
+  }
+
+  async carregar(termo = '') {
+    const result = termo
+      ? await window.electronAPI.api.buscarProdutoPorNome(termo)
+      : await window.electronAPI.api.buscarProdutos();
+    
+    if (!result.success) throw new Error(result.error);
+    this.produtos = result.data || [];
+    this.render();
+    return this.produtos.length;
+  }
+
+  render() {
+    this.tbody.innerHTML = '';
+
+    if (this.produtos.length === 0) {
+      this.emptyState.classList.remove('hidden');
+      this.countEl.textContent = '0 produtos';
+      return;
+    }
+
+    this.emptyState.classList.add('hidden');
+    this.countEl.textContent = `${this.produtos.length} produto${this.produtos.length > 1 ? 's' : ''}`;
+
+    this.produtos.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="codigo">${p.codBarras}</td>
+        <td class="descricao">${p.descricao}</td>
+        <td class="preco">R$ ${UI.formatarPreco(p.vlrVenda)}</td>
+        <td class="col-acoes">
+          <button class="btn btn-print-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>Etiqueta
+          </button>
+        </td>
+      `;
+      tr.querySelector('.btn-print-row').addEventListener('click', () => this.onPrint(p));
+      this.tbody.appendChild(tr);
+    });
+  }
+}
+
+// ==================== Print Modal ====================
+
+class PrintModal {
+  constructor(elements, onPrint) {
+    this.modal = elements.modal;
+    this.el = elements;
+    this.onPrint = onPrint;
+    this.produto = null;
+    this.bindEvents();
+  }
+
+  bindEvents() {
+    this.el.btnClose.addEventListener('click', () => this.close());
+    this.el.btnCancel.addEventListener('click', () => this.close());
+    this.modal.querySelector('.modal-backdrop').addEventListener('click', () => this.close());
+    this.el.descricao.addEventListener('input', () => this.updatePreview());
+    this.el.preco.addEventListener('input', () => this.updatePreview());
+    this.el.btnQtyMinus.addEventListener('click', () => this.adjustQty(-1));
+    this.el.btnQtyPlus.addEventListener('click', () => this.adjustQty(1));
+    this.el.quantidade.addEventListener('change', () => this.validateQty());
+    this.el.btnPrint.addEventListener('click', () => this.onPrint(this.getLabelData()));
+  }
+
+  async open(produto) {
+    this.produto = { ...produto };
+    this.el.codigo.value = produto.codBarras;
+    this.el.descricao.value = produto.descricao.substring(0, 25);
+    this.el.preco.value = UI.formatarPreco(produto.vlrVenda);
+    this.el.quantidade.value = 1;
+    this.el.descricaoCount.textContent = this.el.descricao.value.length;
+    
+    const qr = await window.electronAPI.qrcode.generate(produto.codBarras, { width: 70, margin: 1 });
+    if (qr.success) this.el.previewQr.innerHTML = `<img src="${qr.dataUrl}" alt="QR">`;
+    
+    this.updatePreview();
+    this.modal.classList.add('active');
+  }
+
+  close() {
+    this.modal.classList.remove('active');
+    this.produto = null;
+  }
+
+  updatePreview() {
+    this.el.previewDesc.textContent = this.el.descricao.value || 'Descrição';
+    this.el.previewPrice.textContent = `R$ ${this.el.preco.value || '0,00'}`;
+    this.el.descricaoCount.textContent = this.el.descricao.value.length;
+  }
+
+  adjustQty(delta) {
+    let v = parseInt(this.el.quantidade.value) || 1;
+    this.el.quantidade.value = Math.max(1, Math.min(100, v + delta));
+  }
+
+  validateQty() {
+    let v = parseInt(this.el.quantidade.value) || 1;
+    this.el.quantidade.value = Math.max(1, Math.min(100, v));
+  }
+
+  getLabelData() {
+    return {
+      texto: this.el.descricao.value,
+      codigo: this.el.codigo.value,
+      preco: this.el.preco.value,
+      copies: parseInt(this.el.quantidade.value) || 1
+    };
+  }
+
+  setLoading(loading) {
+    UI.setButtonLoading(this.el.btnPrint, loading);
+  }
+}
+
+// ==================== App ====================
+
 class EtiquetasApp {
   constructor() {
-    this.printers = [];
-    this.selectedPrinter = null;
-    this.debounceTimer = null;
-    
     this.init();
   }
 
   async init() {
-    this.elements = {
-      // Printer
+    this.getElements();
+    this.setupModules();
+    this.bindEvents();
+    
+    await this.loadVersion();
+    await this.printerManager.load().catch(() => UI.showToast(this.el.toastContainer, 'Erro ao carregar impressoras', 'error'));
+    await this.produtosManager.carregar().catch(() => {});
+    
+    UI.setStatus(this.el.statusMessage, 'Pronto', 'success');
+  }
+
+  getElements() {
+    this.el = {
+      // Header
       printerSelect: document.getElementById('printer-select'),
       btnRefresh: document.getElementById('btn-refresh'),
-      printerStatus: document.getElementById('printer-status'),
-      
-      // Form inputs
-      inputTexto: document.getElementById('input-texto'),
-      inputCodigo: document.getElementById('input-codigo'),
-      inputPreco: document.getElementById('input-preco'),
-      inputTamanho: document.getElementById('input-tamanho'),
-      inputCopies: document.getElementById('input-copies'),
-      textoCount: document.getElementById('texto-count'),
-      
-      // Quantity controls
-      btnMinus: document.getElementById('btn-minus'),
-      btnPlus: document.getElementById('btn-plus'),
-      
-      // Action buttons
-      btnPrintTest: document.getElementById('btn-print-test'),
+      // Search
+      inputBusca: document.getElementById('input-busca'),
+      btnBuscar: document.getElementById('btn-buscar'),
+      produtosCount: document.getElementById('produtos-count'),
+      // Table
+      produtosTbody: document.getElementById('produtos-tbody'),
+      emptyState: document.getElementById('empty-state'),
+      // Modal
+      printModal: document.getElementById('print-modal'),
+      btnModalClose: document.getElementById('btn-modal-close'),
+      btnCancel: document.getElementById('btn-cancel'),
       btnPrint: document.getElementById('btn-print'),
-      
-      // Preview
+      editCodigo: document.getElementById('edit-codigo'),
+      editDescricao: document.getElementById('edit-descricao'),
+      editPreco: document.getElementById('edit-preco'),
+      editQuantidade: document.getElementById('edit-quantidade'),
+      descricaoCount: document.getElementById('descricao-count'),
+      btnQtyMinus: document.getElementById('btn-qty-minus'),
+      btnQtyPlus: document.getElementById('btn-qty-plus'),
       previewQr: document.getElementById('preview-qr'),
-      previewTexto: document.getElementById('preview-texto'),
-      previewCodigo: document.getElementById('preview-codigo'),
-      previewPreco: document.getElementById('preview-preco'),
-      previewTamanho: document.getElementById('preview-tamanho'),
-      
+      previewDesc: document.getElementById('preview-desc'),
+      previewPrice: document.getElementById('preview-price'),
       // UI
       statusMessage: document.getElementById('status-message'),
       appVersion: document.getElementById('app-version'),
-      toastContainer: document.getElementById('toast-container'),
-      
-      // Update modal
-      updateModal: document.getElementById('update-modal'),
-      btnUpdateLater: document.getElementById('btn-update-later'),
-      btnUpdateNow: document.getElementById('btn-update-now'),
-      btnCheckUpdate: document.getElementById('btn-check-update')
+      toastContainer: document.getElementById('toast-container')
     };
+  }
 
-    await this.loadVersion();
-    this.bindEvents();
-    await this.loadPrinters();
-    this.setupUpdateListeners();
-    this.updatePreview();
-    
-    this.setStatus('Pronto', 'success');
+  setupModules() {
+    // Printer
+    this.printerManager = new PrinterManager(
+      this.el.printerSelect,
+      (printer) => console.log('[App] Impressora:', printer?.Name)
+    );
+
+    // Produtos
+    this.produtosManager = new ProdutosManager(
+      this.el.produtosTbody,
+      this.el.emptyState,
+      this.el.produtosCount,
+      (produto) => this.printModal.open(produto)
+    );
+
+    // Modal
+    this.printModal = new PrintModal({
+      modal: this.el.printModal,
+      btnClose: this.el.btnModalClose,
+      btnCancel: this.el.btnCancel,
+      btnPrint: this.el.btnPrint,
+      codigo: this.el.editCodigo,
+      descricao: this.el.editDescricao,
+      preco: this.el.editPreco,
+      quantidade: this.el.editQuantidade,
+      descricaoCount: this.el.descricaoCount,
+      btnQtyMinus: this.el.btnQtyMinus,
+      btnQtyPlus: this.el.btnQtyPlus,
+      previewQr: this.el.previewQr,
+      previewDesc: this.el.previewDesc,
+      previewPrice: this.el.previewPrice
+    }, (labelData) => this.imprimir(labelData));
   }
 
   bindEvents() {
-    // Printer selection
-    this.elements.btnRefresh.addEventListener('click', () => this.loadPrinters());
-    this.elements.printerSelect.addEventListener('change', (e) => this.selectPrinter(e.target.value));
-
-    // Form inputs with live preview
-    this.elements.inputTexto.addEventListener('input', () => {
-      this.updateCharCount();
-      this.debouncedUpdatePreview();
-    });
-    
-    this.elements.inputCodigo.addEventListener('input', () => this.debouncedUpdatePreview());
-    this.elements.inputPreco.addEventListener('input', () => this.updatePreview());
-    this.elements.inputTamanho.addEventListener('input', () => this.updatePreview());
-
-    // Quantity controls
-    this.elements.btnMinus.addEventListener('click', () => this.adjustQuantity(-1));
-    this.elements.btnPlus.addEventListener('click', () => this.adjustQuantity(1));
-    this.elements.inputCopies.addEventListener('change', () => this.validateQuantity());
-
-    // Print buttons
-    this.elements.btnPrintTest.addEventListener('click', () => this.printTest());
-    this.elements.btnPrint.addEventListener('click', () => this.printLabel());
-
-    // Updates
-    this.elements.btnCheckUpdate.addEventListener('click', () => this.checkUpdates());
-    this.elements.btnUpdateLater.addEventListener('click', () => this.hideUpdateModal());
-    this.elements.btnUpdateNow.addEventListener('click', () => this.installUpdate());
-
-    // Enter key to print
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.ctrlKey && !this.elements.btnPrint.disabled) {
-        this.printLabel();
-      }
-    });
+    this.el.btnRefresh.addEventListener('click', () => this.refreshPrinters());
+    this.el.printerSelect.addEventListener('change', (e) => this.printerManager.selectPrinter(e.target.value));
+    this.el.btnBuscar.addEventListener('click', () => this.buscarProdutos());
+    this.el.inputBusca.addEventListener('keypress', (e) => e.key === 'Enter' && this.buscarProdutos());
   }
 
   async loadVersion() {
     try {
       const version = await window.electronAPI.app.getVersion();
-      this.elements.appVersion.textContent = `v${version}`;
-    } catch (error) {
-      console.error('Erro ao carregar versão:', error);
+      this.el.appVersion.textContent = `v${version}`;
+    } catch {}
+  }
+
+  async refreshPrinters() {
+    try {
+      const count = await this.printerManager.load();
+      if (count === 0) UI.showToast(this.el.toastContainer, 'Nenhuma impressora', 'warning');
+    } catch {
+      UI.showToast(this.el.toastContainer, 'Erro ao carregar impressoras', 'error');
     }
   }
 
-  async loadPrinters() {
-    this.elements.btnRefresh.classList.add('spinning');
-    this.elements.printerSelect.disabled = true;
-    this.setStatus('Buscando impressoras...', 'loading');
+  async buscarProdutos() {
+    UI.setStatus(this.el.statusMessage, 'Buscando...', 'loading');
+    try {
+      const count = await this.produtosManager.carregar(this.el.inputBusca.value.trim());
+      UI.setStatus(this.el.statusMessage, 'Pronto', 'success');
+      if (count === 0) UI.showToast(this.el.toastContainer, 'Nenhum produto encontrado', 'info');
+    } catch (error) {
+      UI.setStatus(this.el.statusMessage, 'Erro', 'error');
+      UI.showToast(this.el.toastContainer, error.message, 'error');
+    }
+  }
+
+  async imprimir(labelData) {
+    UI.setStatus(this.el.statusMessage, `Imprimindo ${labelData.copies} etiqueta(s)...`, 'loading');
+    this.printModal.setLoading(true);
 
     try {
-      const result = await window.electronAPI.printer.list();
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      this.printers = result.printers || [];
-      this.updatePrinterList();
-
-      if (this.printers.length === 0) {
-        this.showToast('Nenhuma impressora encontrada', 'warning');
-        this.setStatus('Nenhuma impressora', 'warning');
-      } else {
-        this.showToast(`${this.printers.length} impressora(s) encontrada(s)`, 'success');
-        this.setStatus('Pronto', 'success');
-      }
+      await this.printerManager.print(labelData);
+      UI.showToast(this.el.toastContainer, `${labelData.copies} etiqueta(s) enviada(s)!`, 'success');
+      UI.setStatus(this.el.statusMessage, 'Impresso', 'success');
+      this.printModal.close();
     } catch (error) {
-      console.error('Erro ao listar impressoras:', error);
-      this.showToast(`Erro: ${error.message}`, 'error');
-      this.setStatus('Erro ao buscar impressoras', 'error');
+      UI.showToast(this.el.toastContainer, error.message, 'error');
+      UI.setStatus(this.el.statusMessage, 'Erro', 'error');
     } finally {
-      this.elements.btnRefresh.classList.remove('spinning');
-      this.elements.printerSelect.disabled = false;
+      this.printModal.setLoading(false);
     }
-  }
-
-  updatePrinterList() {
-    const select = this.elements.printerSelect;
-    select.innerHTML = '';
-
-    if (this.printers.length === 0) {
-      select.innerHTML = '<option value="">Nenhuma impressora encontrada</option>';
-      this.updateButtons(false);
-      return;
-    }
-
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Selecione uma impressora...';
-    select.appendChild(defaultOption);
-
-    this.printers.forEach((printer) => {
-      const option = document.createElement('option');
-      option.value = printer.Name;
-      
-      // Destaque para Argox
-      if (printer.Name.toLowerCase().includes('argox')) {
-        option.textContent = `★ ${printer.Name}`;
-        option.classList.add('recommended');
-      } else {
-        option.textContent = printer.Name;
-      }
-      
-      select.appendChild(option);
-    });
-
-    // Auto-seleciona Argox
-    const argoxPrinter = this.printers.find(p => 
-      p.Name.toLowerCase().includes('argox') || 
-      p.Name.toLowerCase().includes('os-2140')
-    );
-
-    if (argoxPrinter) {
-      select.value = argoxPrinter.Name;
-      this.selectPrinter(argoxPrinter.Name);
-    }
-  }
-
-  selectPrinter(printerName) {
-    this.selectedPrinter = this.printers.find(p => p.Name === printerName);
-    const statusEl = this.elements.printerStatus;
-    
-    if (this.selectedPrinter) {
-      const statusText = statusEl.querySelector('.status-text');
-      const statusIndicator = statusEl.querySelector('.status-indicator');
-      
-      statusText.textContent = `${this.selectedPrinter.PortName || 'Porta desconhecida'}`;
-      statusIndicator.classList.add('active');
-      statusEl.classList.add('connected');
-      
-      this.updateButtons(true);
-    } else {
-      statusEl.querySelector('.status-text').textContent = 'Selecione uma impressora';
-      statusEl.querySelector('.status-indicator').classList.remove('active');
-      statusEl.classList.remove('connected');
-      
-      this.updateButtons(false);
-    }
-  }
-
-  updateButtons(enabled) {
-    this.elements.btnPrintTest.disabled = !enabled;
-    this.elements.btnPrint.disabled = !enabled;
-  }
-
-  updateCharCount() {
-    const count = this.elements.inputTexto.value.length;
-    this.elements.textoCount.textContent = count;
-    
-    if (count > 20) {
-      this.elements.textoCount.parentElement.classList.add('warning');
-    } else {
-      this.elements.textoCount.parentElement.classList.remove('warning');
-    }
-  }
-
-  adjustQuantity(delta) {
-    const input = this.elements.inputCopies;
-    let value = parseInt(input.value) || 1;
-    value = Math.max(1, Math.min(100, value + delta));
-    input.value = value;
-  }
-
-  validateQuantity() {
-    const input = this.elements.inputCopies;
-    let value = parseInt(input.value) || 1;
-    value = Math.max(1, Math.min(100, value));
-    input.value = value;
-  }
-
-  debouncedUpdatePreview() {
-    clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout(() => this.updatePreview(), 300);
-  }
-
-  async updatePreview() {
-    const texto = this.elements.inputTexto.value || 'PRODUTO';
-    const codigo = this.elements.inputCodigo.value || '123456789';
-    const preco = this.elements.inputPreco.value;
-    const tamanho = this.elements.inputTamanho.value;
-
-    // Update text elements
-    this.elements.previewTexto.textContent = texto.toUpperCase();
-    this.elements.previewCodigo.textContent = codigo;
-    
-    // Update price
-    if (preco) {
-      this.elements.previewPreco.textContent = `R$ ${preco}`;
-      this.elements.previewPreco.style.display = 'block';
-    } else {
-      this.elements.previewPreco.style.display = 'none';
-    }
-    
-    // Update size
-    if (tamanho) {
-      this.elements.previewTamanho.textContent = `Tam: ${tamanho}`;
-      this.elements.previewTamanho.style.display = 'block';
-    } else {
-      this.elements.previewTamanho.style.display = 'none';
-    }
-
-    // Generate QR Code preview
-    try {
-      const result = await window.electronAPI.qrcode.generate(codigo, { width: 120, margin: 1 });
-      if (result.success) {
-        this.elements.previewQr.src = result.dataUrl;
-      }
-    } catch (error) {
-      console.error('Erro ao gerar QR Code preview:', error);
-    }
-  }
-
-  getLabelData() {
-    return {
-      texto: this.elements.inputTexto.value.trim() || 'PRODUTO',
-      codigo: this.elements.inputCodigo.value.trim() || '123456789',
-      preco: this.elements.inputPreco.value.trim(),
-      tamanho: this.elements.inputTamanho.value.trim(),
-      copies: parseInt(this.elements.inputCopies.value) || 1,
-      larguraMm: 40,
-      alturaMm: 60
-    };
-  }
-
-  async printTest() {
-    if (!this.selectedPrinter) {
-      this.showToast('Selecione uma impressora', 'error');
-      return;
-    }
-
-    this.setButtonLoading(this.elements.btnPrintTest, true);
-    this.setStatus('Imprimindo teste...', 'loading');
-
-    try {
-      const result = await window.electronAPI.printer.test(this.selectedPrinter.Name);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      this.showToast('Teste enviado com sucesso!', 'success');
-      this.setStatus('Teste impresso', 'success');
-    } catch (error) {
-      console.error('Erro ao imprimir teste:', error);
-      this.showToast(`Erro: ${error.message}`, 'error');
-      this.setStatus('Erro na impressão', 'error');
-    } finally {
-      this.setButtonLoading(this.elements.btnPrintTest, false);
-    }
-  }
-
-  async printLabel() {
-    if (!this.selectedPrinter) {
-      this.showToast('Selecione uma impressora', 'error');
-      return;
-    }
-
-    const labelData = this.getLabelData();
-    
-    this.setButtonLoading(this.elements.btnPrint, true);
-    this.setStatus(`Imprimindo ${labelData.copies} etiqueta(s)...`, 'loading');
-
-    try {
-      const result = await window.electronAPI.printer.printLabel(
-        this.selectedPrinter.Name, 
-        labelData
-      );
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      this.showToast(`${labelData.copies} etiqueta(s) enviada(s)!`, 'success');
-      this.setStatus('Impressão concluída', 'success');
-    } catch (error) {
-      console.error('Erro ao imprimir:', error);
-      this.showToast(`Erro: ${error.message}`, 'error');
-      this.setStatus('Erro na impressão', 'error');
-    } finally {
-      this.setButtonLoading(this.elements.btnPrint, false);
-    }
-  }
-
-  setButtonLoading(button, loading) {
-    button.disabled = loading;
-    
-    if (loading) {
-      button.dataset.originalHtml = button.innerHTML;
-      button.innerHTML = `
-        <svg class="spinning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
-          <path d="M21 3v5h-5"/>
-        </svg>
-        Enviando...
-      `;
-    } else {
-      button.innerHTML = button.dataset.originalHtml || button.innerHTML;
-    }
-  }
-
-  // ==================== Updates ====================
-
-  setupUpdateListeners() {
-    window.electronAPI.updates.onAvailable(() => {
-      this.showToast('Nova atualização disponível', 'info');
-    });
-
-    window.electronAPI.updates.onDownloaded(() => {
-      this.showUpdateModal();
-    });
-  }
-
-  async checkUpdates() {
-    this.setStatus('Verificando atualizações...', 'loading');
-    
-    try {
-      const result = await window.electronAPI.updates.check();
-      
-      if (result.success) {
-        this.showToast('Verificação concluída', 'success');
-      } else {
-        this.showToast('Você está na versão mais recente', 'info');
-      }
-    } catch (error) {
-      this.showToast('Erro ao verificar atualizações', 'error');
-    }
-    
-    this.setStatus('Pronto', 'success');
-  }
-
-  showUpdateModal() {
-    this.elements.updateModal.classList.add('active');
-  }
-
-  hideUpdateModal() {
-    this.elements.updateModal.classList.remove('active');
-  }
-
-  installUpdate() {
-    window.electronAPI.updates.install();
-  }
-
-  // ==================== UI Helpers ====================
-
-  setStatus(message, type = 'default') {
-    const statusItem = this.elements.statusMessage;
-    statusItem.className = 'status-item ' + type;
-    statusItem.querySelector('span:last-child').textContent = message;
-  }
-
-  showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    
-    const icons = {
-      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-      warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
-    };
-
-    toast.innerHTML = `
-      <span class="toast-icon">${icons[type] || icons.info}</span>
-      <span class="toast-message">${message}</span>
-    `;
-
-    this.elements.toastContainer.appendChild(toast);
-
-    setTimeout(() => {
-      toast.classList.add('hiding');
-      setTimeout(() => toast.remove(), 300);
-    }, 4000);
   }
 }
 
-// Initialize app
+// ==================== Init ====================
+
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new EtiquetasApp();
 });
