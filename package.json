@@ -46,7 +46,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "seu-usuario",
+      "owner": "dfcomsoftwarescompany",
       "repo": "etiquetas-desktop",
       "releaseType": "release"
     },
