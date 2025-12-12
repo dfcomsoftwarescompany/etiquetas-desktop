@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;">
+  <title>Etiquetas DFCOM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="M6 8h.01M6 12h.01M6 16h.01"/>
+            <rect x="10" y="8" width="8" height="8" rx="1"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Etiquetas <span class="brand">DFCOM</span></h1>
+          <span class="version" id="app-version">v2.0.0</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Seletor de Impressora no Header -->
+        <div class="printer-selector">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9V2h12v7"/>
+            <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+            <rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          <select id="printer-select" disabled>
+            <option value="">Carregando...</option>
+          </select>
+          <button class="btn-icon-small" id="btn-refresh" title="Atualizar impressoras">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+            </svg>
+          </button>
+        </div>
+        <!-- Botão de Configurações -->
+        <button class="btn-icon-small" id="btn-config" title="Configurações">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6m4.22-15.22l4.24 4.24m-4.24 4.24l4.24 4.24M23 12h-6m-6 0H1m4.22 4.22l-4.24 4.24m4.24-4.24l-4.24-4.24"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Barra de Busca -->
+      <div class="search-bar">
+        <div class="search-input-wrapper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <input 
+            type="text" 
+            id="input-busca" 
+            placeholder="Buscar por descrição ou código de barras..." 
+            autocomplete="off"
+          >
+          <button class="btn btn-primary" id="btn-buscar">Buscar</button>
+        </div>
+        <div class="search-info">
+          <span id="produtos-count">0 produtos</span>
+        </div>
+      </div>
+
+      <!-- Lista de Produtos -->
+      <div class="produtos-container">
+        <table class="produtos-table" id="produtos-table">
+          <thead>
+            <tr>
+              <th class="col-codigo">Código de Barras</th>
+              <th class="col-descricao">Descrição</th>
+              <th class="col-preco">Preço</th>
+              <th class="col-acoes">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="produtos-tbody">
+            <!-- Produtos serão inseridos aqui -->
+          </tbody>
+        </table>
+        
+        <!-- Estado vazio -->
+        <div class="empty-state" id="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="M6 8h.01M6 12h.01M6 16h.01"/>
+            <rect x="10" y="8" width="8" height="8" rx="1"/>
+          </svg>
+          <h3>Nenhum produto carregado</h3>
+          <p>Clique em "Buscar" para carregar os produtos</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+      <div class="status-left">
+        <div class="status-item" id="status-message">
+          <span class="status-dot"></span>
+          <span>Pronto</span>
+        </div>
+      </div>
+      <div class="status-right">
+        <span class="status-badge">PPLA</span>
+        <span class="status-badge">203 DPI</span>
+        <span class="status-badge">40×60mm</span>
+      </div>
+    </footer>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Modal de Edição/Impressão -->
+    <div class="modal" id="print-modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-print">
+        <div class="modal-header">
+          <h3>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <rect x="10" y="8" width="8" height="8" rx="1"/>
+            </svg>
+            Imprimir Etiqueta
+          </h3>
+          <button class="btn-close" id="btn-modal-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="modal-body">
+          <!-- Campos Editáveis -->
+          <div class="edit-form">
+            <div class="form-group">
+              <label for="edit-codigo">Código de Barras (QR Code)</label>
+              <input type="text" id="edit-codigo" readonly>
+            </div>
+            
+            <div class="form-group">
+              <label for="edit-descricao">Descrição</label>
+              <input type="text" id="edit-descricao" maxlength="25">
+              <span class="char-count"><span id="descricao-count">0</span>/25</span>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="edit-preco">Preço</label>
+                <div class="input-prefix">
+                  <span>R$</span>
+                  <input type="text" id="edit-preco" placeholder="0,00">
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="edit-quantidade">Quantidade</label>
+                <div class="quantity-control">
+                  <button class="btn-qty" id="btn-qty-minus">−</button>
+                  <input type="number" id="edit-quantidade" value="1" min="1" max="100">
+                  <button class="btn-qty" id="btn-qty-plus">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Preview Mini -->
+          <div class="mini-preview">
+            <span class="preview-title">Prévia</span>
+            <div class="preview-label">
+              <div class="preview-qr" id="preview-qr"></div>
+              <div class="preview-info">
+                <span class="preview-desc" id="preview-desc">Descrição</span>
+                <span class="preview-price" id="preview-price">R$ 0,00</span>
+              </div>
+            </div>
+            <span class="preview-size">40×60mm</span>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+          <button class="btn btn-primary btn-lg" id="btn-print">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9V2h12v7"/>
+              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Imprimir
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Modal de Configuração -->
+  <div id="config-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚙️ Configurações</h3>
+        <button class="modal-close" onclick="closeConfigModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- Seção de Segurança -->
+        <div class="config-section">
+          <h4>🔐 Segurança - Token de Conexão</h4>
+          <p class="config-description">
+            Configure um token para garantir que apenas o sistema de avaliação autorizado possa imprimir etiquetas.
+          </p>
+          
+          <div class="form-group">
+            <label>Token de Conexão</label>
+            <div class="token-input-group">
+              <input 
+                type="text" 
+                id="connection-token" 
+                placeholder="Cole o token gerado no sistema de avaliação"
+                class="form-control"
+              />
+              <button class="btn-secondary" onclick="toggleTokenVisibility()">
+                <svg id="token-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+            <small class="form-help">
+              Este token deve ser o mesmo configurado no sistema de avaliação web.
+              Sem ele, o sistema não aceitará requisições de impressão.
+            </small>
+          </div>
+          
+          <div class="form-group">
+            <label>Status</label>
+            <div id="token-status" class="status-indicator">
+              <span class="badge badge-warning">⚠️ Não configurado</span>
+            </div>
+          </div>
+          
+          <div class="button-group">
+            <button class="btn btn-primary" onclick="saveToken()">
+              💾 Salvar Token
+            </button>
+            <button class="btn btn-secondary" onclick="generateNewToken()">
+              🔄 Gerar Novo Token
+            </button>
+            <button class="btn btn-danger" onclick="removeToken()">
+              🗑️ Remover Token
+            </button>
+          </div>
+        </div>
+
+        <!-- Seção de Informações do Servidor -->
+        <div class="config-section">
+          <h4>🌐 Servidor HTTP</h4>
+          <div class="server-info">
+            <div class="info-item">
+              <span class="info-label">URL Local:</span>
+              <span class="info-value">http://localhost:3000</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status:</span>
+              <span id="server-status" class="info-value">
+                <span class="badge badge-success">✅ Ativo</span>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Endpoint de Impressão:</span>
+              <span class="info-value">/print/etiqueta</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instruções -->
+        <div class="config-section">
+          <h4>📋 Como Configurar</h4>
+          <ol class="instructions">
+            <li>No sistema de avaliação web, acesse <strong>Configurações → Impressão → Etiquetas</strong></li>
+            <li>Clique em <strong>"Gerar Token de Conexão"</strong> e copie o token gerado</li>
+            <li>Cole o token no campo acima e clique em <strong>"Salvar Token"</strong></li>
+            <li>No sistema de avaliação, clique em <strong>"Testar Conexão"</strong> para verificar</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

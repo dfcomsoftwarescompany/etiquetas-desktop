@@ -23,7 +23,7 @@ const MOCK_PRODUTOS = [
 class APIClient {
   constructor() {
     this.config = {
-      baseURL: process.env.API_BASE_URL || 'http://localhost:3000/api',
+      baseURL: process.env.API_BASE_URL || 'http://localhost:8547/api',
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',

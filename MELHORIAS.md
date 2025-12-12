@@ -81,7 +81,7 @@ app.get('/health', (req, res) => {
 
 ### 🔒 Problema
 
-**Contexto:** Como o servidor roda localmente na rede (`localhost:3000` ou `192.168.x.x:3000`), qualquer pessoa na mesma rede WiFi pode acessar e enviar requisições de impressão.
+**Contexto:** Como o servidor roda localmente na rede (`localhost:8547` ou `192.168.x.x:8547`), qualquer pessoa na mesma rede WiFi pode acessar e enviar requisições de impressão.
 
 **Riscos:**
 - ❌ Impressão de etiquetas falsas
@@ -110,7 +110,7 @@ const connectionToken = generateSecureToken(); // Ex: "etq_abc123xyz789"
 localStorage.setItem('etiquetas_token', connectionToken);
 
 // Enviar em todas as requisições
-fetch('http://localhost:3000/print/etiqueta', {
+fetch('http://localhost:8547/print/etiqueta', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',

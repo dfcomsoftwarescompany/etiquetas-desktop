@@ -14,7 +14,7 @@ class PrintServer {
     this.printerManager = printerManager;
     this.app = express();
     this.server = null;
-    this.port = 3000;
+    this.port = 8547; // Porta alternativa para evitar conflitos
     
     // Cache de QR Codes para melhorar performance
     this.qrCache = new Map();
