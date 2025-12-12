@@ -31,9 +31,17 @@ class PrintServer {
       methods: ['GET', 'POST'],
       allowedHeaders: ['Content-Type', 'X-Etiquetas-Token']
     }));
-    
-    // Parse JSON
-    this.app.use(express.json({ limit: '10mb' }));
+
+    // Parse JSON com configurações mais seguras
+    this.app.use(express.json({
+      limit: '10mb',
+      strict: false,
+      reviver: (key, value) => {
+        // Remove campos undefined
+        if (value === undefined) return undefined;
+        return value;
+      }
+    }));
     
     // Log de requisições
     this.app.use((req, res, next) => {
@@ -125,13 +133,17 @@ class PrintServer {
         console.log(`[Server] Chamando printMultipleLabels...`);
         await this.printMultipleLabels(printerName, expandedItems);
         console.log(`[Server] printMultipleLabels concluído`);
-        
-        res.json({ 
-          success: true, 
+
+        // Resposta simplificada para evitar problemas de JSON
+        const response = {
+          success: true,
           message: `${items.length} item(ns) processado(s)`,
           total: expandedItems.length,
           printer: printerName
-        });
+        };
+
+        console.log(`[Server] Enviando resposta:`, response);
+        res.json(response);
         
       } catch (error) {
         console.error('[Server] Erro na impressão:', error);
@@ -238,7 +250,7 @@ class PrintServer {
         codbarras: item.codbarras || item.cod || item.codBarras || 'SEM CODIGO',
         valor: item.valor || item.vlr || item.vlrVenda || item.preco || '0,00',
         tamanho: item.tamanho || item.tam || '',
-        valor_giracredito: item.valor_giracredito || item.vlrGiracredito || item.gira || null
+        valor_giracredito: item.valor_giracredito || item.vlrGiracredito || item.gira
       };
 
       console.log(`[Server] Item sanitizado:`, safeItem);
