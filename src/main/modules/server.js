@@ -267,8 +267,9 @@ class PrintServer {
           console.log(`[Server] ✓ Item único ${itemIndex} impresso com sucesso`);
         }
         
-        // Pequeno delay entre impressões para evitar sobrecarga
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Delay maior entre impressões para evitar sobrecarga da impressora
+        console.log(`[Server] Aguardando 2s antes da próxima impressão...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (error) {
         console.error(`[Server] ✗ Erro ao imprimir item ${itemIndex}:`, error);
         console.error(`[Server] Stack:`, error.stack);

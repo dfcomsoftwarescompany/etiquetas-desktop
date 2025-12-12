@@ -304,7 +304,10 @@ class PrinterManager {
 
             if (success) {
               console.log('[Printer] ✓ Impresso!');
-              resolve();
+              // Delay adicional para garantir que a impressora processou
+              setTimeout(() => {
+                resolve();
+              }, 500);
             } else {
               console.error('[Printer] ✗ Falha:', failureReason);
               reject(new Error(failureReason || 'Falha na impressão'));
@@ -514,7 +517,10 @@ class PrinterManager {
 
             if (success) {
               console.log('[Printer] ✓ Single impresso!');
-              resolve();
+              // Delay adicional para garantir que a impressora processou
+              setTimeout(() => {
+                resolve();
+              }, 500);
             } else {
               console.error('[Printer] ✗ Falha:', failureReason);
               reject(new Error(failureReason || 'Falha na impressão'));
