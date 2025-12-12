@@ -117,10 +117,14 @@ class PrintServer {
         console.log('[Server] Usando impressora:', printerName);
         
         // Expandir itens baseado na quantidade
+        console.log(`[Server] Expandindo itens...`);
         const expandedItems = this.expandItems(items);
-        
+        console.log(`[Server] Itens expandidos:`, expandedItems.length);
+
         // Imprimir agrupando em pares
+        console.log(`[Server] Chamando printMultipleLabels...`);
         await this.printMultipleLabels(printerName, expandedItems);
+        console.log(`[Server] printMultipleLabels concluído`);
         
         res.json({ 
           success: true, 
@@ -213,23 +217,29 @@ class PrintServer {
    * Expande itens baseado na quantidade
    */
   expandItems(items) {
+    console.log(`[Server] expandItems chamado com ${items.length} itens`);
     const expanded = [];
-    
+
     for (const item of items) {
+      console.log(`[Server] Processando item:`, item);
       const qtd = parseInt(item.qtd) || 1;
-      
+      console.log(`[Server] Quantidade: ${qtd}`);
+
       // Adicionar item 'qtd' vezes
       for (let i = 0; i < qtd; i++) {
-        expanded.push({
+        const newItem = {
           descricao: item.descricao,
           codbarras: item.codbarras,
           valor: item.valor,
           tamanho: item.tamanho || '',
           valor_giracredito: item.valor_giracredito
-        });
+        };
+        console.log(`[Server] Item expandido ${i + 1}/${qtd}:`, newItem);
+        expanded.push(newItem);
       }
     }
-    
+
+    console.log(`[Server] Total de itens expandidos: ${expanded.length}`);
     return expanded;
   }
 
@@ -238,24 +248,42 @@ class PrintServer {
    */
   async printMultipleLabels(printerName, items) {
     console.log(`[Server] Iniciando impressão de ${items.length} itens`);
+    console.log(`[Server] Items recebidos:`, items);
+
     const pairs = [];
-    
+
     // Agrupar em pares
+    console.log(`[Server] Agrupando em pares...`);
     for (let i = 0; i < items.length; i += 2) {
-      const pair = [items[i], items[i + 1] || null];
+      console.log(`[Server] Processando itens ${i} e ${i + 1}`);
+      const itemA = items[i];
+      const itemB = items[i + 1] || null;
+      const pair = [itemA, itemB];
       pairs.push(pair);
+      console.log(`[Server] Par criado: [${itemA?.descricao || 'null'}, ${itemB?.descricao || 'null'}]`);
     }
-    
+
     console.log(`[Server] Agrupados em ${pairs.length} par(es)`);
+    console.log(`[Server] Pairs:`, pairs.map(p => [p[0]?.descricao || 'null', p[1]?.descricao || 'null']));
     
     // Imprimir cada par
+    console.log(`[Server] Iniciando loop de impressão...`);
     for (let idx = 0; idx < pairs.length; idx++) {
+      console.log(`[Server] Processando par ${idx + 1}/${pairs.length}`);
+
       const currentPair = pairs[idx];
+      console.log(`[Server] Current pair:`, currentPair);
+
       const itemIndex = idx * 2 + 1;
+      console.log(`[Server] Item index: ${itemIndex}`);
 
       // Extrair itens do par de forma segura
+      console.log(`[Server] Extraindo itens do par...`);
       const item1 = currentPair[0];
       const item2 = currentPair[1];
+
+      console.log(`[Server] Item1:`, item1);
+      console.log(`[Server] Item2:`, item2);
 
       try {
         if (item2) {
