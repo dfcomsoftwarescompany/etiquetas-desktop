@@ -303,10 +303,33 @@ class PrinterManager {
 
             if (success) {
               console.log('[Printer] ✅ ✓ Impresso com sucesso!');
-              // Delay simples sem limpeza
+
+              // Limpeza segura APÓS a impressão
               setTimeout(() => {
+                try {
+                  if (!printWindow.isDestroyed()) {
+                    printWindow.close();
+                  }
+                } catch (e) {
+                  console.error('[Printer] ⚠️ Erro ao fechar janela:', e);
+                }
+
+                // Limpeza de referências após mais tempo
+                setTimeout(() => {
+                  try {
+                    if (!printWindow.isDestroyed()) {
+                      printWindow.destroy();
+                    }
+                    // Limpar referências
+                    canvas = null;
+                    dataUrl = null;
+                  } catch (e) {
+                    console.error('[Printer] ⚠️ Erro na limpeza final:', e);
+                  }
+                }, 2000); // 2s após fechar
+
                 resolve();
-              }, 300);
+              }, 500); // Tempo mínimo para impressora processar
             } else {
               console.error('[Printer] ❌ ✗ Falha na impressão:', failureReason);
               reject(new Error(failureReason || 'Falha na impressão'));
