@@ -285,7 +285,22 @@ class PrinterManager {
           };
 
           printWindow.webContents.print(printOptions, (success, failureReason) => {
-            printWindow.close();
+            // Limpeza de memória
+            try {
+              printWindow.close();
+              printWindow.destroy();
+            } catch (e) {
+              console.error('[Printer] Erro ao destruir janela:', e);
+            }
+
+            // Limpar referências
+            canvas = null;
+            dataUrl = null;
+            
+            // Forçar garbage collection se disponível
+            if (global.gc) {
+              global.gc();
+            }
 
             if (success) {
               console.log('[Printer] ✓ Impresso!');
@@ -351,6 +366,161 @@ class PrinterManager {
 
   setConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
+  }
+
+  /**
+   * Obtém impressora padrão configurada
+   */
+  getDefaultPrinter() {
+    // Por enquanto, retorna null - será implementado com persistência
+    return null;
+  }
+
+  /**
+   * Define impressora padrão
+   */
+  setDefaultPrinter(printerName) {
+    // Por enquanto, apenas log - será implementado com persistência
+    console.log(`[Printer] Impressora padrão definida: ${printerName}`);
+  }
+
+  /**
+   * Imprime um par de etiquetas (2 colunas)
+   */
+  async printPair(printerName, item1, item2) {
+    const canvas = createCanvas(this.config.paperWidthPx, this.config.labelHeightPx);
+    const ctx = canvas.getContext('2d');
+    
+    // Rotação 180° do canvas completo
+    ctx.translate(this.config.paperWidthPx, this.config.labelHeightPx);
+    ctx.rotate(Math.PI);
+    
+    // Coluna 1 (esquerda) - Item 1
+    const label1 = await this.generateSingleLabel({
+      texto: item1.descricao,
+      codigo: item1.codbarras,
+      preco: item1.valor,
+      tamanho: item1.tamanho || ''
+    });
+    ctx.drawImage(label1, 0, 0);
+    
+    // Coluna 2 (direita) - Item 2
+    const label2 = await this.generateSingleLabel({
+      texto: item2.descricao,
+      codigo: item2.codbarras,
+      preco: item2.valor,
+      tamanho: item2.tamanho || ''
+    });
+    ctx.drawImage(label2, this.config.labelWidthPx, 0);
+    
+    console.log('[Printer] Imprimindo par de etiquetas diferentes');
+    
+    // Imprimir canvas completo
+    await this.printCanvas(printerName, canvas, 1);
+  }
+
+  /**
+   * Imprime uma única etiqueta (1 coluna)
+   */
+  async printSingle(printerName, item) {
+    // Canvas de 40mm (1 coluna apenas)
+    const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
+    const ctx = canvas.getContext('2d');
+    
+    // Rotação 180° do canvas
+    ctx.translate(this.config.labelWidthPx, this.config.labelHeightPx);
+    ctx.rotate(Math.PI);
+    
+    // Gerar e desenhar etiqueta
+    const label = await this.generateSingleLabel({
+      texto: item.descricao,
+      codigo: item.codbarras,
+      preco: item.valor,
+      tamanho: item.tamanho || ''
+    });
+    ctx.drawImage(label, 0, 0);
+    
+    console.log('[Printer] Imprimindo etiqueta única (40mm)');
+    
+    // Ajustar opções de impressão para 40mm
+    await this.printCanvasSingle(printerName, canvas, 1);
+  }
+
+  /**
+   * Imprime canvas de etiqueta única (40mm)
+   */
+  async printCanvasSingle(printerName, canvas, copies = 1) {
+    return new Promise((resolve, reject) => {
+      try {
+        console.log(`[Printer] Imprimindo single ${copies}x em: ${printerName}`);
+
+        const dataUrl = canvas.toDataURL('image/png');
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { width: 40mm; height: 60mm; }
+    img { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body><img src="${dataUrl}" /></body>
+</html>`;
+
+        const printWindow = new BrowserWindow({
+          show: false,
+          webPreferences: { offscreen: true, nodeIntegration: false }
+        });
+
+        printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+        printWindow.webContents.once('did-finish-load', () => {
+          const printOptions = {
+            silent: true,
+            printBackground: true,
+            deviceName: printerName,
+            color: false,
+            margins: { marginType: 'none' },
+            pageSize: { width: 40000, height: 60000 }, // 40mm x 60mm
+            dpi: { horizontal: 203, vertical: 203 },
+            copies: copies,
+            landscape: false,
+            scaleFactor: 100,
+            shouldPrintBackgrounds: true
+          };
+
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            // Limpeza de memória
+            try {
+              printWindow.close();
+              printWindow.destroy();
+            } catch (e) {
+              console.error('[Printer] Erro ao destruir janela:', e);
+            }
+
+            if (success) {
+              console.log('[Printer] ✓ Single impresso!');
+              resolve();
+            } else {
+              console.error('[Printer] ✗ Falha:', failureReason);
+              reject(new Error(failureReason || 'Falha na impressão'));
+            }
+          });
+        });
+
+        setTimeout(() => {
+          if (!printWindow.isDestroyed()) {
+            printWindow.close();
+            reject(new Error('Timeout'));
+          }
+        }, 10000);
+
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 }
 

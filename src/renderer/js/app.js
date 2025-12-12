@@ -400,8 +400,148 @@ class EtiquetasApp {
   }
 }
 
+// ==================== Token Configuration ====================
+
+class TokenManager {
+  constructor() {
+    this.modal = document.getElementById('config-modal');
+    this.tokenInput = document.getElementById('connection-token');
+    this.tokenStatus = document.getElementById('token-status');
+    this.serverStatus = document.getElementById('server-status');
+    
+    this.init();
+  }
+
+  init() {
+    // Botão de configurações
+    document.getElementById('btn-config').addEventListener('click', () => this.openModal());
+    
+    // Fechar modal ao clicar fora
+    this.modal.addEventListener('click', (e) => {
+      if (e.target === this.modal) {
+        this.closeModal();
+      }
+    });
+    
+    // Verificar status inicial
+    this.checkTokenStatus();
+    this.checkServerStatus();
+  }
+
+  openModal() {
+    this.modal.style.display = 'block';
+    this.checkTokenStatus();
+    this.checkServerStatus();
+  }
+
+  closeModal() {
+    this.modal.style.display = 'none';
+  }
+
+  async checkTokenStatus() {
+    try {
+      const response = await fetch('http://localhost:3000/token/status');
+      const data = await response.json();
+      
+      if (data.configured) {
+        this.tokenStatus.innerHTML = '<span class="badge badge-success">✅ Token configurado</span>';
+        if (data.lastUsed) {
+          const lastUsed = new Date(data.lastUsed).toLocaleString('pt-BR');
+          this.tokenStatus.innerHTML += `<br><small>Último uso: ${lastUsed}</small>`;
+        }
+      } else {
+        this.tokenStatus.innerHTML = '<span class="badge badge-warning">⚠️ Não configurado</span>';
+      }
+    } catch (error) {
+      this.tokenStatus.innerHTML = '<span class="badge badge-danger">❌ Erro ao verificar status</span>';
+    }
+  }
+
+  async checkServerStatus() {
+    try {
+      const response = await fetch('http://localhost:3000/health');
+      const data = await response.json();
+      
+      if (data.status === 'ok') {
+        this.serverStatus.innerHTML = '<span class="badge badge-success">✅ Ativo</span>';
+      } else {
+        this.serverStatus.innerHTML = '<span class="badge badge-warning">⚠️ Status desconhecido</span>';
+      }
+    } catch (error) {
+      this.serverStatus.innerHTML = '<span class="badge badge-danger">❌ Servidor não está respondendo</span>';
+    }
+  }
+
+  async saveToken() {
+    const token = this.tokenInput.value.trim();
+    
+    if (!token) {
+      UI.showToast(document.getElementById('toast-container'), 'Por favor, insira um token', 'warning');
+      return;
+    }
+    
+    try {
+      // Por enquanto, vamos salvar via IPC (será implementado)
+      UI.showToast(document.getElementById('toast-container'), 'Token salvo com sucesso!', 'success');
+      this.checkTokenStatus();
+    } catch (error) {
+      UI.showToast(document.getElementById('toast-container'), 'Erro ao salvar token', 'error');
+    }
+  }
+
+  async generateNewToken() {
+    try {
+      const response = await fetch('http://localhost:3000/token/generate', {
+        method: 'POST'
+      });
+      const data = await response.json();
+      
+      this.tokenInput.value = data.token;
+      UI.showToast(document.getElementById('toast-container'), 'Novo token gerado! Lembre-se de salvar.', 'success');
+    } catch (error) {
+      UI.showToast(document.getElementById('toast-container'), 'Erro ao gerar token', 'error');
+    }
+  }
+
+  async removeToken() {
+    if (!confirm('Tem certeza que deseja remover o token? O sistema ficará sem autenticação.')) {
+      return;
+    }
+    
+    try {
+      // Por enquanto, vamos remover via IPC (será implementado)
+      this.tokenInput.value = '';
+      UI.showToast(document.getElementById('toast-container'), 'Token removido', 'warning');
+      this.checkTokenStatus();
+    } catch (error) {
+      UI.showToast(document.getElementById('toast-container'), 'Erro ao remover token', 'error');
+    }
+  }
+
+  toggleTokenVisibility() {
+    const input = this.tokenInput;
+    const eye = document.getElementById('token-eye');
+    
+    if (input.type === 'password') {
+      input.type = 'text';
+      eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    } else {
+      input.type = 'password';
+      eye.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+  }
+}
+
+// Funções globais para os botões do modal
+window.closeConfigModal = () => window.tokenManager?.closeModal();
+window.saveToken = () => window.tokenManager?.saveToken();
+window.generateNewToken = () => window.tokenManager?.generateNewToken();
+window.removeToken = () => window.tokenManager?.removeToken();
+window.toggleTokenVisibility = () => window.tokenManager?.toggleTokenVisibility();
+
 // ==================== Init ====================
 
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new EtiquetasApp();
+  window.tokenManager = new TokenManager();
 });

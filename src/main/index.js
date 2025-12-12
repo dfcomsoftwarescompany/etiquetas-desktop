@@ -10,6 +10,7 @@ const path = require('path');
 const PrinterManager = require('./modules/printer');
 const APIClient = require('./modules/api');
 const UpdateManager = require('./modules/updater');
+const PrintServer = require('./modules/server');
 const { registerAllHandlers } = require('./ipc');
 
 // Instâncias
@@ -17,6 +18,7 @@ let mainWindow;
 const printerManager = new PrinterManager();
 const apiClient = new APIClient();
 let updateManager;
+let printServer;
 
 // ==================== Window ====================
 
@@ -53,12 +55,21 @@ function createWindow() {
 
 // ==================== App Lifecycle ====================
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Registrar handlers IPC
   registerAllHandlers({ printerManager, apiClient, updateManager });
   
   // Criar janela
   createWindow();
+
+  // Iniciar servidor HTTP
+  printServer = new PrintServer(printerManager);
+  try {
+    await printServer.start();
+    console.log('[App] Servidor HTTP iniciado com sucesso');
+  } catch (error) {
+    console.error('[App] Erro ao iniciar servidor HTTP:', error);
+  }
 
   // Verificar atualizações (apenas em produção)
   if (app.isPackaged) {
@@ -84,6 +95,11 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   console.log('[App] Fechando...');
+  
+  // Parar servidor HTTP
+  if (printServer) {
+    printServer.stop();
+  }
 });
 
 app.on('window-all-closed', () => {

@@ -45,6 +45,13 @@
             </svg>
           </button>
         </div>
+        <!-- Botão de Configurações -->
+        <button class="btn-icon-small" id="btn-config" title="Configurações">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6m4.22-15.22l4.24 4.24m-4.24 4.24l4.24 4.24M23 12h-6m-6 0H1m4.22 4.22l-4.24 4.24m4.24-4.24l-4.24-4.24"/>
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -194,6 +201,106 @@
             </svg>
             Imprimir
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Modal de Configuração -->
+  <div id="config-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚙️ Configurações</h3>
+        <button class="modal-close" onclick="closeConfigModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- Seção de Segurança -->
+        <div class="config-section">
+          <h4>🔐 Segurança - Token de Conexão</h4>
+          <p class="config-description">
+            Configure um token para garantir que apenas o sistema de avaliação autorizado possa imprimir etiquetas.
+          </p>
+          
+          <div class="form-group">
+            <label>Token de Conexão</label>
+            <div class="token-input-group">
+              <input 
+                type="text" 
+                id="connection-token" 
+                placeholder="Cole o token gerado no sistema de avaliação"
+                class="form-control"
+              />
+              <button class="btn-secondary" onclick="toggleTokenVisibility()">
+                <svg id="token-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+            <small class="form-help">
+              Este token deve ser o mesmo configurado no sistema de avaliação web.
+              Sem ele, o sistema não aceitará requisições de impressão.
+            </small>
+          </div>
+          
+          <div class="form-group">
+            <label>Status</label>
+            <div id="token-status" class="status-indicator">
+              <span class="badge badge-warning">⚠️ Não configurado</span>
+            </div>
+          </div>
+          
+          <div class="button-group">
+            <button class="btn btn-primary" onclick="saveToken()">
+              💾 Salvar Token
+            </button>
+            <button class="btn btn-secondary" onclick="generateNewToken()">
+              🔄 Gerar Novo Token
+            </button>
+            <button class="btn btn-danger" onclick="removeToken()">
+              🗑️ Remover Token
+            </button>
+          </div>
+        </div>
+
+        <!-- Seção de Informações do Servidor -->
+        <div class="config-section">
+          <h4>🌐 Servidor HTTP</h4>
+          <div class="server-info">
+            <div class="info-item">
+              <span class="info-label">URL Local:</span>
+              <span class="info-value">http://localhost:3000</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status:</span>
+              <span id="server-status" class="info-value">
+                <span class="badge badge-success">✅ Ativo</span>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Endpoint de Impressão:</span>
+              <span class="info-value">/print/etiqueta</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instruções -->
+        <div class="config-section">
+          <h4>📋 Como Configurar</h4>
+          <ol class="instructions">
+            <li>No sistema de avaliação web, acesse <strong>Configurações → Impressão → Etiquetas</strong></li>
+            <li>Clique em <strong>"Gerar Token de Conexão"</strong> e copie o token gerado</li>
+            <li>Cole o token no campo acima e clique em <strong>"Salvar Token"</strong></li>
+            <li>No sistema de avaliação, clique em <strong>"Testar Conexão"</strong> para verificar</li>
+          </ol>
         </div>
       </div>
     </div>
