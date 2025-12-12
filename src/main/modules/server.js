@@ -109,10 +109,12 @@ class PrintServer {
           });
         }
         
-        const printerName = this.printerManager.getDefaultPrinter();
+        const printerName = await this.printerManager.getDefaultPrinter();
         if (!printerName) {
           return res.status(400).json({ error: 'Nenhuma impressora configurada' });
         }
+        
+        console.log('[Server] Usando impressora:', printerName);
         
         // Expandir itens baseado na quantidade
         const expandedItems = this.expandItems(items);
@@ -140,7 +142,7 @@ class PrintServer {
     this.app.get('/printers', this.authMiddleware.bind(this), async (req, res) => {
       try {
         const printers = await this.printerManager.listPrinters();
-        const defaultPrinter = this.printerManager.getDefaultPrinter();
+        const defaultPrinter = await this.printerManager.getDefaultPrinter();
         
         res.json({
           printers,

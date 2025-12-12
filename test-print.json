@@ -1,0 +1,26 @@
+{
+  "Itens": [
+    {
+      "descricao": "PRODUTO TESTE 1 - CAMISETA POLO",
+      "qtd": 1,
+      "codbarras": "7891234567890",
+      "valor": "49.90",
+      "tamanho": "M"
+    },
+    {
+      "descricao": "PRODUTO TESTE 2 - BERMUDA JEANS",
+      "qtd": 1,
+      "codbarras": "7899876543210",
+      "valor": "79.90",
+      "tamanho": "42"
+    },
+    {
+      "descricao": "PRODUTO TESTE 3 - TENIS ESPORTIVO",
+      "qtd": 1,
+      "codbarras": "7895554443332",
+      "valor": "129.90",
+      "tamanho": "40"
+    }
+  ]
+}
+

@@ -371,8 +371,20 @@ class PrinterManager {
   /**
    * Obtém impressora padrão configurada
    */
-  getDefaultPrinter() {
-    // Por enquanto, retorna null - será implementado com persistência
+  async getDefaultPrinter() {
+    const printers = await this.listPrinters();
+    
+    // Buscar Argox primeiro
+    const argox = printers.find(p => p.Name.toLowerCase().includes('argox'));
+    if (argox) {
+      return argox.Name;
+    }
+    
+    // Se não encontrar Argox, usar a primeira impressora
+    if (printers.length > 0) {
+      return printers[0].Name;
+    }
+    
     return null;
   }
 
