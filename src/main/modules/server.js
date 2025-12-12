@@ -175,10 +175,14 @@ class PrintServer {
     });
 
     this.app.post('/token/generate', (req, res) => {
+      console.log('[Server] POST /token/generate - Gerando token');
       const newToken = this.generateSecureToken();
+      console.log('[Server] Token gerado:', newToken);
       this.saveToken(newToken);
+      console.log('[Server] Token salvo');
       
       res.json({
+        success: true,
         token: newToken,
         message: 'Token gerado com sucesso. Configure este token no sistema de avaliação.'
       });
