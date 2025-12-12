@@ -70,15 +70,23 @@ class ServerApp {
   }
 
   bindEvents() {
+    console.log('[App] Vinculando eventos...');
     this.el.btnRefresh.addEventListener('click', () => this.loadPrinters());
     this.el.printerSelect.addEventListener('change', (e) => this.selectPrinter(e.target.value));
-    this.el.btnConfig.addEventListener('click', () => this.openConfigModal());
+    this.el.btnConfig.addEventListener('click', () => {
+      console.log('[App] Botão config clicado');
+      this.openConfigModal();
+    });
     this.el.btnConfigClose.addEventListener('click', () => this.closeConfigModal());
     this.el.btnConfigCancel.addEventListener('click', () => this.closeConfigModal());
     this.el.configModal.querySelector('.modal-backdrop').addEventListener('click', () => this.closeConfigModal());
-    this.el.btnGenerateToken.addEventListener('click', () => this.generateToken());
+    this.el.btnGenerateToken.addEventListener('click', () => {
+      console.log('[App] Botão gerar token clicado');
+      this.generateToken();
+    });
     this.el.btnCopyToken.addEventListener('click', () => this.copyToken());
     this.el.btnClearQueue.addEventListener('click', () => this.clearQueue());
+    console.log('[App] Eventos vinculados com sucesso');
   }
 
   async loadVersion() {
@@ -125,16 +133,22 @@ class ServerApp {
   }
 
   async checkTokenStatus() {
+    console.log('[App] Verificando status do token...');
     try {
       const response = await fetch('http://localhost:8547/token/status');
+      console.log('[App] Status response:', response.status);
+      
       const data = await response.json();
+      console.log('[App] Token status:', data);
       
       if (data.configured) {
+        console.log('[App] Token configurado:', data.token);
         this.el.tokenBadge.innerHTML = '🔒 Token: Configurado';
         this.el.tokenBadge.className = 'status-badge badge-success';
         this.el.configToken.value = data.token;
         this.el.tokenStatus.innerHTML = '<span class="badge badge-success">✅ Configurado</span>';
       } else {
+        console.log('[App] Token não configurado');
         this.el.tokenBadge.innerHTML = '⚠️ Token: Não configurado';
         this.el.tokenBadge.className = 'status-badge badge-warning';
         this.el.tokenStatus.innerHTML = '<span class="badge badge-warning">⚠️ Não configurado</span>';
@@ -145,22 +159,30 @@ class ServerApp {
   }
 
   async generateToken() {
+    console.log('[App] Gerando token...');
     try {
+      console.log('[App] Fazendo requisição para http://localhost:8547/token/generate');
       const response = await fetch('http://localhost:8547/token/generate', {
         method: 'POST'
       });
+      console.log('[App] Resposta recebida:', response.status);
+      
       const data = await response.json();
+      console.log('[App] Dados:', data);
       
       if (data.success) {
+        console.log('[App] Token gerado:', data.token);
         this.el.configToken.value = data.token;
         this.el.tokenStatus.innerHTML = '<span class="badge badge-success">✅ Token gerado com sucesso!</span>';
         UI.showToast(this.el.toastContainer, 'Token gerado com sucesso!', 'success');
         await this.checkTokenStatus();
       } else {
+        console.error('[App] Erro na resposta:', data.error);
         throw new Error(data.error);
       }
     } catch (error) {
-      UI.showToast(this.el.toastContainer, 'Erro ao gerar token', 'error');
+      console.error('[App] Erro ao gerar token:', error);
+      UI.showToast(this.el.toastContainer, 'Erro: ' + error.message, 'error');
     }
   }
 
