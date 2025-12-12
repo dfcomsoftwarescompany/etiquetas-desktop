@@ -253,9 +253,11 @@ class PrinterManager {
   async printCanvas(printerName, canvas, copies = 1) {
     return new Promise((resolve, reject) => {
       try {
-        console.log(`[Printer] Imprimindo ${copies}x em: ${printerName}`);
+        console.log(`[Printer] 🖨️ Iniciando printCanvas - printer: ${printerName}, copies: ${copies}`);
 
+        console.log(`[Printer] 📄 Gerando dataUrl do canvas...`);
         const dataUrl = canvas.toDataURL('image/png');
+        console.log(`[Printer] ✅ DataUrl gerado, tamanho: ${dataUrl.length} chars`);
 
         const html = `
 <!DOCTYPE html>
@@ -278,6 +280,8 @@ class PrinterManager {
         printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
         printWindow.webContents.once('did-finish-load', () => {
+          console.log(`[Printer] ✅ HTML carregado, preparando opções de impressão...`);
+
           const printOptions = {
             silent: true,
             printBackground: true,
@@ -292,32 +296,40 @@ class PrinterManager {
             shouldPrintBackgrounds: true
           };
 
+          console.log(`[Printer] 🖨️ Iniciando impressão com opções:`, JSON.stringify(printOptions, null, 2));
+
           printWindow.webContents.print(printOptions, (success, failureReason) => {
+            console.log(`[Printer] 📄 Callback de impressão chamado - success: ${success}, reason: ${failureReason}`);
+
             // Limpeza de memória
             try {
+              console.log(`[Printer] 🧹 Limpando memória...`);
               printWindow.close();
               printWindow.destroy();
+              console.log(`[Printer] ✅ Janela destruída`);
             } catch (e) {
-              console.error('[Printer] Erro ao destruir janela:', e);
+              console.error('[Printer] ❌ Erro ao destruir janela:', e);
             }
 
             // Limpar referências
+            console.log(`[Printer] 🧹 Limpando referências...`);
             canvas = null;
             dataUrl = null;
-            
+
             // Forçar garbage collection se disponível
             if (global.gc) {
+              console.log(`[Printer] 🗑️ Forçando GC...`);
               global.gc();
             }
 
             if (success) {
-              console.log('[Printer] ✓ Impresso!');
+              console.log('[Printer] ✅ ✓ Impresso com sucesso!');
               // Delay adicional para garantir que a impressora processou
               setTimeout(() => {
                 resolve();
               }, 500);
             } else {
-              console.error('[Printer] ✗ Falha:', failureReason);
+              console.error('[Printer] ❌ ✗ Falha na impressão:', failureReason);
               reject(new Error(failureReason || 'Falha na impressão'));
             }
           });
