@@ -42,10 +42,10 @@ class ServerApp {
       printerSelect: document.getElementById('printer-select'),
       btnRefresh: document.getElementById('btn-refresh'),
       btnConfig: document.getElementById('btn-config'),
-      printerName: document.getElementById('printer-name'),
+      btnConfigLarge: document.getElementById('btn-config-large'),
+      printerNameDisplay: document.getElementById('printer-name-display'),
       printerStatusBadge: document.getElementById('printer-status-badge'),
-      serverStatusBadge: document.getElementById('server-status-badge'),
-      tokenStatus: document.getElementById('token-status'),
+      tokenBadge: document.getElementById('token-badge'),
       appVersion: document.getElementById('app-version'),
       toastContainer: document.getElementById('toast-container'),
       configModal: document.getElementById('config-modal'),
@@ -54,28 +54,26 @@ class ServerApp {
       configToken: document.getElementById('config-token'),
       btnGenerateToken: document.getElementById('btn-generate-token'),
       btnCopyToken: document.getElementById('btn-copy-token'),
-      tokenStatusBadge: document.getElementById('token-status-badge')
+      tokenStatus: document.getElementById('token-status')
     };
   }
 
   bindEvents() {
-    console.log('[App] Vinculando eventos...');
     this.el.btnRefresh.addEventListener('click', () => this.loadPrinters());
     this.el.printerSelect.addEventListener('change', (e) => this.selectPrinter(e.target.value));
     this.el.btnConfig.addEventListener('click', () => {
-      console.log('[App] Botão config clicado');
+      this.openConfigModal();
+    });
+    this.el.btnConfigLarge.addEventListener('click', () => {
       this.openConfigModal();
     });
     this.el.btnConfigClose.addEventListener('click', () => this.closeConfigModal());
     this.el.btnConfigCancel.addEventListener('click', () => this.closeConfigModal());
     this.el.configModal.querySelector('.modal-backdrop').addEventListener('click', () => this.closeConfigModal());
     this.el.btnGenerateToken.addEventListener('click', () => {
-      console.log('[App] Botão gerar token clicado');
       this.generateToken();
     });
     this.el.btnCopyToken.addEventListener('click', () => this.copyToken());
-    this.el.btnClearQueue.addEventListener('click', () => this.clearQueue());
-    console.log('[App] Eventos vinculados com sucesso');
   }
 
   async loadVersion() {
@@ -83,103 +81,94 @@ class ServerApp {
     this.el.appVersion.textContent = `v${version}`;
   }
 
-  async   async loadPrinters() {
+  async loadPrinters() {
     try {
-      console.log('[App] Carregando impressoras...');
-      this.el.printerName.textContent = 'Carregando...';
+      this.el.printerSelect.disabled = true;
+      this.el.printerSelect.innerHTML = '<option value="">Carregando...</option>';
+      this.el.printerNameDisplay.textContent = 'Carregando...';
       this.el.printerStatusBadge.textContent = '⏳ Verificando';
-      this.el.printerStatusBadge.className = 'status-badge';
+      this.el.printerStatusBadge.className = 'badge badge-warning';
 
       const result = await window.electronAPI.printer.list();
       if (!result.success) throw new Error(result.error);
 
       const printers = result.printers || [];
-      console.log(`[App] ${printers.length} impressora(s) encontrada(s)`);
 
       if (printers.length === 0) {
-        this.el.printerName.textContent = 'Nenhuma impressora';
+        this.el.printerSelect.innerHTML = '<option value="">Nenhuma impressora</option>';
+        this.el.printerNameDisplay.textContent = 'Nenhuma impressora';
         this.el.printerStatusBadge.textContent = '❌ Não encontrada';
-        this.el.printerStatusBadge.classList.add('error');
+        this.el.printerStatusBadge.className = 'badge badge-error';
         return;
       }
+
+      this.el.printerSelect.innerHTML = '<option value="">Selecione...</option>';
+      printers.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.Name;
+        opt.textContent = p.Name;
+        this.el.printerSelect.appendChild(opt);
+      });
+
+      this.el.printerSelect.disabled = false;
 
       const argox = printers.find(p => p.Name.toLowerCase().includes('argox'));
       const selected = argox || printers[0];
 
-      this.el.printerName.textContent = selected.Name;
+      this.el.printerSelect.value = selected.Name;
+      this.el.printerNameDisplay.textContent = selected.Name;
       this.el.printerStatusBadge.textContent = '✅ Conectada';
-      this.el.printerStatusBadge.classList.add('success');
-
-      console.log(`[App] Impressora selecionada: ${selected.Name}`);
+      this.el.printerStatusBadge.className = 'badge badge-success';
     } catch (error) {
-      console.error('[App] Erro ao carregar impressoras:', error);
-      this.el.printerName.textContent = 'Erro ao carregar';
+      this.el.printerNameDisplay.textContent = 'Erro ao carregar';
       this.el.printerStatusBadge.textContent = '❌ Erro';
-      this.el.printerStatusBadge.classList.add('error');
+      this.el.printerStatusBadge.className = 'badge badge-error';
       UI.showToast(this.el.toastContainer, 'Erro ao carregar impressoras', 'error');
     }
   }
 
   selectPrinter(name) {
-    console.log('[App] Impressora selecionada:', name);
-    if (name) {
-      this.el.printerName.textContent = name;
-    }
+    // Impressora selecionada
   }
 
   async checkTokenStatus() {
-    console.log('[App] Verificando status do token...');
     try {
       const response = await fetch('http://localhost:8547/token/status');
-      console.log('[App] Status response:', response.status);
 
       const data = await response.json();
-      console.log('[App] Token status:', data);
 
       if (data.configured) {
-        console.log('[App] Token configurado');
-        this.el.tokenStatus.textContent = 'Token configurado';
-        this.el.tokenStatus.style.color = 'var(--text-secondary)';
+        this.el.tokenBadge.innerHTML = '🔒 Token: Configurado';
+        this.el.tokenBadge.className = 'status-badge badge-success';
         this.el.configToken.value = data.token;
-        this.el.tokenStatusBadge.innerHTML = '<span class="badge success">✅ Configurado</span>';
+        this.el.tokenStatus.innerHTML = '<span class="badge badge-success">✅ Configurado</span>';
       } else {
-        console.log('[App] Token não configurado');
-        this.el.tokenStatus.textContent = 'Token não configurado';
-        this.el.tokenStatus.style.color = '#fbbf24';
-        this.el.tokenStatusBadge.innerHTML = '<span class="badge warning">⚠️ Não configurado</span>';
+        this.el.tokenBadge.innerHTML = '⚠️ Token: Não configurado';
+        this.el.tokenBadge.className = 'status-badge badge-warning';
+        this.el.tokenStatus.innerHTML = '<span class="badge badge-warning">⚠️ Não configurado</span>';
       }
     } catch (error) {
-      console.error('[App] Erro ao verificar token:', error);
-      this.el.tokenStatus.textContent = 'Erro ao verificar';
-      this.el.tokenStatus.style.color = '#ef4444';
-      this.el.tokenStatusBadge.innerHTML = '<span class="badge error">❌ Erro</span>';
+      // Erro ao verificar token
     }
   }
 
   async generateToken() {
-    console.log('[App] Gerando token...');
     try {
-      console.log('[App] Fazendo requisição para http://localhost:8547/token/generate');
       const response = await fetch('http://localhost:8547/token/generate', {
         method: 'POST'
       });
-      console.log('[App] Resposta recebida:', response.status);
-      
+
       const data = await response.json();
-      console.log('[App] Dados:', data);
-      
+
       if (data.success) {
-        console.log('[App] Token gerado:', data.token);
         this.el.configToken.value = data.token;
         this.el.tokenStatus.innerHTML = '<span class="badge badge-success">✅ Token gerado com sucesso!</span>';
         UI.showToast(this.el.toastContainer, 'Token gerado com sucesso!', 'success');
         await this.checkTokenStatus();
       } else {
-        console.error('[App] Erro na resposta:', data.error);
         throw new Error(data.error);
       }
     } catch (error) {
-      console.error('[App] Erro ao gerar token:', error);
       UI.showToast(this.el.toastContainer, 'Erro: ' + error.message, 'error');
     }
   }
@@ -200,10 +189,7 @@ class ServerApp {
   }
 
   openConfigModal() {
-    console.log('[App] Abrindo modal de configuração');
-    console.log('[App] Modal element:', this.el.configModal);
     if (!this.el.configModal) {
-      console.error('[App] Modal não encontrado!');
       UI.showToast(this.el.toastContainer, 'Erro: Modal não encontrado', 'error');
       return;
     }
@@ -213,27 +199,17 @@ class ServerApp {
     this.el.configModal.classList.add('active');
     this.el.configModal.style.opacity = '1';
     this.el.configModal.style.visibility = 'visible';
-    
-    console.log('[App] Modal aberto');
-    console.log('[App] Classes:', this.el.configModal.className);
-    console.log('[App] Styles:', {
-      display: this.el.configModal.style.display,
-      opacity: this.el.configModal.style.opacity,
-      visibility: this.el.configModal.style.visibility
-    });
   }
 
   closeConfigModal() {
-    console.log('[App] Fechando modal');
     this.el.configModal.classList.remove('active');
     this.el.configModal.style.display = '';
     this.el.configModal.style.opacity = '';
     this.el.configModal.style.visibility = '';
   }
 
-
   startPolling() {
-    // Verificar status periodicamente
+    // Verificar status do token periodicamente
     setInterval(() => {
       this.checkTokenStatus();
     }, 30000); // A cada 30 segundos
