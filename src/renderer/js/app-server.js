@@ -67,6 +67,12 @@ class ServerApp {
       btnCopyToken: document.getElementById('btn-copy-token'),
       tokenStatus: document.getElementById('token-status')
     };
+    
+    // Verificar elementos críticos
+    console.log('[App] Elementos encontrados:');
+    console.log('  - btnConfig:', !!this.el.btnConfig);
+    console.log('  - configModal:', !!this.el.configModal);
+    console.log('  - btnGenerateToken:', !!this.el.btnGenerateToken);
   }
 
   bindEvents() {
@@ -203,11 +209,34 @@ class ServerApp {
 
   openConfigModal() {
     console.log('[App] Abrindo modal de configuração');
+    console.log('[App] Modal element:', this.el.configModal);
+    if (!this.el.configModal) {
+      console.error('[App] Modal não encontrado!');
+      UI.showToast(this.el.toastContainer, 'Erro: Modal não encontrado', 'error');
+      return;
+    }
+    
+    // Forçar exibição
+    this.el.configModal.style.display = 'flex';
     this.el.configModal.classList.add('active');
+    this.el.configModal.style.opacity = '1';
+    this.el.configModal.style.visibility = 'visible';
+    
+    console.log('[App] Modal aberto');
+    console.log('[App] Classes:', this.el.configModal.className);
+    console.log('[App] Styles:', {
+      display: this.el.configModal.style.display,
+      opacity: this.el.configModal.style.opacity,
+      visibility: this.el.configModal.style.visibility
+    });
   }
 
   closeConfigModal() {
+    console.log('[App] Fechando modal');
     this.el.configModal.classList.remove('active');
+    this.el.configModal.style.display = '';
+    this.el.configModal.style.opacity = '';
+    this.el.configModal.style.visibility = '';
   }
 
   addQueueItem(item) {
