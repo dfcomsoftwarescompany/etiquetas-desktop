@@ -250,10 +250,13 @@ class PrintServer {
     
     // Imprimir cada par
     for (let idx = 0; idx < pairs.length; idx++) {
-      let item1, item2;
-      [item1, item2] = pairs[idx];
+      const currentPair = pairs[idx];
       const itemIndex = idx * 2 + 1;
-      
+
+      // Extrair itens do par de forma segura
+      const item1 = currentPair[0];
+      const item2 = currentPair[1];
+
       try {
         if (item2) {
           // Par completo - imprimir 2 colunas (80mm)
@@ -266,7 +269,7 @@ class PrintServer {
           await this.printerManager.printSingle(printerName, item1);
           console.log(`[Server] ✓ Item único ${itemIndex} impresso com sucesso`);
         }
-        
+
         // Delay maior entre impressões para evitar sobrecarga da impressora
         console.log(`[Server] Aguardando 2s antes da próxima impressão...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
