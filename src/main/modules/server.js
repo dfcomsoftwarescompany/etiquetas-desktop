@@ -166,9 +166,11 @@ class PrintServer {
     // Token management endpoints
     this.app.get('/token/status', (req, res) => {
       const tokenConfig = this.getTokenConfig();
+      console.log('[Server] GET /token/status');
       
       res.json({
         configured: !!tokenConfig?.token,
+        token: tokenConfig?.token || null,
         createdAt: tokenConfig?.createdAt,
         lastUsed: tokenConfig?.lastUsed
       });
