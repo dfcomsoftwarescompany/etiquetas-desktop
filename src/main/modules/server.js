@@ -222,18 +222,30 @@ class PrintServer {
 
     for (const item of items) {
       console.log(`[Server] Processando item:`, item);
+
+      // Validação e sanitização dos campos
+      if (!item || typeof item !== 'object') {
+        console.error(`[Server] Item inválido:`, item);
+        continue;
+      }
+
       const qtd = parseInt(item.qtd) || 1;
       console.log(`[Server] Quantidade: ${qtd}`);
 
+      // Campos com valores padrão se não existirem
+      const safeItem = {
+        descricao: item.descricao || item.desc || 'PRODUTO SEM DESCRIÇÃO',
+        codbarras: item.codbarras || item.cod || item.codBarras || 'SEM CODIGO',
+        valor: item.valor || item.vlr || item.vlrVenda || item.preco || '0,00',
+        tamanho: item.tamanho || item.tam || '',
+        valor_giracredito: item.valor_giracredito || item.vlrGiracredito || item.gira || null
+      };
+
+      console.log(`[Server] Item sanitizado:`, safeItem);
+
       // Adicionar item 'qtd' vezes
       for (let i = 0; i < qtd; i++) {
-        const newItem = {
-          descricao: item.descricao,
-          codbarras: item.codbarras,
-          valor: item.valor,
-          tamanho: item.tamanho || '',
-          valor_giracredito: item.valor_giracredito
-        };
+        const newItem = { ...safeItem };
         console.log(`[Server] Item expandido ${i + 1}/${qtd}:`, newItem);
         expanded.push(newItem);
       }

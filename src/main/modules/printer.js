@@ -74,7 +74,15 @@ class PrinterManager {
    * Gera etiqueta individual (1 coluna)
    */
   async generateSingleLabel(labelData) {
-    const { texto = 'PRODUTO', codigo = '123456789', preco = '', tamanho = '' } = labelData;
+    console.log(`[Printer] generateSingleLabel chamado com:`, labelData);
+
+    // Sanitizar dados com valores padrão seguros
+    const texto = (labelData.texto || labelData.descricao || 'PRODUTO').toString();
+    const codigo = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
+    const preco = (labelData.preco || labelData.valor || '0,00').toString();
+    const tamanho = (labelData.tamanho || labelData.tam || '').toString();
+
+    console.log(`[Printer] Dados sanitizados: texto="${texto}", codigo="${codigo}", preco="${preco}", tamanho="${tamanho}"`);
 
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
@@ -411,21 +419,14 @@ class PrinterManager {
     ctx.rotate(Math.PI);
     
     // Coluna 1 (esquerda) - Item 1
-    const label1 = await this.generateSingleLabel({
-      texto: item1.descricao,
-      codigo: item1.codbarras,
-      preco: item1.valor,
-      tamanho: item1.tamanho || ''
-    });
+    console.log(`[Printer] Gerando label1 para:`, item1);
+    const label1 = await this.generateSingleLabel(item1);
     ctx.drawImage(label1, 0, 0);
-    
+
     // Coluna 2 (direita) - Item 2
-    const label2 = await this.generateSingleLabel({
-      texto: item2.descricao,
-      codigo: item2.codbarras,
-      preco: item2.valor,
-      tamanho: item2.tamanho || ''
-    });
+    console.log(`[Printer] Gerando label2 para:`, item2);
+    const label2 = await this.generateSingleLabel(item2);
+    ctx.drawImage(label2, this.config.labelWidthPx, 0);
     ctx.drawImage(label2, this.config.labelWidthPx, 0);
     
     console.log('[Printer] Imprimindo par de etiquetas diferentes');
@@ -447,12 +448,8 @@ class PrinterManager {
     ctx.rotate(Math.PI);
     
     // Gerar e desenhar etiqueta
-    const label = await this.generateSingleLabel({
-      texto: item.descricao,
-      codigo: item.codbarras,
-      preco: item.valor,
-      tamanho: item.tamanho || ''
-    });
+    console.log(`[Printer] Gerando label single para:`, item);
+    const label = await this.generateSingleLabel(item);
     ctx.drawImage(label, 0, 0);
     
     console.log('[Printer] Imprimindo etiqueta única (40mm)');
