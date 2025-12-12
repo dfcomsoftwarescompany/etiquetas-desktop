@@ -202,6 +202,7 @@ class ServerApp {
   }
 
   openConfigModal() {
+    console.log('[App] Abrindo modal de configuração');
     this.el.configModal.classList.add('active');
   }
 

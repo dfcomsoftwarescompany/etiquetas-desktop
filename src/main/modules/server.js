@@ -167,6 +167,7 @@ class PrintServer {
     this.app.get('/token/status', (req, res) => {
       const tokenConfig = this.getTokenConfig();
       console.log('[Server] GET /token/status');
+      console.log(tokenConfig);
       
       res.json({
         configured: !!tokenConfig?.token,
