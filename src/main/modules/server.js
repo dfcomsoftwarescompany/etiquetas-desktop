@@ -237,6 +237,7 @@ class PrintServer {
    * Imprime múltiplas etiquetas agrupando em pares
    */
   async printMultipleLabels(printerName, items) {
+    console.log(`[Server] Iniciando impressão de ${items.length} itens`);
     const pairs = [];
     
     // Agrupar em pares
@@ -245,19 +246,37 @@ class PrintServer {
       pairs.push(pair);
     }
     
+    console.log(`[Server] Agrupados em ${pairs.length} par(es)`);
+    
     // Imprimir cada par
-    for (const [item1, item2] of pairs) {
-      if (item2) {
-        // Par completo - imprimir 2 colunas (80mm)
-        await this.printerManager.printPair(printerName, item1, item2);
-      } else {
-        // Último item ímpar - imprimir 1 coluna (40mm)
-        await this.printerManager.printSingle(printerName, item1);
-      }
+    for (let idx = 0; idx < pairs.length; idx++) {
+      const [item1, item2] = pairs[idx];
+      const itemIndex = idx * 2 + 1;
       
-      // Pequeno delay entre impressões para evitar sobrecarga
-      await new Promise(resolve => setTimeout(resolve, 100));
+      try {
+        if (item2) {
+          // Par completo - imprimir 2 colunas (80mm)
+          console.log(`[Server] Imprimindo par ${idx + 1}/${pairs.length}: "${item1.descricao}" + "${item2.descricao}"`);
+          await this.printerManager.printPair(printerName, item1, item2);
+          console.log(`[Server] ✓ Par ${idx + 1} impresso com sucesso`);
+        } else {
+          // Último item ímpar - imprimir 1 coluna (40mm)
+          console.log(`[Server] Imprimindo item único ${itemIndex}/${items.length}: "${item1.descricao}"`);
+          await this.printerManager.printSingle(printerName, item1);
+          console.log(`[Server] ✓ Item único ${itemIndex} impresso com sucesso`);
+        }
+        
+        // Pequeno delay entre impressões para evitar sobrecarga
+        await new Promise(resolve => setTimeout(resolve, 200));
+      } catch (error) {
+        console.error(`[Server] ✗ Erro ao imprimir item ${itemIndex}:`, error);
+        console.error(`[Server] Item que falhou:`, item1);
+        // Continuar com os próximos itens mesmo se um falhar
+        throw error; // Re-throw para que o endpoint saiba que houve erro
+      }
     }
+    
+    console.log(`[Server] Todas as impressões concluídas`);
     
     // Limpar cache periodicamente
     if (this.qrCache.size > this.maxCacheSize) {

@@ -1,0 +1,54 @@
+{
+  "Itens": [
+    {
+      "descricao": "PRODUTO 1 - CAMISETA POLO AZUL",
+      "qtd": 1,
+      "codbarras": "7891234567890",
+      "valor": "49.90",
+      "tamanho": "M"
+    },
+    {
+      "descricao": "PRODUTO 2 - BERMUDA JEANS PRETA",
+      "qtd": 1,
+      "codbarras": "7899876543210",
+      "valor": "79.90",
+      "tamanho": "42"
+    },
+    {
+      "descricao": "PRODUTO 3 - TENIS ESPORTIVO BRANCO",
+      "qtd": 1,
+      "codbarras": "7895554443332",
+      "valor": "129.90",
+      "tamanho": "40"
+    },
+    {
+      "descricao": "PRODUTO 4 - MOCHILA ESCOLAR VERMELHA",
+      "qtd": 1,
+      "codbarras": "7891112223334",
+      "valor": "89.90",
+      "tamanho": "ÚNICO"
+    },
+    {
+      "descricao": "PRODUTO 5 - BONÉ CAP PRETO",
+      "qtd": 1,
+      "codbarras": "7894445556667",
+      "valor": "35.90",
+      "tamanho": "P"
+    },
+    {
+      "descricao": "PRODUTO 6 - MEIA ESPORTIVA BRANCA",
+      "qtd": 1,
+      "codbarras": "7897778889990",
+      "valor": "19.90",
+      "tamanho": "M"
+    },
+    {
+      "descricao": "PRODUTO 7 - JAQUETA COURO PRETA",
+      "qtd": 1,
+      "codbarras": "7893334445556",
+      "valor": "299.90",
+      "tamanho": "GG"
+    }
+  ]
+}
+
