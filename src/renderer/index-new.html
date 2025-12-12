@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles/simple.css">
+  <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
   <div class="app-container">
@@ -79,34 +79,100 @@
             <span class="badge badge-success" id="server-status-badge">🟢 Ativo</span>
           </div>
         </div>
-
-        <!-- Status da Impressora -->
-        <div class="printer-status">
-          <div class="printer-info">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 9V2h12v7"/>
-              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
-              <rect x="6" y="14" width="12" height="8"/>
-            </svg>
-            <div>
-              <h3>Impressora</h3>
-              <p id="printer-name-display">Carregando...</p>
+        
+        <div class="server-stats">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9V2h12v7"/>
+                <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Total Impresso</span>
+              <span class="stat-value" id="total-printed">0</span>
             </div>
           </div>
-          <div class="printer-badge">
-            <span class="badge badge-warning" id="printer-status-badge">⏳ Verificando</span>
+          
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Na Fila</span>
+              <span class="stat-value" id="queue-count">0</span>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Taxa de Sucesso</span>
+              <span class="stat-value" id="success-rate">100%</span>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v10l6 4"/>
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label">Tempo Médio</span>
+              <span class="stat-value" id="avg-time">0s</span>
+            </div>
           </div>
         </div>
+      </div>
 
-        <!-- Botão de Configuração Prominente -->
-        <div class="config-section">
-          <button class="btn btn-primary btn-large" id="btn-config-large">
+      <!-- Fila de Impressão -->
+      <div class="queue-container">
+        <div class="queue-header">
+          <h2>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M12 1v6m0 6v6m4.22-15.22l4.24 4.24m-4.24 4.24l4.24 4.24M23 12h-6m-6 0H1m4.22 4.22l-4.24 4.24m4.24-4.24l-4.24-4.24"/>
+              <line x1="8" y1="6" x2="21" y2="6"/>
+              <line x1="8" y1="12" x2="21" y2="12"/>
+              <line x1="8" y1="18" x2="21" y2="18"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/>
+              <line x1="3" y1="12" x2="3.01" y2="12"/>
+              <line x1="3" y1="18" x2="3.01" y2="18"/>
             </svg>
-            Configurar Token
+            Fila de Impressão
+          </h2>
+          <button class="btn btn-secondary btn-sm" id="btn-clear-queue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/>
+            </svg>
+            Limpar Histórico
           </button>
+        </div>
+        
+        <div class="queue-list" id="queue-list">
+          <!-- Items serão inseridos aqui -->
+        </div>
+        
+        <!-- Estado vazio -->
+        <div class="empty-state" id="queue-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <h3>Aguardando requisições</h3>
+          <p>O servidor está pronto para receber requisições de impressão</p>
+          <code>POST http://localhost:8547/print/etiqueta</code>
         </div>
       </div>
     </main>
