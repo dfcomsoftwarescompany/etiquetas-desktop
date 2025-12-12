@@ -28,3 +28,4 @@
 - **203 DPI** (Argox OS-2140 padrão)
 - Conversão: `pixels = mm * (203 / 25.4)`
 
+
