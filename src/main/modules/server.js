@@ -250,7 +250,8 @@ class PrintServer {
     
     // Imprimir cada par
     for (let idx = 0; idx < pairs.length; idx++) {
-      const [item1, item2] = pairs[idx];
+      let item1, item2;
+      [item1, item2] = pairs[idx];
       const itemIndex = idx * 2 + 1;
       
       try {
