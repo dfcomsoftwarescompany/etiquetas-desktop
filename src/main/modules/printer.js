@@ -303,50 +303,12 @@ class PrinterManager {
 
             if (success) {
               console.log('[Printer] ✅ ✓ Impresso com sucesso!');
-              // Delay adicional para garantir que a impressora processou
+              // Delay simples sem limpeza
               setTimeout(() => {
-                // Limpeza de memória mais segura
-                try {
-                  console.log(`[Printer] 🧹 Limpando memória...`);
-                  if (!printWindow.isDestroyed()) {
-                    printWindow.close();
-                    // Pequeno delay antes de destruir
-                    setTimeout(() => {
-                      if (!printWindow.isDestroyed()) {
-                        printWindow.destroy();
-                        console.log(`[Printer] ✅ Janela destruída`);
-                      }
-                    }, 100);
-                  }
-                } catch (e) {
-                  console.error('[Printer] ❌ Erro ao destruir janela:', e);
-                }
-
-                // Limpar referências (mas não canvas ainda)
-                console.log(`[Printer] 🧹 Limpando referências...`);
-                dataUrl = null;
-
-                // Não forçar GC - deixa o Node.js gerenciar
-                console.log(`[Printer] ✅ Limpeza concluída`);
                 resolve();
-              }, 500);
+              }, 300);
             } else {
               console.error('[Printer] ❌ ✗ Falha na impressão:', failureReason);
-
-              // Limpeza em caso de erro também
-              try {
-                if (!printWindow.isDestroyed()) {
-                  printWindow.close();
-                  setTimeout(() => {
-                    if (!printWindow.isDestroyed()) {
-                      printWindow.destroy();
-                    }
-                  }, 100);
-                }
-              } catch (e) {
-                console.error('[Printer] ❌ Erro ao destruir janela no erro:', e);
-              }
-
               reject(new Error(failureReason || 'Falha na impressão'));
             }
           });
