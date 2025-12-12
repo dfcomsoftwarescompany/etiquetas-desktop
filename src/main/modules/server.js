@@ -118,15 +118,20 @@ class PrintServer {
         
         // Expandir itens baseado na quantidade
         const expandedItems = this.expandItems(items);
+        console.log('[Server] Itens expandidos:', expandedItems.length);
         
-        // Imprimir agrupando em pares
-        await this.printMultipleLabels(printerName, expandedItems);
-        
+        // Enviar resposta imediatamente para não fechar conexão
         res.json({ 
           success: true, 
           message: `${items.length} item(ns) processado(s)`,
           total: expandedItems.length,
-          printer: printerName
+          printer: printerName,
+          status: 'processing'
+        });
+        
+        // Imprimir agrupando em pares (assíncrono, sem bloquear resposta)
+        this.printMultipleLabels(printerName, expandedItems).catch(error => {
+          console.error('[Server] Erro assíncrono na impressão:', error);
         });
         
       } catch (error) {
