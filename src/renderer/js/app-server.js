@@ -25,13 +25,6 @@ const UI = {
 
 class ServerApp {
   constructor() {
-    this.stats = {
-      totalPrinted: 0,
-      queueCount: 0,
-      successRate: 100,
-      avgTime: 0
-    };
-    this.queue = [];
     this.init();
   }
 
@@ -49,14 +42,10 @@ class ServerApp {
       printerSelect: document.getElementById('printer-select'),
       btnRefresh: document.getElementById('btn-refresh'),
       btnConfig: document.getElementById('btn-config'),
-      totalPrinted: document.getElementById('total-printed'),
-      queueCount: document.getElementById('queue-count'),
-      successRate: document.getElementById('success-rate'),
-      avgTime: document.getElementById('avg-time'),
-      queueList: document.getElementById('queue-list'),
-      queueEmptyState: document.getElementById('queue-empty-state'),
-      btnClearQueue: document.getElementById('btn-clear-queue'),
-      tokenBadge: document.getElementById('token-badge'),
+      printerName: document.getElementById('printer-name'),
+      printerStatusBadge: document.getElementById('printer-status-badge'),
+      serverStatusBadge: document.getElementById('server-status-badge'),
+      tokenStatus: document.getElementById('token-status'),
       appVersion: document.getElementById('app-version'),
       toastContainer: document.getElementById('toast-container'),
       configModal: document.getElementById('config-modal'),
@@ -65,14 +54,8 @@ class ServerApp {
       configToken: document.getElementById('config-token'),
       btnGenerateToken: document.getElementById('btn-generate-token'),
       btnCopyToken: document.getElementById('btn-copy-token'),
-      tokenStatus: document.getElementById('token-status')
+      tokenStatusBadge: document.getElementById('token-status-badge')
     };
-    
-    // Verificar elementos críticos
-    console.log('[App] Elementos encontrados:');
-    console.log('  - btnConfig:', !!this.el.btnConfig);
-    console.log('  - configModal:', !!this.el.configModal);
-    console.log('  - btnGenerateToken:', !!this.el.btnGenerateToken);
   }
 
   bindEvents() {
@@ -100,42 +83,48 @@ class ServerApp {
     this.el.appVersion.textContent = `v${version}`;
   }
 
-  async loadPrinters() {
+  async   async loadPrinters() {
     try {
-      this.el.printerSelect.disabled = true;
-      this.el.printerSelect.innerHTML = '<option value="">Carregando...</option>';
-      
+      console.log('[App] Carregando impressoras...');
+      this.el.printerName.textContent = 'Carregando...';
+      this.el.printerStatusBadge.textContent = '⏳ Verificando';
+      this.el.printerStatusBadge.className = 'status-badge';
+
       const result = await window.electronAPI.printer.list();
       if (!result.success) throw new Error(result.error);
 
       const printers = result.printers || [];
-      
+      console.log(`[App] ${printers.length} impressora(s) encontrada(s)`);
+
       if (printers.length === 0) {
-        this.el.printerSelect.innerHTML = '<option value="">Nenhuma impressora</option>';
+        this.el.printerName.textContent = 'Nenhuma impressora';
+        this.el.printerStatusBadge.textContent = '❌ Não encontrada';
+        this.el.printerStatusBadge.classList.add('error');
         return;
       }
 
-      this.el.printerSelect.innerHTML = '<option value="">Selecione...</option>';
-      printers.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.Name;
-        opt.textContent = p.Name;
-        this.el.printerSelect.appendChild(opt);
-      });
-      
-      this.el.printerSelect.disabled = false;
-
       const argox = printers.find(p => p.Name.toLowerCase().includes('argox'));
-      if (argox) {
-        this.el.printerSelect.value = argox.Name;
-      }
+      const selected = argox || printers[0];
+
+      this.el.printerName.textContent = selected.Name;
+      this.el.printerStatusBadge.textContent = '✅ Conectada';
+      this.el.printerStatusBadge.classList.add('success');
+
+      console.log(`[App] Impressora selecionada: ${selected.Name}`);
     } catch (error) {
+      console.error('[App] Erro ao carregar impressoras:', error);
+      this.el.printerName.textContent = 'Erro ao carregar';
+      this.el.printerStatusBadge.textContent = '❌ Erro';
+      this.el.printerStatusBadge.classList.add('error');
       UI.showToast(this.el.toastContainer, 'Erro ao carregar impressoras', 'error');
     }
   }
 
   selectPrinter(name) {
     console.log('[App] Impressora selecionada:', name);
+    if (name) {
+      this.el.printerName.textContent = name;
+    }
   }
 
   async checkTokenStatus() {
@@ -143,24 +132,27 @@ class ServerApp {
     try {
       const response = await fetch('http://localhost:8547/token/status');
       console.log('[App] Status response:', response.status);
-      
+
       const data = await response.json();
       console.log('[App] Token status:', data);
-      
+
       if (data.configured) {
-        console.log('[App] Token configurado:', data.token);
-        this.el.tokenBadge.innerHTML = '🔒 Token: Configurado';
-        this.el.tokenBadge.className = 'status-badge badge-success';
+        console.log('[App] Token configurado');
+        this.el.tokenStatus.textContent = 'Token configurado';
+        this.el.tokenStatus.style.color = 'var(--text-secondary)';
         this.el.configToken.value = data.token;
-        this.el.tokenStatus.innerHTML = '<span class="badge badge-success">✅ Configurado</span>';
+        this.el.tokenStatusBadge.innerHTML = '<span class="badge success">✅ Configurado</span>';
       } else {
         console.log('[App] Token não configurado');
-        this.el.tokenBadge.innerHTML = '⚠️ Token: Não configurado';
-        this.el.tokenBadge.className = 'status-badge badge-warning';
-        this.el.tokenStatus.innerHTML = '<span class="badge badge-warning">⚠️ Não configurado</span>';
+        this.el.tokenStatus.textContent = 'Token não configurado';
+        this.el.tokenStatus.style.color = '#fbbf24';
+        this.el.tokenStatusBadge.innerHTML = '<span class="badge warning">⚠️ Não configurado</span>';
       }
     } catch (error) {
       console.error('[App] Erro ao verificar token:', error);
+      this.el.tokenStatus.textContent = 'Erro ao verificar';
+      this.el.tokenStatus.style.color = '#ef4444';
+      this.el.tokenStatusBadge.innerHTML = '<span class="badge error">❌ Erro</span>';
     }
   }
 
@@ -239,77 +231,12 @@ class ServerApp {
     this.el.configModal.style.visibility = '';
   }
 
-  addQueueItem(item) {
-    this.queue.push(item);
-    this.renderQueue();
-    this.updateStats();
-  }
-
-  renderQueue() {
-    if (this.queue.length === 0) {
-      this.el.queueList.style.display = 'none';
-      this.el.queueEmptyState.style.display = 'flex';
-      return;
-    }
-
-    this.el.queueList.style.display = 'block';
-    this.el.queueEmptyState.style.display = 'none';
-
-    this.el.queueList.innerHTML = this.queue.map((item, index) => `
-      <div class="queue-item ${item.status}">
-        <div class="queue-item-icon">
-          ${this.getStatusIcon(item.status)}
-        </div>
-        <div class="queue-item-content">
-          <div class="queue-item-header">
-            <span class="queue-item-title">${item.descricao}</span>
-            <span class="queue-item-badge">${item.status === 'success' ? '✅' : item.status === 'error' ? '❌' : '⏳'}</span>
-          </div>
-          <div class="queue-item-details">
-            <span>Código: ${item.codbarras}</span>
-            <span>Qtd: ${item.qtd}</span>
-            <span>R$ ${item.valor}</span>
-          </div>
-          <div class="queue-item-time">${new Date(item.timestamp).toLocaleTimeString()}</div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  getStatusIcon(status) {
-    const icons = {
-      pending: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-      printing: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
-      success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
-      error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
-    };
-    return icons[status] || icons.pending;
-  }
-
-  updateStats() {
-    this.stats.totalPrinted = this.queue.filter(i => i.status === 'success').length;
-    this.stats.queueCount = this.queue.filter(i => i.status === 'pending' || i.status === 'printing').length;
-    
-    const total = this.queue.length;
-    const success = this.queue.filter(i => i.status === 'success').length;
-    this.stats.successRate = total > 0 ? Math.round((success / total) * 100) : 100;
-
-    this.el.totalPrinted.textContent = this.stats.totalPrinted;
-    this.el.queueCount.textContent = this.stats.queueCount;
-    this.el.successRate.textContent = `${this.stats.successRate}%`;
-  }
-
-  clearQueue() {
-    this.queue = this.queue.filter(i => i.status === 'pending' || i.status === 'printing');
-    this.renderQueue();
-    this.updateStats();
-    UI.showToast(this.el.toastContainer, 'Histórico limpo', 'info');
-  }
 
   startPolling() {
+    // Verificar status periodicamente
     setInterval(() => {
-      this.updateStats();
-    }, 5000);
+      this.checkTokenStatus();
+    }, 30000); // A cada 30 segundos
   }
 }
 

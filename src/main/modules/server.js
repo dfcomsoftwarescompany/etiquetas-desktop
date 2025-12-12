@@ -250,7 +250,7 @@ class PrintServer {
         codbarras: item.codbarras || item.cod || item.codBarras || 'SEM CODIGO',
         valor: item.valor || item.vlr || item.vlrVenda || item.preco || '0,00',
         tamanho: item.tamanho || item.tam || '',
-        valor_giracredito: item.valor_giracredito || item.vlrGiracredito || item.gira
+        valor_giracredito: item?.valor_giracredito || item?.vlrGiracredito || item?.giracredito || item.gira
       };
 
       console.log(`[Server] Item sanitizado:`, safeItem);
