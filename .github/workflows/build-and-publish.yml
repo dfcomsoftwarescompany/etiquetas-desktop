@@ -27,24 +27,6 @@ jobs:
           echo "version=$version" >> $env:GITHUB_OUTPUT
           echo "📦 Versão: $version"
       
-      - name: Verificar se tag existe
-        id: check
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          $version = "${{ steps.version.outputs.version }}"
-          $tag = "v$version"
-          
-          # Verificar se tag já existe
-          $tagExists = gh release view $tag 2>$null
-          if ($tagExists) {
-            echo "❌ ERRO: Tag $tag já existe!"
-            echo "Por favor, incremente a versão no package.json"
-            exit 1
-          } else {
-            echo "✅ Tag $tag disponível"
-          }
-      
       - name: Instalar dependências
         run: npm ci
       
