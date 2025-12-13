@@ -1,6 +1,6 @@
 {
   "name": "etiquetas-desktop",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Aplicativo para impressão de etiquetas 40x60mm com QR Code em impressoras Argox OS-2140",
   "main": "src/main/index.js",
   "scripts": {
@@ -50,7 +50,7 @@
       "provider": "github",
       "owner": "dfcomsoftwarescompany",
       "repo": "etiquetas-desktop",
-      "releaseType": "release",
+      "releaseType": "draft",
       "private": true
     },
     "extraResources": [
