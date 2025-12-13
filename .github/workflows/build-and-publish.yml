@@ -1,56 +1,48 @@
-name: Build and Publish Windows
+name: Build and Publish
 
 on:
   push:
     branches:
-      - main  # Dispara quando há push na main
-    paths:
-      - 'package.json'  # Só dispara se package.json mudar (versão)
-      - 'src/**'        # Ou se código fonte mudar
-  workflow_dispatch:  # Permite executar manualmente
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
     
     steps:
-      - name: Checkout código
+      - name: Checkout
         uses: actions/checkout@v4
       
-      - name: Configurar Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
       
-      - name: Obter versão do package.json
-        id: package
+      - name: Obter versão
+        id: version
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
           echo "version=$version" >> $env:GITHUB_OUTPUT
-          echo "Versão: $version"
+          echo "📦 Versão: $version"
       
-      - name: Verificar e deletar release existente
+      - name: Verificar se tag existe
+        id: check
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          $version = "${{ steps.package.outputs.version }}"
+          $version = "${{ steps.version.outputs.version }}"
           $tag = "v$version"
           
-          # Tentar deletar release existente (ignora erro se não existir)
-          try {
-            gh release delete $tag --yes 2>$null
-            echo "Release $tag deletada"
-          } catch {
-            echo "Release $tag não existe, continuando..."
-          }
-          
-          # Tentar deletar tag existente (ignora erro se não existir)
-          try {
-            git push origin --delete $tag 2>$null
-            echo "Tag $tag deletada"
-          } catch {
-            echo "Tag $tag não existe, continuando..."
+          # Verificar se tag já existe
+          $tagExists = gh release view $tag 2>$null
+          if ($tagExists) {
+            echo "❌ ERRO: Tag $tag já existe!"
+            echo "Por favor, incremente a versão no package.json"
+            exit 1
+          } else {
+            echo "✅ Tag $tag disponível"
           }
       
       - name: Instalar dependências
@@ -64,9 +56,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: npm run publish:prod
       
-      - name: Upload artefatos
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/*.exe
-          retention-days: 30
+      - name: Confirmar release
+        run: echo "✅ Release v${{ steps.version.outputs.version }} criada com sucesso!"
