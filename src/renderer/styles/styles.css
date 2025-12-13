@@ -90,11 +90,12 @@ body {
   align-items: center;
   justify-content: center;
   padding: 40px 24px;
+  overflow-y: auto;
 }
 
 .container {
   width: 100%;
-  max-width: 480px;
+  max-width: 960px;
 }
 
 /* Status Card */
@@ -177,13 +178,23 @@ body {
   border: 1px solid var(--border);
 }
 
+/* Cards Grid */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
 /* Config Cards */
 .config-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
-  margin-bottom: 16px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
 }
 
 .config-card-header {
@@ -441,5 +452,47 @@ body {
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .container {
+    max-width: 480px;
+  }
+}
+
+@media (min-width: 769px) {
+  .main {
+    padding: 24px;
+  }
+  
+  .status-card {
+    margin-bottom: 32px;
+  }
+}
+
+/* Ajustes para janelas pequenas */
+@media (max-height: 700px) {
+  .main {
+    padding: 20px 24px;
+  }
+  
+  .status-card {
+    padding: 24px;
+  }
+  
+  .status-icon {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .status-icon svg {
+    width: 30px;
+    height: 30px;
+  }
 }
 
