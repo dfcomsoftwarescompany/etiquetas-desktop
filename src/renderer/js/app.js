@@ -46,12 +46,25 @@ function createUpdateModal() {
     modal.classList.remove('show');
   });
   
-  document.getElementById('btn-update-now').addEventListener('click', () => {
+  document.getElementById('btn-update-now').addEventListener('click', async () => {
     console.log('[Update] Botão Reiniciar clicado');
     if (window.electronAPI && window.electronAPI.updates) {
       console.log('[Update] Chamando install...');
-      window.electronAPI.updates.install();
-      showToast('Reiniciando aplicativo...', 'info');
+      try {
+        const result = await window.electronAPI.updates.install();
+        console.log('[Update] Resultado install:', result);
+        if (result.success) {
+          showToast('Reiniciando aplicativo...', 'info');
+          // Desabilitar botão para evitar múltiplos cliques
+          document.getElementById('btn-update-now').disabled = true;
+          document.getElementById('btn-update-now').textContent = 'Reiniciando...';
+        } else {
+          showToast(`Erro ao instalar: ${result.error}`, 'error');
+        }
+      } catch (error) {
+        console.error('[Update] Erro ao instalar:', error);
+        showToast('Erro na instalação', 'error');
+      }
     } else {
       console.error('[Update] API não disponível');
     }
@@ -78,11 +91,21 @@ function updateProgress(percent) {
 }
 
 // ==================== Listeners de Atualização ====================
+let updateListenersSetup = false; // Evitar setup múltiplo
+
 function setupUpdateListeners() {
   if (!window.electronAPI || !window.electronAPI.updates) {
     console.log('API de updates não disponível (modo desenvolvimento)');
     return;
   }
+
+  // Evitar setup múltiplo de listeners
+  if (updateListenersSetup) {
+    console.log('[Update] Listeners já configurados');
+    return;
+  }
+
+  console.log('[Update] Configurando listeners de atualização...');
 
   window.electronAPI.updates.onChecking(() => {
     console.log('[Update] Verificando atualizações...');
@@ -118,14 +141,23 @@ function setupUpdateListeners() {
     );
     // Mudar botão para "Reiniciar Agora"
     const btnNow = document.getElementById('btn-update-now');
-    if (btnNow) btnNow.textContent = 'Reiniciar Agora';
+    if (btnNow) {
+      btnNow.textContent = 'Reiniciar Agora';
+      btnNow.disabled = false; // Reabilitar se estava desabilitado
+    }
   });
 
   window.electronAPI.updates.onError((data) => {
     console.error('[Update] Erro:', data.message);
-    // Não mostrar erro para o usuário, apenas logar
-    // showToast(`Erro na atualização: ${data.message}`, 'error');
+    // Não mostrar erro para o usuário em produção, apenas logar
+    // Em desenvolvimento, pode mostrar para debug
+    if (process.env.NODE_ENV === 'development') {
+      showToast(`Erro na atualização: ${data.message}`, 'error');
+    }
   });
+
+  updateListenersSetup = true;
+  console.log('[Update] Listeners configurados com sucesso');
 }
 
 // ==================== Impressora ====================

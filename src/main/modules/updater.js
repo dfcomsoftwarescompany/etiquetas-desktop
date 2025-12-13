@@ -132,6 +132,10 @@ class UpdateManager {
     log.info('[Updater] installUpdate() chamado');
     log.info('[Updater] updateDownloaded:', this.updateDownloaded);
     log.info('[Updater] updateInfo:', this.updateInfo);
+    log.info('[Updater] autoInstallOnAppQuit:', autoUpdater.autoInstallOnAppQuit);
+    
+    // Garantir que não instale automaticamente ao fechar
+    autoUpdater.autoInstallOnAppQuit = false;
     
     if (this.updateDownloaded) {
       log.info('[Updater] Preparando para instalar atualização...');
@@ -140,21 +144,35 @@ class UpdateManager {
       // Fechar a janela principal primeiro
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         log.info('[Updater] Fechando janela principal...');
+        
+        // Aguardar evento de fechamento da janela
+        this.mainWindow.once('closed', () => {
+          log.info('[Updater] Janela fechada, aguardando mais um pouco...');
+          setTimeout(() => {
+            log.info('[Updater] Executando quitAndInstall...');
+            log.info('[Updater] Parâmetros: isSilent=false, isForceRunAfter=true');
+            try {
+              // isSilent = false (mostrar instalador)
+              // isForceRunAfter = true (reiniciar app após instalar)
+              autoUpdater.quitAndInstall(false, true);
+            } catch (error) {
+              log.error('[Updater] Erro ao executar quitAndInstall:', error);
+            }
+          }, 500);
+        });
+        
         this.mainWindow.close();
+      } else {
+        // Janela já fechada, instalar imediatamente
+        log.info('[Updater] Janela já fechada, executando quitAndInstall...');
+        setTimeout(() => {
+          try {
+            autoUpdater.quitAndInstall(false, true);
+          } catch (error) {
+            log.error('[Updater] Erro ao executar quitAndInstall:', error);
+          }
+        }, 500);
       }
-      
-      // Aguardar um pouco para garantir que tudo fechou
-      setTimeout(() => {
-        log.info('[Updater] Executando quitAndInstall...');
-        log.info('[Updater] Parâmetros: isSilent=false, isForceRunAfter=true');
-        try {
-          // isSilent = false (mostrar instalador)
-          // isForceRunAfter = true (reiniciar app após instalar)
-          autoUpdater.quitAndInstall(false, true);
-        } catch (error) {
-          log.error('[Updater] Erro ao executar quitAndInstall:', error);
-        }
-      }, 1000);
       
     } else {
       log.warn('[Updater] Nenhuma atualização baixada para instalar');
