@@ -296,7 +296,7 @@ async function checkServerStatus() {
         <polyline points="22 4 12 14.01 9 11.01"/>
       </svg>`;
       statusTitle.textContent = 'Pronto para Imprimir';
-      statusSubtitle.textContent = 'O sistema está ativo e aguardando requisições';
+      statusSubtitle.textContent = 'Servidor ativo - Aguardando requisições de impressão';
     }
   } catch (error) {
     statusIcon.className = 'status-icon inactive';
