@@ -66,7 +66,6 @@ app.whenReady().then(async () => {
   printServer = new PrintServer(printerManager);
   try {
     await printServer.start();
-    console.log('[App] Servidor HTTP iniciado com sucesso');
   } catch (error) {
     console.error('[App] Erro ao iniciar servidor HTTP:', error);
   }
@@ -75,13 +74,11 @@ app.whenReady().then(async () => {
   if (app.isPackaged) {
     // Verificação inicial após 5 segundos
     setTimeout(() => {
-      console.log('[App] Verificando atualizações...');
       updateManager?.checkForUpdates();
     }, 5000);
 
     // Verificação periódica a cada 4 horas
     setInterval(() => {
-      console.log('[App] Verificação periódica de atualizações...');
       updateManager?.checkForUpdates();
     }, 4 * 60 * 60 * 1000);
   }
@@ -94,8 +91,6 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
-  console.log('[App] Fechando...');
-  
   // Parar servidor HTTP
   if (printServer) {
     printServer.stop();

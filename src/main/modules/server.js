@@ -43,9 +43,8 @@ class PrintServer {
       }
     }));
     
-    // Log de requisições
+    // Log de requisições removido
     this.app.use((req, res, next) => {
-      console.log(`[Server] ${req.method} ${req.path}`);
       next();
     });
   }
@@ -122,17 +121,11 @@ class PrintServer {
           return res.status(400).json({ error: 'Nenhuma impressora configurada' });
         }
         
-        console.log('[Server] Usando impressora:', printerName);
-        
         // Expandir itens baseado na quantidade
-        console.log(`[Server] Expandindo itens...`);
         const expandedItems = this.expandItems(items);
-        console.log(`[Server] Itens expandidos:`, expandedItems.length);
 
         // Imprimir agrupando em pares
-        console.log(`[Server] Chamando printMultipleLabels...`);
         await this.printMultipleLabels(printerName, expandedItems);
-        console.log(`[Server] printMultipleLabels concluído`);
 
         // Resposta simplificada para evitar problemas de JSON
         const response = {
@@ -142,7 +135,6 @@ class PrintServer {
           printer: printerName
         };
 
-        console.log(`[Server] Enviando resposta:`, response);
         res.json(response);
         
       } catch (error) {
@@ -184,8 +176,6 @@ class PrintServer {
     // Token management endpoints
     this.app.get('/token/status', (req, res) => {
       const tokenConfig = this.getTokenConfig();
-      console.log('[Server] GET /token/status');
-      console.log(tokenConfig);
       
       res.json({
         configured: !!tokenConfig?.token,
@@ -196,11 +186,8 @@ class PrintServer {
     });
 
     this.app.post('/token/generate', (req, res) => {
-      console.log('[Server] POST /token/generate - Gerando token');
       const newToken = this.generateSecureToken();
-      console.log('[Server] Token gerado:', newToken);
       this.saveToken(newToken);
-      console.log('[Server] Token salvo');
       
       res.json({
         success: true,
@@ -229,11 +216,9 @@ class PrintServer {
    * Expande itens baseado na quantidade
    */
   expandItems(items) {
-    console.log(`[Server] expandItems chamado com ${items.length} itens`);
     const expanded = [];
 
     for (const item of items) {
-      console.log(`[Server] Processando item:`, item);
 
       // Validação e sanitização dos campos
       if (!item || typeof item !== 'object') {
@@ -242,7 +227,6 @@ class PrintServer {
       }
 
       const qtd = parseInt(item.qtd) || 1;
-      console.log(`[Server] Quantidade: ${qtd}`);
 
       // Campos com valores padrão se não existirem
       const safeItem = {
@@ -253,17 +237,13 @@ class PrintServer {
         valor_giracredito: item?.valor_giracredito || item?.vlrGiracredito || item?.giracredito || item.gira
       };
 
-      console.log(`[Server] Item sanitizado:`, safeItem);
-
       // Adicionar item 'qtd' vezes
       for (let i = 0; i < qtd; i++) {
         const newItem = { ...safeItem };
-        console.log(`[Server] Item expandido ${i + 1}/${qtd}:`, newItem);
         expanded.push(newItem);
       }
     }
 
-    console.log(`[Server] Total de itens expandidos: ${expanded.length}`);
     return expanded;
   }
 
@@ -271,60 +251,36 @@ class PrintServer {
    * Imprime múltiplas etiquetas agrupando em pares
    */
   async printMultipleLabels(printerName, items) {
-    console.log(`[Server] Iniciando impressão de ${items.length} itens`);
-    console.log(`[Server] Items recebidos:`, items);
-
     const pairs = [];
 
     // Agrupar em pares
-    console.log(`[Server] Agrupando em pares...`);
     for (let i = 0; i < items.length; i += 2) {
-      console.log(`[Server] Processando itens ${i} e ${i + 1}`);
       const itemA = items[i];
       const itemB = items[i + 1] || null;
       const pair = [itemA, itemB];
       pairs.push(pair);
-      console.log(`[Server] Par criado: [${itemA?.descricao || 'null'}, ${itemB?.descricao || 'null'}]`);
     }
-
-    console.log(`[Server] Agrupados em ${pairs.length} par(es)`);
-    console.log(`[Server] Pairs:`, pairs.map(p => [p[0]?.descricao || 'null', p[1]?.descricao || 'null']));
     
     // Imprimir cada par
-    console.log(`[Server] Iniciando loop de impressão...`);
     for (let idx = 0; idx < pairs.length; idx++) {
-      console.log(`[Server] Processando par ${idx + 1}/${pairs.length}`);
-
       const currentPair = pairs[idx];
-      console.log(`[Server] Current pair:`, currentPair);
-
       const itemIndex = idx * 2 + 1;
-      console.log(`[Server] Item index: ${itemIndex}`);
 
       // Extrair itens do par de forma segura
-      console.log(`[Server] Extraindo itens do par...`);
       const item1 = currentPair[0];
       const item2 = currentPair[1];
-
-      console.log(`[Server] Item1:`, item1);
-      console.log(`[Server] Item2:`, item2);
 
       try {
         if (item2) {
           // Par completo - imprimir 2 colunas (80mm)
-          console.log(`[Server] Imprimindo par ${idx + 1}/${pairs.length}: "${item1.descricao}" + "${item2.descricao}"`);
           await this.printerManager.printPair(printerName, item1, item2);
-          console.log(`[Server] ✓ Par ${idx + 1} impresso com sucesso`);
         } else {
           // Último item ímpar - imprimir 1 coluna (40mm)
-          console.log(`[Server] Imprimindo item único ${itemIndex}/${items.length}: "${item1.descricao}"`);
           await this.printerManager.printSingle(printerName, item1);
-          console.log(`[Server] ✓ Item único ${itemIndex} impresso com sucesso`);
         }
 
-        // Delay maior entre impressões para evitar sobrecarga da impressora
-        console.log(`[Server] Aguardando 2s antes da próxima impressão...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Delay entre impressões (reduzido para maior velocidade)
+        await new Promise(resolve => setTimeout(resolve, 300));
       } catch (error) {
         console.error(`[Server] ✗ Erro ao imprimir item ${itemIndex}:`, error);
         console.error(`[Server] Stack:`, error.stack);
@@ -333,8 +289,6 @@ class PrintServer {
         throw error; // Re-throw para que o endpoint saiba que houve erro
       }
     }
-    
-    console.log(`[Server] Todas as impressões concluídas`);
     
     // Limpar cache periodicamente
     if (this.qrCache.size > this.maxCacheSize) {
@@ -346,9 +300,7 @@ class PrintServer {
    * Limpa cache de QR Codes
    */
   clearQRCache() {
-    const oldSize = this.qrCache.size;
     this.qrCache.clear();
-    console.log(`[Server] Cache limpo: ${oldSize} QR codes removidos`);
     
     // Forçar garbage collection se disponível
     if (global.gc) {
@@ -413,8 +365,6 @@ class PrintServer {
   start() {
     return new Promise((resolve, reject) => {
       this.server = this.app.listen(this.port, '0.0.0.0', () => {
-        console.log(`[Server] Servidor HTTP iniciado na porta ${this.port}`);
-        console.log(`[Server] Acesse: http://localhost:${this.port}/health`);
         resolve();
       });
 
@@ -435,7 +385,7 @@ class PrintServer {
   stop() {
     if (this.server) {
       this.server.close(() => {
-        console.log('[Server] Servidor HTTP parado');
+        // Servidor parado
       });
       this.server = null;
     }

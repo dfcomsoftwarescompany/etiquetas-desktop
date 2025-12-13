@@ -25,8 +25,6 @@ class PrinterManager {
       paperWidthPx: 640,   // 80mm @ 203dpi
       columns: 2
     };
-    
-    console.log('[PrinterManager] Inicializado: Canvas + Print API + 2 Colunas');
   }
 
   mmToPixels(mm) {
@@ -61,7 +59,6 @@ class PrinterManager {
             Default: false
           }));
           
-          console.log(`[Printer] ${formatted.length} impressora(s) encontrada(s)`);
           resolve(formatted);
         } catch {
           resolve([]);
@@ -74,15 +71,11 @@ class PrinterManager {
    * Gera etiqueta individual (1 coluna)
    */
   async generateSingleLabel(labelData) {
-    console.log(`[Printer] generateSingleLabel chamado com:`, labelData);
-
     // Sanitizar dados com valores padrão seguros
     const texto = (labelData.texto || labelData.descricao || 'PRODUTO').toString();
     const codigo = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
-
-    console.log(`[Printer] Dados sanitizados: texto="${texto}", codigo="${codigo}", preco="${preco}", tamanho="${tamanho}"`);
 
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
@@ -229,7 +222,6 @@ class PrinterManager {
     // COLUNA 2 (direita) - mesma etiqueta
     ctxLargo.drawImage(etiquetaIndividual, this.config.labelWidthPx, 0);
 
-    console.log('[Printer] Canvas gerado: 2 colunas (80mm x 60mm)');
     return canvasLargo;
   }
 
@@ -253,11 +245,7 @@ class PrinterManager {
   async printCanvas(printerName, canvas, copies = 1) {
     return new Promise((resolve, reject) => {
       try {
-        console.log(`[Printer] 🖨️ Iniciando printCanvas - printer: ${printerName}, copies: ${copies}`);
-
-        console.log(`[Printer] 📄 Gerando dataUrl do canvas...`);
         const dataUrl = canvas.toDataURL('image/png');
-        console.log(`[Printer] ✅ DataUrl gerado, tamanho: ${dataUrl.length} chars`);
 
         const html = `
 <!DOCTYPE html>
@@ -280,8 +268,6 @@ class PrinterManager {
         printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
         printWindow.webContents.once('did-finish-load', () => {
-          console.log(`[Printer] ✅ HTML carregado, preparando opções de impressão...`);
-
           const printOptions = {
             silent: true,
             printBackground: true,
@@ -296,13 +282,8 @@ class PrinterManager {
             shouldPrintBackgrounds: true
           };
 
-          console.log(`[Printer] 🖨️ Iniciando impressão com opções:`, JSON.stringify(printOptions, null, 2));
-
           printWindow.webContents.print(printOptions, (success, failureReason) => {
-            console.log(`[Printer] 📄 Callback de impressão chamado - success: ${success}, reason: ${failureReason}`);
-
             if (success) {
-              console.log('[Printer] ✅ ✓ Impresso com sucesso!');
 
               // Limpeza segura APÓS a impressão
               setTimeout(() => {
@@ -320,13 +301,10 @@ class PrinterManager {
                     if (!printWindow.isDestroyed()) {
                       printWindow.destroy();
                     }
-                    // Limpar referências
-                    canvas = null;
-                    dataUrl = null;
                   } catch (e) {
-                    console.error('[Printer] ⚠️ Erro na limpeza final:', e);
+                    console.error('[Printer] Erro na limpeza:', e);
                   }
-                }, 2000); // 2s após fechar
+                }, 2000);
 
                 resolve();
               }, 500); // Tempo mínimo para impressora processar
@@ -354,7 +332,6 @@ class PrinterManager {
     try {
       const canvas = await this.generateTestCanvas();
       await this.printCanvas(printerName, canvas, 1);
-      console.log('[Printer] ✓ Teste OK!');
     } catch (error) {
       console.error('[Printer] Erro teste:', error.message);
       throw error;
@@ -363,13 +340,10 @@ class PrinterManager {
 
   async printLabel(printerName, labelData) {
     try {
-      console.log('[Printer] Dados:', labelData);
       const canvas = await this.generateLabelCanvas(labelData);
       
       const copies = parseInt(labelData.copies) || 1;
       await this.printCanvas(printerName, canvas, copies);
-      
-      console.log('[Printer] ✓ Etiqueta(s) OK!');
     } catch (error) {
       console.error('[Printer] Erro:', error.message);
       throw error;
@@ -417,8 +391,7 @@ class PrinterManager {
    * Define impressora padrão
    */
   setDefaultPrinter(printerName) {
-    // Por enquanto, apenas log - será implementado com persistência
-    console.log(`[Printer] Impressora padrão definida: ${printerName}`);
+    this.defaultPrinter = printerName;
   }
 
   /**
@@ -433,17 +406,13 @@ class PrinterManager {
     ctx.rotate(Math.PI);
     
     // Coluna 1 (esquerda) - Item 1
-    console.log(`[Printer] Gerando label1 para:`, item1);
     const label1 = await this.generateSingleLabel(item1);
     ctx.drawImage(label1, 0, 0);
 
     // Coluna 2 (direita) - Item 2
-    console.log(`[Printer] Gerando label2 para:`, item2);
     const label2 = await this.generateSingleLabel(item2);
     ctx.drawImage(label2, this.config.labelWidthPx, 0);
     ctx.drawImage(label2, this.config.labelWidthPx, 0);
-    
-    console.log('[Printer] Imprimindo par de etiquetas diferentes');
     
     // Imprimir canvas completo
     await this.printCanvas(printerName, canvas, 1);
@@ -462,11 +431,8 @@ class PrinterManager {
     ctx.rotate(Math.PI);
     
     // Gerar e desenhar etiqueta
-    console.log(`[Printer] Gerando label single para:`, item);
     const label = await this.generateSingleLabel(item);
     ctx.drawImage(label, 0, 0);
-    
-    console.log('[Printer] Imprimindo etiqueta única (40mm)');
     
     // Ajustar opções de impressão para 40mm
     await this.printCanvasSingle(printerName, canvas, 1);
@@ -478,7 +444,6 @@ class PrinterManager {
   async printCanvasSingle(printerName, canvas, copies = 1) {
     return new Promise((resolve, reject) => {
       try {
-        console.log(`[Printer] Imprimindo single ${copies}x em: ${printerName}`);
 
         const dataUrl = canvas.toDataURL('image/png');
 
@@ -527,11 +492,10 @@ class PrinterManager {
             }
 
             if (success) {
-              console.log('[Printer] ✓ Single impresso!');
-              // Delay adicional para garantir que a impressora processou
+              // Delay mínimo para a impressora processar
               setTimeout(() => {
                 resolve();
-              }, 500);
+              }, 200);
             } else {
               console.error('[Printer] ✗ Falha:', failureReason);
               reject(new Error(failureReason || 'Falha na impressão'));

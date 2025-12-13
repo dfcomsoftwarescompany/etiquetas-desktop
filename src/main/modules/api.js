@@ -38,12 +38,10 @@ class APIClient {
 
   setBaseURL(url) {
     this.config.baseURL = url;
-    console.log('[API] Base URL:', url);
   }
 
   setMockMode(enabled) {
     this.useMock = enabled;
-    console.log('[API] Mock:', enabled ? 'ON' : 'OFF');
   }
 
   setHeaders(headers) {
@@ -95,7 +93,6 @@ class APIClient {
   // ==================== Produtos ====================
 
   async buscarProdutos(filters = {}) {
-    console.log('[API] Buscando produtos...');
     
     if (this.useMock) {
       return MOCK_PRODUTOS;
@@ -108,7 +105,6 @@ class APIClient {
   }
 
   async buscarProdutoPorCodigo(codBarras) {
-    console.log('[API] Buscando:', codBarras);
     
     if (!codBarras?.trim()) {
       throw new Error('Código de barras obrigatório');
@@ -128,7 +124,6 @@ class APIClient {
   }
 
   async buscarProdutoPorNome(termo) {
-    console.log('[API] Buscando por:', termo);
     
     if (!termo?.trim()) {
       throw new Error('Termo de busca obrigatório');

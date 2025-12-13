@@ -50,7 +50,8 @@
       "provider": "github",
       "owner": "dfcomsoftwarescompany",
       "repo": "etiquetas-desktop",
-      "releaseType": "release"
+      "releaseType": "release",
+      "private": true
     },
     "extraResources": [
       "assets/**"

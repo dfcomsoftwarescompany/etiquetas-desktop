@@ -1,10 +1,27 @@
 /**
  * Módulo de atualização automática
  * Gerencia atualizações via GitHub Releases com melhores práticas
+ * 
+ * ATENÇÃO: Para repositórios PRIVADOS do GitHub, configure o token abaixo.
+ * O token fica embutido no .exe - use apenas se necessário.
  */
 
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
+
+// ============================================================
+// CONFIGURAÇÃO DO TOKEN PARA REPOSITÓRIO PRIVADO
+// ============================================================
+// Se seu repositório GitHub for PRIVADO, coloque o token aqui.
+// Crie um token em: https://github.com/settings/tokens
+// Permissões necessárias: repo (acesso total a repositórios privados)
+// 
+// ⚠️ ATENÇÃO: Este token ficará embutido no .exe!
+// Qualquer pessoa com acesso ao .exe pode extrair o token.
+// Use apenas se realmente precisar de repositório privado.
+// ============================================================
+const GITHUB_TOKEN = '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'; // Deixe vazio para repositórios públicos
+// ============================================================
 
 class UpdateManager {
   constructor(mainWindow) {
@@ -28,6 +45,14 @@ class UpdateManager {
     
     // Permitir downgrade para testes (desabilitar em produção final)
     autoUpdater.allowDowngrade = false;
+
+    // Configurar autenticação para repositório privado
+    if (GITHUB_TOKEN) {
+      log.info('[Updater] Configurando autenticação para repositório privado');
+      autoUpdater.requestHeaders = {
+        'Authorization': `token ${GITHUB_TOKEN}`
+      };
+    }
   }
 
   setupListeners() {

@@ -10,8 +10,6 @@ function registerAllHandlers({ printerManager, apiClient, updateManager }) {
   registerPrinterHandlers(printerManager);
   registerAPIHandlers(apiClient);
   registerAppHandlers(updateManager);
-  
-  console.log('[IPC] Handlers registrados');
 }
 
 module.exports = { registerAllHandlers };
