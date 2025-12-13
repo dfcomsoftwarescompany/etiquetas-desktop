@@ -120,50 +120,57 @@ const tokenStatus = document.getElementById('token-status');
 const tokenStatusText = document.getElementById('token-status-text');
 
 async function checkTokenStatus() {
-  try {
-    const response = await fetch('http://localhost:8547/token/status');
-    const data = await response.json();
+  // TEMPORARIAMENTE DESATIVADO
+  tokenInput.value = '';
+  tokenInput.placeholder = 'Temporariamente desativado';
+  tokenStatus.className = 'token-status warning';
+  tokenStatusText.textContent = 'Funcionalidade temporariamente desativada';
+  
+  // try {
+  //   const response = await fetch('http://localhost:8547/token/status');
+  //   const data = await response.json();
     
-    if (data.configured) {
-      tokenInput.value = data.token || 'Token configurado';
-      tokenStatus.className = 'token-status configured';
-      tokenStatusText.textContent = '✓ Token configurado e ativo';
-    } else {
-      tokenInput.value = '';
-      tokenInput.placeholder = 'Clique em gerar token';
-      tokenStatus.className = 'token-status not-configured';
-      tokenStatusText.textContent = 'Token não configurado';
-    }
-  } catch (error) {
-    console.error('Erro ao verificar token:', error);
-  }
+  //   if (data.configured) {
+  //     tokenInput.value = data.token || 'Token configurado';
+  //     tokenStatus.className = 'token-status configured';
+  //     tokenStatusText.textContent = '✓ Token configurado e ativo';
+  //   } else {
+  //     tokenInput.value = '';
+  //     tokenInput.placeholder = 'Clique em gerar token';
+  //     tokenStatus.className = 'token-status not-configured';
+  //     tokenStatusText.textContent = 'Token não configurado';
+  //   }
+  // } catch (error) {
+  //   console.error('Erro ao verificar token:', error);
+  // }
 }
 
-btnGenerate.addEventListener('click', async () => {
-  try {
-    const response = await fetch('http://localhost:8547/token/generate', { method: 'POST' });
-    const data = await response.json();
+// TEMPORARIAMENTE DESATIVADO
+// btnGenerate.addEventListener('click', async () => {
+//   try {
+//     const response = await fetch('http://localhost:8547/token/generate', { method: 'POST' });
+//     const data = await response.json();
     
-    if (data.token) {
-      tokenInput.value = data.token;
-      tokenStatus.className = 'token-status configured';
-      tokenStatusText.textContent = '✓ Token gerado com sucesso';
-      showToast('Token gerado! Copie e configure no sistema web.', 'success');
-    }
-  } catch (error) {
-    showToast('Erro ao gerar token', 'error');
-  }
-});
+//     if (data.token) {
+//       tokenInput.value = data.token;
+//       tokenStatus.className = 'token-status configured';
+//       tokenStatusText.textContent = '✓ Token gerado com sucesso';
+//       showToast('Token gerado! Copie e configure no sistema web.', 'success');
+//     }
+//   } catch (error) {
+//     showToast('Erro ao gerar token', 'error');
+//   }
+// });
 
-btnCopy.addEventListener('click', async () => {
-  const token = tokenInput.value;
-  if (token && token !== 'Token configurado') {
-    await navigator.clipboard.writeText(token);
-    showToast('Token copiado!', 'success');
-  } else {
-    showToast('Gere um token primeiro', 'warning');
-  }
-});
+// btnCopy.addEventListener('click', async () => {
+//   const token = tokenInput.value;
+//   if (token && token !== 'Token configurado') {
+//     await navigator.clipboard.writeText(token);
+//     showToast('Token copiado!', 'success');
+//   } else {
+//     showToast('Gere um token primeiro', 'warning');
+//   }
+// });
 
 // ==================== Status do Servidor ====================
 const statusIcon = document.getElementById('status-icon');
@@ -215,7 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Verificar status periodicamente
   setInterval(checkServerStatus, 30000);
-  setInterval(checkTokenStatus, 60000);
+  // setInterval(checkTokenStatus, 60000); // TEMPORARIAMENTE DESATIVADO
   setInterval(checkPrinterStatus, 15000); // Verifica impressora a cada 15s
 });
 
