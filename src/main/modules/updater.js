@@ -4,6 +4,7 @@
  */
 
 const { autoUpdater } = require('electron-updater');
+const { app } = require('electron');
 const log = require('electron-log');
 
 // ============================================================
@@ -16,6 +17,7 @@ class UpdateManager {
   constructor(mainWindow) {
     this.mainWindow = mainWindow;
     this.updateDownloaded = false;
+    this.updateInfo = null;
     this.setupLogger();
     this.setupUpdater();
     this.setupListeners();
@@ -30,7 +32,8 @@ class UpdateManager {
   setupUpdater() {
     // Baixar automaticamente quando encontrar atualização
     autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = true;
+    // NÃO instalar automaticamente ao sair - vamos controlar manualmente
+    autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.allowDowngrade = false;
 
     // Configurar autenticação para repositório privado
@@ -85,6 +88,7 @@ class UpdateManager {
     autoUpdater.on('update-downloaded', (info) => {
       log.info('[Updater] ✅ Atualização baixada:', info.version);
       this.updateDownloaded = true;
+      this.updateInfo = info;
       this.sendToWindow('update:downloaded', {
         version: info.version,
         releaseNotes: info.releaseNotes
@@ -126,15 +130,43 @@ class UpdateManager {
 
   installUpdate() {
     if (this.updateDownloaded) {
-      log.info('[Updater] Instalando atualização e reiniciando...');
-      autoUpdater.quitAndInstall(false, true);
+      log.info('[Updater] Preparando para instalar atualização...');
+      log.info('[Updater] Versão a instalar:', this.updateInfo?.version);
+      
+      // Fechar a janela principal primeiro
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        log.info('[Updater] Fechando janela principal...');
+        this.mainWindow.close();
+      }
+      
+      // Aguardar um pouco para garantir que tudo fechou
+      setTimeout(() => {
+        log.info('[Updater] Executando quitAndInstall...');
+        // isSilent = false (mostrar instalador)
+        // isForceRunAfter = true (reiniciar app após instalar)
+        autoUpdater.quitAndInstall(false, true);
+      }, 1000);
+      
     } else {
       log.warn('[Updater] Nenhuma atualização baixada para instalar');
     }
   }
 
+  // Método alternativo: instalar ao fechar o app
+  installOnQuit() {
+    if (this.updateDownloaded) {
+      log.info('[Updater] Configurando instalação ao fechar...');
+      autoUpdater.autoInstallOnAppQuit = true;
+      app.quit();
+    }
+  }
+
   isUpdateDownloaded() {
     return this.updateDownloaded;
+  }
+
+  getUpdateInfo() {
+    return this.updateInfo;
   }
 }
 
