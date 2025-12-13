@@ -56,11 +56,11 @@ function createWindow() {
 // ==================== App Lifecycle ====================
 
 app.whenReady().then(async () => {
-  // Registrar handlers IPC
-  registerAllHandlers({ printerManager, apiClient, updateManager });
-  
-  // Criar janela
+  // Criar janela primeiro (que cria o updateManager)
   createWindow();
+  
+  // Registrar handlers IPC DEPOIS de criar o updateManager
+  registerAllHandlers({ printerManager, apiClient, updateManager });
 
   // Iniciar servidor HTTP
   printServer = new PrintServer(printerManager);
