@@ -120,6 +120,17 @@ class PrintServer {
         if (!printerName) {
           return res.status(400).json({ error: 'Nenhuma impressora configurada' });
         }
+
+        // Verificar status da impressora antes de imprimir
+        const printerStatus = await this.printerManager.checkPrinterStatus(printerName);
+        if (!printerStatus.online) {
+          return res.status(503).json({ 
+            error: 'Impressora indisponível',
+            printer: printerName,
+            status: printerStatus.status,
+            hint: 'Verifique se a impressora está ligada e conectada'
+          });
+        }
         
         // Expandir itens baseado na quantidade
         const expandedItems = this.expandItems(items);
@@ -132,7 +143,8 @@ class PrintServer {
           success: true,
           message: `${items.length} item(ns) processado(s)`,
           total: expandedItems.length,
-          printer: printerName
+          printer: printerName,
+          printerStatus: printerStatus.status
         };
 
         res.json(response);
@@ -143,6 +155,31 @@ class PrintServer {
           error: 'Falha na impressão',
           details: error.message 
         });
+      }
+    });
+
+    // Verificar status da impressora
+    this.app.get('/printer/status', async (req, res) => {
+      try {
+        const printerName = await this.printerManager.getDefaultPrinter();
+        if (!printerName) {
+          return res.json({ 
+            configured: false,
+            error: 'Nenhuma impressora configurada'
+          });
+        }
+
+        const status = await this.printerManager.checkPrinterStatus(printerName);
+        res.json({
+          configured: true,
+          printer: printerName,
+          online: status.online,
+          status: status.status,
+          statusCode: status.statusCode
+        });
+      } catch (error) {
+        console.error('[Server] Erro ao verificar status:', error);
+        res.status(500).json({ error: 'Erro ao verificar impressora' });
       }
     });
 
@@ -228,13 +265,18 @@ class PrintServer {
 
       const qtd = parseInt(item.qtd) || 1;
 
-      // Campos com valores padrão se não existirem
+      // Campos com valores padrão - suporta formato novo e legado
       const safeItem = {
-        descricao: item.descricao || item.desc || 'PRODUTO SEM DESCRIÇÃO',
-        codbarras: item.codbarras || item.cod || item.codBarras || 'SEM CODIGO',
-        valor: item.valor || item.vlr || item.vlrVenda || item.preco || '0,00',
-        tamanho: item.tamanho || item.tam || '',
-        valor_giracredito: item?.valor_giracredito || item?.vlrGiracredito || item?.giracredito || item.gira
+        // Novo formato: description | Legado: descricao, desc
+        descricao: item.description || item.descricao || item.desc || 'PRODUTO SEM DESCRIÇÃO',
+        // Novo formato: barCode | Legado: codbarras, cod, codBarras
+        codbarras: item.barCode || item.codbarras || item.cod || item.codBarras || 'SEM CODIGO',
+        // Novo formato: value | Legado: valor, vlr, vlrVenda, preco
+        valor: item.value || item.valor || item.vlr || item.vlrVenda || item.preco || '0,00',
+        // Tamanho (mantém compatibilidade)
+        tamanho: item.tamanho || item.tam || item.size || '',
+        // Novo formato: valueStoreCredit | Legado: valor_giracredito, vlrGiracredito
+        valorCredito: item.valueStoreCredit || item.valor_giracredito || item.vlrGiracredito || item.giracredito || null
       };
 
       // Adicionar item 'qtd' vezes

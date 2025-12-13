@@ -21,7 +21,10 @@ async function loadPrinters() {
     
     if (result.success && result.printers.length > 0) {
       printerSelect.innerHTML = result.printers
-        .map(p => `<option value="${p.Name}" ${p.Default ? 'selected' : ''}>${p.Name}</option>`)
+        .map(p => {
+          const statusIndicator = p.Online ? '🟢' : '🔴';
+          return `<option value="${p.Name}" ${p.Default ? 'selected' : ''}>${statusIndicator} ${p.Name}</option>`;
+        })
         .join('');
       printerSelect.disabled = false;
       
@@ -30,6 +33,9 @@ async function loadPrinters() {
       if (saved && result.printers.find(p => p.Name === saved)) {
         printerSelect.value = saved;
       }
+
+      // Verificar status da impressora selecionada
+      checkPrinterStatus();
     } else {
       printerSelect.innerHTML = '<option value="">Nenhuma impressora encontrada</option>';
     }
@@ -40,6 +46,52 @@ async function loadPrinters() {
   }
 }
 
+// Status da impressora
+const printerStatusEl = document.getElementById('printer-status');
+
+async function checkPrinterStatus() {
+  try {
+    const response = await fetch('http://localhost:8547/printer/status');
+    const data = await response.json();
+    
+    if (printerStatusEl) {
+      if (!data.configured) {
+        printerStatusEl.className = 'printer-status warning';
+        printerStatusEl.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>Selecione uma impressora</span>
+        `;
+      } else if (data.online) {
+        printerStatusEl.className = 'printer-status online';
+        printerStatusEl.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <span>${data.status}</span>
+        `;
+      } else {
+        printerStatusEl.className = 'printer-status offline';
+        printerStatusEl.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <span>${data.status} - Verifique a conexão</span>
+        `;
+        showToast(`Impressora: ${data.status}`, 'error');
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao verificar status da impressora:', error);
+  }
+}
+
 printerSelect.addEventListener('change', async () => {
   const printer = printerSelect.value;
   if (printer) {
@@ -47,13 +99,18 @@ printerSelect.addEventListener('change', async () => {
     try {
       await window.electronAPI.printer.setConfig({ defaultPrinter: printer });
       showToast(`Impressora selecionada: ${printer}`, 'success');
+      // Verificar status da nova impressora
+      setTimeout(checkPrinterStatus, 500);
     } catch (error) {
       console.error('Erro ao salvar impressora:', error);
     }
   }
 });
 
-btnRefresh.addEventListener('click', loadPrinters);
+btnRefresh.addEventListener('click', () => {
+  loadPrinters();
+  showToast('Lista de impressoras atualizada', 'success');
+});
 
 // ==================== Token ====================
 const tokenInput = document.getElementById('token-input');
@@ -159,5 +216,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Verificar status periodicamente
   setInterval(checkServerStatus, 30000);
   setInterval(checkTokenStatus, 60000);
+  setInterval(checkPrinterStatus, 15000); // Verifica impressora a cada 15s
 });
 

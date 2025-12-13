@@ -55,7 +55,9 @@ class PrinterManager {
             Name: p.Name,
             PortName: p.PortName || 'N/A',
             DriverName: p.DriverName || 'N/A',
-            PrinterStatus: p.PrinterStatus || 'Ready',
+            PrinterStatus: p.PrinterStatus || 0,
+            StatusText: this.getPrinterStatusText(p.PrinterStatus),
+            Online: this.isPrinterOnline(p.PrinterStatus),
             Default: false
           }));
           
@@ -68,7 +70,68 @@ class PrinterManager {
   }
 
   /**
+   * Verifica se a impressora está online
+   */
+  isPrinterOnline(status) {
+    // Status 0 = Normal/Ready, outros valores indicam problemas
+    return status === 0 || status === undefined;
+  }
+
+  /**
+   * Retorna texto legível do status da impressora
+   */
+  getPrinterStatusText(status) {
+    const statusMap = {
+      0: 'Pronta',
+      1: 'Pausada',
+      2: 'Erro',
+      3: 'Excluindo',
+      4: 'Atolamento de Papel',
+      5: 'Sem Papel',
+      6: 'Alimentação Manual',
+      7: 'Problema de Papel',
+      8: 'Offline',
+      9: 'Ocupada',
+      10: 'Imprimindo',
+      11: 'Bandeja de Saída Cheia',
+      128: 'Desligada/Offline',
+      131072: 'Servidor Offline'
+    };
+    return statusMap[status] || (status > 0 ? 'Indisponível' : 'Pronta');
+  }
+
+  /**
+   * Verifica status de uma impressora específica
+   */
+  async checkPrinterStatus(printerName) {
+    return new Promise((resolve) => {
+      const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Printer -Name '${printerName}' | Select-Object Name, PrinterStatus | ConvertTo-Json -Compress"`;
+
+      exec(cmd, { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (error, stdout) => {
+        if (error) {
+          resolve({ online: false, status: 'Erro ao verificar', statusCode: -1 });
+          return;
+        }
+
+        try {
+          const printer = JSON.parse(stdout.trim());
+          const statusCode = printer.PrinterStatus || 0;
+          resolve({
+            online: this.isPrinterOnline(statusCode),
+            status: this.getPrinterStatusText(statusCode),
+            statusCode: statusCode
+          });
+        } catch {
+          resolve({ online: false, status: 'Não encontrada', statusCode: -1 });
+        }
+      });
+    });
+  }
+
+  /**
    * Gera etiqueta individual (1 coluna)
+   * Layout: GIRA em cima (área info), Preço à vista embaixo
+   * Etiqueta: 40x60mm = 320x480px @ 203dpi
    */
   async generateSingleLabel(labelData) {
     // Sanitizar dados com valores padrão seguros
@@ -76,6 +139,7 @@ class PrinterManager {
     const codigo = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
+    const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || null;
 
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
@@ -83,65 +147,84 @@ class PrinterManager {
     ctx.antialias = 'subpixel';
     ctx.patternQuality = 'best';
 
-    // NÃO rotaciona aqui - a rotação será feita no canvas completo
-
-    const margin = 16;
-    const areaInfoAltura = 350;   // 44mm no TOPO
-    const areaPrecoAltura = 130;  // 16mm EMBAIXO
-    const qrSize = 130;
+    const margin = 8;
+    const centerX = this.config.labelWidthPx / 2;
+    
+    // Área de preço (embaixo)
+    const areaPrecoAltura = 105;
+    const areaPrecoY = this.config.labelHeightPx - areaPrecoAltura;
     
     // Fundo branco
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, this.config.labelWidthPx, this.config.labelHeightPx);
 
-    // === ÁREA SUPERIOR (44mm) - INFORMAÇÕES ===
-    
-    // TÍTULO DFCOM
+    // ========================================
+    // HEADER - Logo DFCOM
+    // ========================================
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.font = 'bold 30px Arial';
-    ctx.fillText('DFCOM', this.config.labelWidthPx / 2, 10);
+    ctx.font = 'bold 26px Arial';
+    ctx.fillText('DFCOM', centerX, 8);
 
-    // Linha decorativa
-    ctx.strokeStyle = '#666666';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(margin + 40, 48);
-    ctx.lineTo(this.config.labelWidthPx - margin - 40, 48);
-    ctx.stroke();
-
-    // QR CODE CENTRALIZADO
+    // ========================================
+    // QR CODE (centralizado)
+    // ========================================
+    const qrSize = 115;
     const qrCanvas = createCanvas(qrSize, qrSize);
     await QRCode.toCanvas(qrCanvas, codigo, {
       width: qrSize,
       margin: 0,
       color: { dark: '#000000', light: '#FFFFFF' },
-      errorCorrectionLevel: 'H'
+      errorCorrectionLevel: 'M'
     });
 
-    const qrX = (this.config.labelWidthPx - qrSize) / 2;
-    const qrY = 65;
+    const qrX = Math.floor((this.config.labelWidthPx - qrSize) / 2);
+    const qrY = 40;
     ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
-    // INFORMAÇÕES ABAIXO DO QR
+    // ========================================
+    // CÓDIGO DE BARRAS (fonte maior)
+    // ========================================
+    let currentY = qrY + qrSize + 10;
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    let currentY = qrY + qrSize + 14;
+    // Ajusta fonte baseado no tamanho do código
+    const codigoLen = codigo.length;
+    let codigoFontSize = 16;
+    if (codigoLen > 20) codigoFontSize = 12;
+    else if (codigoLen > 15) codigoFontSize = 13;
+    else if (codigoLen > 10) codigoFontSize = 14;
 
-    // REF - FONTE MAIOR
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText(`REF: ${codigo}`, this.config.labelWidthPx / 2, currentY);
-    currentY += 32;
+    ctx.font = `bold ${codigoFontSize}px Arial`;
+    
+    // Se código muito longo, quebra em 2 linhas
+    const maxCodigoWidth = this.config.labelWidthPx - (margin * 2);
+    const codigoMetrics = ctx.measureText(codigo);
+    
+    if (codigoMetrics.width > maxCodigoWidth && codigoLen > 15) {
+      const meio = Math.ceil(codigoLen / 2);
+      const linha1 = codigo.substring(0, meio);
+      const linha2 = codigo.substring(meio);
+      ctx.fillText(linha1, centerX, currentY);
+      currentY += codigoFontSize + 3;
+      ctx.fillText(linha2, centerX, currentY);
+      currentY += codigoFontSize + 8;
+    } else {
+      ctx.fillText(codigo, centerX, currentY);
+      currentY += codigoFontSize + 10;
+    }
 
-    // NOME - FONTE MAIOR E NEGRITO
-    ctx.font = 'bold 20px Arial';
+    // ========================================
+      // DESCRIÇÃO DO PRODUTO (fonte maior)
+      // ========================================
+     ctx.font = 'bold 20px Arial';
     const maxWidth = this.config.labelWidthPx - (margin * 2);
     const palavras = texto.split(' ');
     let linha = '';
-    const linhaAltura = 24;
+    const linhaAltura = 19;
     let linhasDesenhadas = 0;
     const maxLinhas = 2;
 
@@ -150,7 +233,7 @@ class PrinterManager {
       const metricas = ctx.measureText(testeLinha);
       
       if (metricas.width > maxWidth && linha !== '') {
-        ctx.fillText(linha.trim(), this.config.labelWidthPx / 2, currentY);
+        ctx.fillText(linha.trim(), centerX, currentY);
         linha = palavras[i] + ' ';
         currentY += linhaAltura;
         linhasDesenhadas++;
@@ -160,45 +243,103 @@ class PrinterManager {
     }
     
     if (linha.trim() !== '' && linhasDesenhadas < maxLinhas) {
-      ctx.fillText(linha.trim(), this.config.labelWidthPx / 2, currentY);
+      ctx.fillText(linha.trim(), centerX, currentY);
       currentY += linhaAltura;
     }
 
-    // TAMANHO
+    // ========================================
+    // TAMANHO (fonte maior)
+    // ========================================
     if (tamanho) {
-      currentY += 10;
-      ctx.font = 'bold 22px Arial';
-      ctx.fillText(`TAMANHO: ${tamanho}`, this.config.labelWidthPx / 2, currentY);
+      currentY += 4;
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText(`TAM: ${tamanho}`, centerX, currentY);
+      currentY += 22;
     }
 
-    // DIVISÓRIA
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, areaInfoAltura);
-    ctx.lineTo(this.config.labelWidthPx, areaInfoAltura);
-    ctx.stroke();
+    // ========================================
+    // VALOR GIRA/CRÉDITO (na área de informações)
+    // ========================================
+    if (valorCredito) {
+      currentY += 8;
+      
+      // Fundo verde claro para destaque
+      const giraBoxY = currentY;
+      const giraBoxH = 62;
+      const giraBoxW = this.config.labelWidthPx - (margin * 2);
+      const giraBoxX = margin;
+      
+      ctx.fillStyle = '#e8f5e9';
+      ctx.fillRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
+      
+      // Borda verde
+      ctx.strokeStyle = '#4caf50';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
 
-    // === ÁREA INFERIOR (16mm) - PREÇO ===
-    const areaPrecoY = areaInfoAltura;
-    
+      // Label "NO GIRA"
+      ctx.fillStyle = '#2e7d32';
+      ctx.font = 'bold 12px Arial';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('NO GIRA', centerX, giraBoxY + 16);
+
+      // Preço GIRA grande
+      const precoGira = this.formatPrice(valorCredito);
+      ctx.fillStyle = '#1b5e20';
+      ctx.font = 'bold 34px Arial';
+      ctx.fillText(precoGira, centerX, giraBoxY + 46);
+    }
+
+    // ========================================
+    // ÁREA DE PREÇO À VISTA (embaixo)
+    // ========================================
     ctx.fillStyle = '#f0f0f0';
     ctx.fillRect(0, areaPrecoY, this.config.labelWidthPx, areaPrecoAltura);
 
-    const precoTexto = preco ? `R$ ${preco}` : 'R$ ___,__';
-    ctx.fillStyle = preco ? 'black' : '#999999';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 54px Arial';
-    
-    ctx.fillText(precoTexto, this.config.labelWidthPx / 2, areaPrecoY + (areaPrecoAltura / 2));
 
-    // BORDA
-    ctx.strokeStyle = '#cccccc';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(1, 1, this.config.labelWidthPx - 2, this.config.labelHeightPx - 2);
+    const precoTexto = this.formatPrice(preco);
+    
+    // Label "À VISTA" (mais pro topo)
+    ctx.fillStyle = '#444444';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('À VISTA', centerX, areaPrecoY + 12);
+
+    // Valor grande (mais pro topo)
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 50px Arial';
+    ctx.fillText(precoTexto, centerX, areaPrecoY + 45);
 
     return canvas;
+  }
+
+  /**
+   * Formata preço para exibição
+   */
+  formatPrice(value) {
+    if (!value) return 'R$ 0,00';
+    const str = value.toString().replace(',', '.');
+    const num = parseFloat(str);
+    if (isNaN(num)) return `R$ ${value}`;
+    return `R$ ${num.toFixed(2).replace('.', ',')}`;
+  }
+
+  /**
+   * Desenha retângulo com bordas arredondadas
+   */
+  roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
   }
 
   /**
