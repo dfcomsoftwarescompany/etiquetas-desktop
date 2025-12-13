@@ -1,0 +1,207 @@
+name: Gestão de Versões
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Tipo de versão'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch   # Correções: 2.0.7 -> 2.0.8
+          - minor   # Novos recursos: 2.0.7 -> 2.1.0
+          - major   # Mudanças incompatíveis: 2.0.7 -> 3.0.0
+          - prerelease  # Beta/RC: 2.0.7 -> 2.0.8-beta.1
+          - custom  # Versão específica
+      custom_version:
+        description: 'Versão customizada (apenas se escolher "custom")'
+        required: false
+        type: string
+      release_notes:
+        description: 'Notas da release'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Configurar Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Versão atual
+        id: current
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "📌 Versão atual: $CURRENT_VERSION"
+      
+      - name: Calcular nova versão
+        id: new
+        run: |
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
+          CUSTOM_VERSION="${{ github.event.inputs.custom_version }}"
+          
+          if [ "$VERSION_TYPE" = "custom" ] && [ -n "$CUSTOM_VERSION" ]; then
+            NEW_VERSION="$CUSTOM_VERSION"
+            echo "📝 Usando versão customizada: $NEW_VERSION"
+          elif [ "$VERSION_TYPE" = "prerelease" ]; then
+            # Incrementa prerelease
+            NEW_VERSION=$(npm version prerelease --preid=beta --no-git-tag-version)
+            NEW_VERSION=${NEW_VERSION:1}  # Remove 'v' prefix
+            echo "🔧 Versão prerelease: $NEW_VERSION"
+          else
+            # Incrementa versão normal
+            NEW_VERSION=$(npm version $VERSION_TYPE --no-git-tag-version)
+            NEW_VERSION=${NEW_VERSION:1}  # Remove 'v' prefix
+            echo "📈 Nova versão ($VERSION_TYPE): $NEW_VERSION"
+          fi
+          
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Verificar se versão já existe
+        id: check
+        run: |
+          NEW_VERSION="${{ steps.new.outputs.version }}"
+          TAG="v$NEW_VERSION"
+          
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Tag $TAG já existe!"
+            echo "exists=true" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "✅ Tag $TAG disponível"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Atualizar package.json
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          NEW_VERSION="${{ steps.new.outputs.version }}"
+          
+          # Atualizar versão no package.json
+          npm pkg set version="$NEW_VERSION"
+          
+          # Commit
+          git add package.json
+          git commit -m "chore: bump version to $NEW_VERSION
+
+          Type: ${{ github.event.inputs.version_type }}
+          Previous: ${{ steps.current.outputs.version }}
+          New: $NEW_VERSION
+          
+          [skip ci]"
+      
+      - name: Criar tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          NEW_VERSION="${{ steps.new.outputs.version }}"
+          TAG="v$NEW_VERSION"
+          NOTES="${{ github.event.inputs.release_notes }}"
+          
+          # Criar tag anotada
+          if [ -n "$NOTES" ]; then
+            git tag -a "$TAG" -m "Release $NEW_VERSION" -m "$NOTES"
+          else
+            git tag -a "$TAG" -m "Release $NEW_VERSION"
+          fi
+          
+          echo "🏷️ Tag $TAG criada"
+      
+      - name: Push mudanças
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git push origin main
+          git push origin --tags
+          echo "🚀 Mudanças enviadas!"
+      
+      - name: Criar Release Notes
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          NEW_VERSION="${{ steps.new.outputs.version }}"
+          TAG="v$NEW_VERSION"
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
+          CUSTOM_NOTES="${{ github.event.inputs.release_notes }}"
+          
+          # Gerar changelog automático
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 $TAG^ 2>/dev/null || echo "")
+          
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log $PREVIOUS_TAG..$TAG --pretty=format:"- %s" --no-merges | grep -v "skip ci" || echo "")
+          else
+            CHANGELOG="- Primeira release"
+          fi
+          
+          # Criar release notes
+          RELEASE_NOTES="## Release $NEW_VERSION"
+          
+          # Adicionar tipo de release
+          case $VERSION_TYPE in
+            major)
+              RELEASE_NOTES="$RELEASE_NOTES\n\n### ⚠️ BREAKING CHANGES"
+              ;;
+            minor)
+              RELEASE_NOTES="$RELEASE_NOTES\n\n### ✨ Novos Recursos"
+              ;;
+            patch)
+              RELEASE_NOTES="$RELEASE_NOTES\n\n### 🐛 Correções"
+              ;;
+            prerelease)
+              RELEASE_NOTES="$RELEASE_NOTES\n\n### 🔧 Pre-release (Beta)"
+              ;;
+          esac
+          
+          # Adicionar notas customizadas
+          if [ -n "$CUSTOM_NOTES" ]; then
+            RELEASE_NOTES="$RELEASE_NOTES\n\n$CUSTOM_NOTES"
+          fi
+          
+          # Adicionar changelog
+          if [ -n "$CHANGELOG" ]; then
+            RELEASE_NOTES="$RELEASE_NOTES\n\n### 📝 Mudanças\n\n$CHANGELOG"
+          fi
+          
+          # Adicionar informações de atualização
+          RELEASE_NOTES="$RELEASE_NOTES\n\n---\n\n### 📦 Instalação\n\nO aplicativo será atualizado automaticamente.\n\nPara instalação manual, baixe o arquivo \`.exe\` abaixo."
+          
+          echo -e "$RELEASE_NOTES" > release_notes.md
+          
+          # Criar release draft (será publicada pelo workflow de build)
+          gh release create $TAG \
+            --title "Release $NEW_VERSION" \
+            --notes-file release_notes.md \
+            --draft \
+            --prerelease=$([[ "$VERSION_TYPE" == "prerelease" ]] && echo "true" || echo "false")
+          
+          echo "📋 Release draft criada para $TAG"
+      
+      - name: Resumo
+        if: always()
+        run: |
+          echo "## 📊 Resumo da Operação" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Versão Anterior | ${{ steps.current.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Nova Versão | ${{ steps.new.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tipo | ${{ github.event.inputs.version_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | v${{ steps.new.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | $([[ "${{ steps.check.outputs.exists }}" == "false" ]] && echo "✅ Sucesso" || echo "❌ Falhou") |" >> $GITHUB_STEP_SUMMARY
