@@ -47,8 +47,13 @@ function createUpdateModal() {
   });
   
   document.getElementById('btn-update-now').addEventListener('click', () => {
+    console.log('[Update] Botão Reiniciar clicado');
     if (window.electronAPI && window.electronAPI.updates) {
+      console.log('[Update] Chamando install...');
       window.electronAPI.updates.install();
+      showToast('Reiniciando aplicativo...', 'info');
+    } else {
+      console.error('[Update] API não disponível');
     }
   });
   

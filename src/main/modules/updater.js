@@ -129,6 +129,10 @@ class UpdateManager {
   }
 
   installUpdate() {
+    log.info('[Updater] installUpdate() chamado');
+    log.info('[Updater] updateDownloaded:', this.updateDownloaded);
+    log.info('[Updater] updateInfo:', this.updateInfo);
+    
     if (this.updateDownloaded) {
       log.info('[Updater] Preparando para instalar atualização...');
       log.info('[Updater] Versão a instalar:', this.updateInfo?.version);
@@ -142,13 +146,22 @@ class UpdateManager {
       // Aguardar um pouco para garantir que tudo fechou
       setTimeout(() => {
         log.info('[Updater] Executando quitAndInstall...');
-        // isSilent = false (mostrar instalador)
-        // isForceRunAfter = true (reiniciar app após instalar)
-        autoUpdater.quitAndInstall(false, true);
+        log.info('[Updater] Parâmetros: isSilent=false, isForceRunAfter=true');
+        try {
+          // isSilent = false (mostrar instalador)
+          // isForceRunAfter = true (reiniciar app após instalar)
+          autoUpdater.quitAndInstall(false, true);
+        } catch (error) {
+          log.error('[Updater] Erro ao executar quitAndInstall:', error);
+        }
       }, 1000);
       
     } else {
       log.warn('[Updater] Nenhuma atualização baixada para instalar');
+      log.warn('[Updater] Estado atual:', {
+        updateDownloaded: this.updateDownloaded,
+        updateInfo: this.updateInfo
+      });
     }
   }
 
