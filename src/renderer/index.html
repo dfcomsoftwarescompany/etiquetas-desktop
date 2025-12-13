@@ -97,28 +97,28 @@
             </div>
           </div>
           <div class="token-display">
-            <input type="text" class="token-input" id="token-input" placeholder="Temporariamente desativado" readonly>
-            <button class="btn-copy" id="btn-copy" title="Copiar token" disabled style="opacity: 0.5; cursor: not-allowed;">
+            <input type="text" class="token-input" id="token-input" placeholder="Clique em gerar token" readonly>
+            <button class="btn-copy" id="btn-copy" title="Copiar token">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                 <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
               </svg>
             </button>
           </div>
-          <button class="btn-generate" id="btn-generate" disabled style="opacity: 0.5; cursor: not-allowed;">
+          <button class="btn-generate" id="btn-generate">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
               <path d="M21 3v5h-5"/>
             </svg>
-            Temporariamente Desativado
+            Gerar Novo Token
           </button>
-          <div class="token-status warning" id="token-status">
+          <div class="token-status not-configured" id="token-status">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <span id="token-status-text">Funcionalidade temporariamente desativada</span>
+            <span id="token-status-text">Token não configurado</span>
           </div>
         </div>
       </div>
