@@ -448,6 +448,134 @@ body {
 .toast.success { border-left: 3px solid var(--accent); }
 .toast.error { border-left: 3px solid var(--danger); }
 .toast.warning { border-left: 3px solid var(--warning); }
+.toast.info { border-left: 3px solid var(--blue); }
+
+/* Modal de Atualização */
+.update-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.update-modal.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.update-modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+.update-modal.show .update-modal-content {
+  transform: scale(1);
+}
+
+.update-modal-header {
+  margin-bottom: 16px;
+}
+
+.update-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--blue);
+  margin-bottom: 12px;
+}
+
+.update-modal-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.update-modal-content p {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.update-progress-container {
+  margin-bottom: 24px;
+}
+
+.update-progress-bar {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  height: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.update-progress-fill {
+  background: linear-gradient(90deg, var(--blue), var(--accent));
+  height: 100%;
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 8px;
+}
+
+.update-progress-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.update-modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-update-later {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 24px;
+  color: var(--text-secondary);
+  font-family: 'Sora', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-update-later:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn-update-now {
+  background: linear-gradient(135deg, var(--blue), var(--accent));
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 12px 24px;
+  color: white;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-update-now:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
 
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
