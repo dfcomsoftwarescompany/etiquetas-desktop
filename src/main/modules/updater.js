@@ -174,14 +174,17 @@ class UpdateManager {
   }
 
   async installUpdate() {
-    log.info('[Updater] installUpdate() chamado');
-    log.info('[Updater] updateDownloaded:', this.updateDownloaded);
-    log.info('[Updater] updateInfo:', this.updateInfo);
-    log.info('[Updater] installerPath:', this.installerPath);
-    log.info('[Updater] autoInstallOnAppQuit:', autoUpdater.autoInstallOnAppQuit);
+    log.info('[Updater] 🚀 ===== INSTALAÇÃO DE ATUALIZAÇÃO INICIADA =====');
+    log.info('[Updater] 📋 updateDownloaded:', this.updateDownloaded);
+    log.info('[Updater] 📦 updateInfo:', this.updateInfo);
+    log.info('[Updater] 📁 installerPath:', this.installerPath);
+    log.info('[Updater] ⚙️ autoInstallOnAppQuit:', autoUpdater.autoInstallOnAppQuit);
+    
+    // Diagnóstico detalhado do sistema
+    this.logSystemDiagnostic();
     
     if (!this.updateDownloaded) {
-      log.warn('[Updater] Nenhuma atualização baixada para instalar');
+      log.warn('[Updater] ❌ ABORTADO: Nenhuma atualização baixada para instalar');
       return;
     }
 
@@ -197,11 +200,19 @@ class UpdateManager {
     }
   }
 
-  // Método 1: quitAndInstall padrão
+  // Método 1: quitAndInstall padrão com detecção de falha
   async tryInstallMethod1() {
     log.info('[Updater] 🔄 Tentativa 1: quitAndInstall padrão');
     
     return new Promise((resolve) => {
+      let resolved = false;
+      const resolveOnce = (success) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(success);
+        }
+      };
+
       try {
         // Garantir que não instale automaticamente ao fechar
         autoUpdater.autoInstallOnAppQuit = false;
@@ -210,38 +221,68 @@ class UpdateManager {
           log.info('[Updater] Fechando janela principal...');
           
           this.mainWindow.once('closed', () => {
-            log.info('[Updater] Janela fechada, executando quitAndInstall...');
+            log.info('[Updater] ✅ Janela fechada com sucesso');
+            log.info('[Updater] ⏱️ Aguardando 1 segundo antes de executar quitAndInstall...');
+            
             setTimeout(() => {
               try {
-                log.info('[Updater] Executando autoUpdater.quitAndInstall(false, true)');
+                log.info('[Updater] 🚀 EXECUTANDO: autoUpdater.quitAndInstall(false, true)');
+                log.info('[Updater] 📋 Parâmetros: isSilent=false, isForceRunAfter=true');
+                log.info('[Updater] 🎯 Se este for o último log, quitAndInstall falhou silenciosamente!');
+                
                 autoUpdater.quitAndInstall(false, true);
-                resolve(true);
+                
+                // Se chegou aqui, quitAndInstall pode ter funcionado (app deveria ter fechado)
+                log.info('[Updater] ⚠️ INESPERADO: Código após quitAndInstall ainda executando');
+                
+                // Aguardar um pouco para ver se o app realmente vai fechar
+                setTimeout(() => {
+                  log.error('[Updater] ❌ FALHA DETECTADA: quitAndInstall não fechou o app após 3s');
+                  log.error('[Updater] 🛡️ Possível causa: Aplicação não assinada digitalmente');
+                  log.error('[Updater] 🔄 Tentando método 2...');
+                  resolveOnce(false);
+                }, 3000);
+                
               } catch (error) {
-                log.error('[Updater] Método 1 falhou:', error.message);
-                resolve(false);
+                log.error('[Updater] ❌ EXCEÇÃO no quitAndInstall:', error.message);
+                log.error('[Updater] 📋 Stack trace:', error.stack);
+                resolveOnce(false);
               }
             }, 1000);
           });
           
+          log.info('[Updater] 🔄 Chamando mainWindow.close()...');
           this.mainWindow.close();
+          
         } else {
+          log.info('[Updater] ℹ️ Janela já fechada, executando quitAndInstall diretamente');
           setTimeout(() => {
             try {
+              log.info('[Updater] 🚀 EXECUTANDO: autoUpdater.quitAndInstall(false, true) [direto]');
               autoUpdater.quitAndInstall(false, true);
-              resolve(true);
+              
+              setTimeout(() => {
+                log.error('[Updater] ❌ FALHA: quitAndInstall direto não funcionou');
+                resolveOnce(false);
+              }, 3000);
+              
             } catch (error) {
-              log.error('[Updater] Método 1 falhou:', error.message);
-              resolve(false);
+              log.error('[Updater] ❌ EXCEÇÃO no quitAndInstall direto:', error.message);
+              resolveOnce(false);
             }
           }, 1000);
         }
         
-        // Timeout de segurança
-        setTimeout(() => resolve(false), 5000);
+        // Timeout de segurança geral
+        setTimeout(() => {
+          log.error('[Updater] ⏰ TIMEOUT: Método 1 demorou mais de 10s - considerando falha');
+          resolveOnce(false);
+        }, 10000);
         
       } catch (error) {
-        log.error('[Updater] Método 1 falhou:', error.message);
-        resolve(false);
+        log.error('[Updater] ❌ EXCEÇÃO GERAL no Método 1:', error.message);
+        log.error('[Updater] 📋 Stack trace:', error.stack);
+        resolveOnce(false);
       }
     });
   }
@@ -271,37 +312,71 @@ class UpdateManager {
         ];
 
         let methodIndex = 0;
-        const tryNextMethod = () => {
-          if (methodIndex >= methods.length) {
-            log.error('[Updater] Método 2: Todos os sub-métodos falharam');
-            resolve(false);
-            return;
-          }
+          const tryNextMethod = () => {
+            if (methodIndex >= methods.length) {
+              log.error('[Updater] ❌ Método 2: TODOS os sub-métodos falharam');
+              log.error('[Updater] 🛡️ Confirmado: Problema de certificado/bloqueio de segurança');
+              resolve(false);
+              return;
+            }
 
-          try {
-            const installer = methods[methodIndex]();
-            methodIndex++;
+            const currentMethod = methodIndex + 1;
+            log.info(`[Updater] 🔄 Sub-método ${currentMethod}/${methods.length} iniciando...`);
 
-            installer.on('error', (err) => {
-              log.warn(`[Updater] Sub-método ${methodIndex} falhou:`, err.message);
-              if (err.code === 'ENOENT') {
-                log.warn('[Updater] Possível bloqueio por antivírus/SmartScreen');
-              }
-              tryNextMethod();
-            });
+            try {
+              const installer = methods[methodIndex]();
+              methodIndex++;
 
-            installer.on('spawn', () => {
-              log.info(`[Updater] Sub-método ${methodIndex} funcionou! Instalador iniciado`);
-              installer.unref();
-              setTimeout(() => app.quit(), 1000);
-              resolve(true);
-            });
+              installer.on('error', (err) => {
+                log.error(`[Updater] ❌ Sub-método ${currentMethod} FALHOU:`, err.message);
+                log.error(`[Updater] 📋 Código de erro:`, err.code);
+                
+                if (err.code === 'ENOENT') {
+                  log.error('[Updater] 🛡️ DIAGNÓSTICO: Arquivo bloqueado por antivírus/SmartScreen!');
+                } else if (err.code === 'EACCES') {
+                  log.error('[Updater] 🔒 DIAGNÓSTICO: Sem permissões para executar!');
+                } else if (err.code === 'EPERM') {
+                  log.error('[Updater] ⛔ DIAGNÓSTICO: Operação não permitida!');
+                } else {
+                  log.error('[Updater] ❓ DIAGNÓSTICO: Erro desconhecido');
+                }
+                
+                log.info(`[Updater] 🔄 Tentando sub-método ${currentMethod + 1}...`);
+                setTimeout(tryNextMethod, 500);
+              });
 
-          } catch (error) {
-            log.error(`[Updater] Sub-método ${methodIndex} exception:`, error.message);
-            tryNextMethod();
-          }
-        };
+              installer.on('spawn', () => {
+                log.info(`[Updater] ✅ Sub-método ${currentMethod} FUNCIONOU!`);
+                log.info('[Updater] 🚀 Processo do instalador iniciado com sucesso');
+                log.info('[Updater] 🔄 Desanexando processo e fechando app...');
+                
+                installer.unref();
+                
+                setTimeout(() => {
+                  log.info('[Updater] 👋 Fechando aplicativo para permitir instalação');
+                  app.quit();
+                }, 1000);
+                
+                resolve(true);
+              });
+
+              // Timeout específico para cada sub-método
+              setTimeout(() => {
+                log.warn(`[Updater] ⏰ Sub-método ${currentMethod} timeout após 5s`);
+                try {
+                  installer.kill();
+                } catch (e) {
+                  // Ignore kill errors
+                }
+                tryNextMethod();
+              }, 5000);
+
+            } catch (error) {
+              log.error(`[Updater] ❌ Sub-método ${currentMethod} EXCEÇÃO:`, error.message);
+              log.error(`[Updater] 📋 Stack trace:`, error.stack);
+              setTimeout(tryNextMethod, 500);
+            }
+          };
 
         tryNextMethod();
         
@@ -413,6 +488,75 @@ class UpdateManager {
 
   getInstallerPath() {
     return this.installerPath;
+  }
+
+  // Diagnóstico detalhado do sistema para debug
+  logSystemDiagnostic() {
+    log.info('[Updater] 🔍 ===== DIAGNÓSTICO DO SISTEMA =====');
+    
+    try {
+      // Informações básicas
+      log.info('[Updater] 💻 Plataforma:', process.platform);
+      log.info('[Updater] 🏗️ Arquitetura:', process.arch);
+      log.info('[Updater] ⚡ Versão Node.js:', process.version);
+      log.info('[Updater] 🖥️ Electron:', process.versions.electron);
+      log.info('[Updater] 📦 App empacotado:', app.isPackaged);
+      log.info('[Updater] 🔖 Versão atual:', app.getVersion());
+      
+      // Estado da janela principal
+      if (this.mainWindow) {
+        log.info('[Updater] 🪟 Estado da janela principal:');
+        log.info('[Updater]   - Existe:', !this.mainWindow.isDestroyed());
+        log.info('[Updater]   - Visível:', this.mainWindow.isVisible());
+        log.info('[Updater]   - Focada:', this.mainWindow.isFocused());
+        log.info('[Updater]   - Minimizada:', this.mainWindow.isMinimized());
+      } else {
+        log.warn('[Updater] ⚠️ mainWindow é null');
+      }
+      
+      // Verificar arquivo do instalador
+      if (this.installerPath) {
+        log.info('[Updater] 📁 Arquivo do instalador:');
+        log.info('[Updater]   - Caminho:', this.installerPath);
+        
+        if (fs.existsSync(this.installerPath)) {
+          const stats = fs.statSync(this.installerPath);
+          log.info('[Updater]   ✅ Arquivo existe');
+          log.info('[Updater]   - Tamanho:', stats.size, 'bytes');
+          log.info('[Updater]   - Criado em:', stats.birthtime.toISOString());
+          log.info('[Updater]   - Modificado em:', stats.mtime.toISOString());
+          
+          // Verificar permissões de execução (Windows)
+          try {
+            fs.accessSync(this.installerPath, fs.constants.F_OK | fs.constants.R_OK);
+            log.info('[Updater]   ✅ Arquivo legível');
+          } catch (error) {
+            log.error('[Updater]   ❌ Arquivo não legível:', error.message);
+          }
+        } else {
+          log.error('[Updater]   ❌ ARQUIVO NÃO EXISTE!');
+        }
+      } else {
+        log.error('[Updater] ❌ installerPath é null - arquivo não localizado');
+      }
+      
+      // Estado do autoUpdater
+      log.info('[Updater] 🔄 Estado do autoUpdater:');
+      log.info('[Updater]   - autoDownload:', autoUpdater.autoDownload);
+      log.info('[Updater]   - autoInstallOnAppQuit:', autoUpdater.autoInstallOnAppQuit);
+      log.info('[Updater]   - allowDowngrade:', autoUpdater.allowDowngrade);
+      
+      // Variáveis de ambiente relevantes
+      log.info('[Updater] 🌍 Variáveis de ambiente:');
+      log.info('[Updater]   - TEMP:', process.env.TEMP);
+      log.info('[Updater]   - LOCALAPPDATA:', process.env.LOCALAPPDATA);
+      log.info('[Updater]   - USERPROFILE:', process.env.USERPROFILE);
+      
+    } catch (error) {
+      log.error('[Updater] ❌ Erro no diagnóstico:', error.message);
+    }
+    
+    log.info('[Updater] 🔍 ===== FIM DO DIAGNÓSTICO =====');
   }
 }
 
