@@ -45,11 +45,16 @@ function registerAppHandlers(updateManager) {
     }
   });
 
-  ipcMain.handle('update:install', () => {
+  ipcMain.handle('update:install', async () => {
     console.log('[IPC] update:install chamado');
     if (updateManager) {
-      updateManager.installUpdate();
-      return { success: true };
+      try {
+        await updateManager.installUpdate();
+        return { success: true };
+      } catch (error) {
+        console.error('[IPC] Erro na instalação:', error);
+        return { success: false, error: error.message };
+      }
     } else {
       console.error('[IPC] updateManager não disponível');
       return { success: false, error: 'UpdateManager não inicializado' };
