@@ -114,7 +114,13 @@ class UpdateManager {
 
   findInstallerPath(info) {
     // Locais possíveis onde o electron-updater salva os arquivos
+    // Para PORTABLE APP, o nome do arquivo muda
     const possiblePaths = [
+      // Novo formato: Portable App
+      path.join(require('os').tmpdir(), `${app.getName()}-updater`, 'pending', `Etiquetas DFCOM-${info.version}-portable.exe`),
+      path.join(require('os').homedir(), 'AppData', 'Local', `${app.getName()}-updater`, 'pending', `Etiquetas DFCOM-${info.version}-portable.exe`),
+      path.join(require('os').homedir(), 'AppData', 'Local', 'etiquetas-desktop-updater', 'pending', `Etiquetas DFCOM-${info.version}-portable.exe`),
+      // Formato antigo: Instalador (fallback)
       path.join(require('os').tmpdir(), `${app.getName()}-updater`, 'pending', `Etiquetas-DFCOM-Setup-${info.version}.exe`),
       path.join(require('os').homedir(), 'AppData', 'Local', `${app.getName()}-updater`, 'pending', `Etiquetas-DFCOM-Setup-${info.version}.exe`),
       path.join(require('os').homedir(), 'AppData', 'Local', 'etiquetas-desktop-updater', 'pending', `Etiquetas-DFCOM-Setup-${info.version}.exe`)
@@ -135,7 +141,13 @@ class UpdateManager {
           }
           
           // Log sobre certificado digital (informativo)
-          log.info('[Updater] ℹ️ Aplicação não possui certificado digital - Windows pode bloquear');
+          // Detectar se é portable ou instalador
+      if (this.installerPath.includes('portable')) {
+        log.info('[Updater] ✅ PORTABLE APP detectado - sem necessidade de certificado!');
+        log.info('[Updater] 🚀 Portable apps não passam pelo SmartScreen');
+      } else {
+        log.info('[Updater] ⚠️ INSTALADOR detectado - pode precisar de certificado digital');
+      }
           
           return;
         }
@@ -456,7 +468,8 @@ class UpdateManager {
   async offerManualDownload() {
     log.info('[Updater] 🆘 Último recurso: Oferecendo download manual');
     
-    const downloadUrl = `https://github.com/dfcomsoftwarescompany/etiquetas-desktop/releases/download/v${this.updateInfo?.version}/Etiquetas-DFCOM-Setup-${this.updateInfo?.version}.exe`;
+    // URL para portable app
+    const downloadUrl = `https://github.com/dfcomsoftwarescompany/etiquetas-desktop/releases/download/v${this.updateInfo?.version}/Etiquetas DFCOM-${this.updateInfo?.version}-portable.exe`;
     
     this.sendToWindow('update:download-manually', {
       message: 'Falha na atualização automática. Por favor, baixe e instale manualmente.',
