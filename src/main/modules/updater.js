@@ -114,13 +114,17 @@ class UpdateManager {
 
   findInstallerPath(info) {
     // Locais possíveis onde o electron-updater salva os arquivos
-    // Para PORTABLE APP, o nome do arquivo muda
+    // Para PORTABLE APP, o nome do arquivo muda (padrão do electron-builder)
     const possiblePaths = [
-      // Novo formato: Portable App
+      // Novo formato: Portable App (padrão electron-builder)
+      path.join(require('os').tmpdir(), `${app.getName()}-updater`, 'pending', `Etiquetas-DFCOM-${info.version}.exe`),
+      path.join(require('os').homedir(), 'AppData', 'Local', `${app.getName()}-updater`, 'pending', `Etiquetas-DFCOM-${info.version}.exe`),
+      path.join(require('os').homedir(), 'AppData', 'Local', 'etiquetas-desktop-updater', 'pending', `Etiquetas-DFCOM-${info.version}.exe`),
+      // Formato com nome customizado
       path.join(require('os').tmpdir(), `${app.getName()}-updater`, 'pending', `Etiquetas DFCOM-${info.version}-portable.exe`),
       path.join(require('os').homedir(), 'AppData', 'Local', `${app.getName()}-updater`, 'pending', `Etiquetas DFCOM-${info.version}-portable.exe`),
       path.join(require('os').homedir(), 'AppData', 'Local', 'etiquetas-desktop-updater', 'pending', `Etiquetas DFCOM-${info.version}-portable.exe`),
-      // Formato antigo: Instalador (fallback)
+      // Formato antigo: Instalador (fallback para versões antigas)
       path.join(require('os').tmpdir(), `${app.getName()}-updater`, 'pending', `Etiquetas-DFCOM-Setup-${info.version}.exe`),
       path.join(require('os').homedir(), 'AppData', 'Local', `${app.getName()}-updater`, 'pending', `Etiquetas-DFCOM-Setup-${info.version}.exe`),
       path.join(require('os').homedir(), 'AppData', 'Local', 'etiquetas-desktop-updater', 'pending', `Etiquetas-DFCOM-Setup-${info.version}.exe`)
@@ -142,11 +146,16 @@ class UpdateManager {
           
           // Log sobre certificado digital (informativo)
           // Detectar se é portable ou instalador
-      if (this.installerPath.includes('portable')) {
-        log.info('[Updater] ✅ PORTABLE APP detectado - sem necessidade de certificado!');
-        log.info('[Updater] 🚀 Portable apps não passam pelo SmartScreen');
+      if (this.installerPath.includes('portable') || this.installerPath.includes('Setup')) {
+        if (this.installerPath.includes('portable')) {
+          log.info('[Updater] ✅ PORTABLE APP detectado - sem necessidade de certificado!');
+          log.info('[Updater] 🚀 Portable apps não passam pelo SmartScreen');
+        } else {
+          log.info('[Updater] ⚠️ INSTALADOR detectado - pode precisar de certificado digital');
+        }
       } else {
-        log.info('[Updater] ⚠️ INSTALADOR detectado - pode precisar de certificado digital');
+        log.info('[Updater] 📦 EXECUTÁVEL PORTABLE detectado (formato padrão)');
+        log.info('[Updater] 🚀 Sem instalação = sem problemas de certificado');
       }
           
           return;
@@ -468,8 +477,8 @@ class UpdateManager {
   async offerManualDownload() {
     log.info('[Updater] 🆘 Último recurso: Oferecendo download manual');
     
-    // URL para portable app
-    const downloadUrl = `https://github.com/dfcomsoftwarescompany/etiquetas-desktop/releases/download/v${this.updateInfo?.version}/Etiquetas DFCOM-${this.updateInfo?.version}-portable.exe`;
+    // URL para portable app (nome padrão do electron-builder)
+    const downloadUrl = `https://github.com/dfcomsoftwarescompany/etiquetas-desktop/releases/download/v${this.updateInfo?.version}/Etiquetas-DFCOM-${this.updateInfo?.version}.exe`;
     
     this.sendToWindow('update:download-manually', {
       message: 'Falha na atualização automática. Por favor, baixe e instale manualmente.',
