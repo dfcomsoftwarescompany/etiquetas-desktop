@@ -61,6 +61,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     onError: (callback) => {
       ipcRenderer.on('update:error', (event, data) => callback(data));
+    },
+    onManualInstallRequired: (callback) => {
+      ipcRenderer.on('update:manual-install-required', (event, data) => callback(data));
+    },
+    onDownloadManually: (callback) => {
+      ipcRenderer.on('update:download-manually', (event, data) => callback(data));
     }
   }
 });

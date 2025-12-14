@@ -156,6 +156,39 @@ function setupUpdateListeners() {
     }
   });
 
+  window.electronAPI.updates.onManualInstallRequired((data) => {
+    console.warn('[Update] Instalação manual necessária:', data);
+    showUpdateModal(
+      '⚠️ Ação Necessária',
+      `${data.message}\n\nO instalador foi aberto. Por favor, siga as instruções na tela para completar a atualização.`,
+      false,
+      false
+    );
+    showToast('Instalador aberto - siga as instruções na tela', 'warning', 8000);
+  });
+
+  window.electronAPI.updates.onDownloadManually((data) => {
+    console.error('[Update] Download manual necessário:', data);
+    showUpdateModal(
+      '🔒 Problema de Segurança',
+      `${data.message}\n\nMotivo: ${data.reason}\n\nA página de downloads será aberta automaticamente.`,
+      true,
+      false
+    );
+    
+    // Alterar botões do modal
+    const modal = document.getElementById('update-modal');
+    const buttonsContainer = document.getElementById('update-modal-buttons');
+    if (modal && buttonsContainer) {
+      buttonsContainer.innerHTML = `
+        <button class="btn-update-later" onclick="document.getElementById('update-modal').classList.remove('show')">Fechar</button>
+        <button class="btn-update-now" onclick="window.open('${data.downloadUrl}', '_blank')">Baixar Manualmente</button>
+      `;
+    }
+    
+    showToast('Atualização automática bloqueada - download manual necessário', 'error', 10000);
+  });
+
   updateListenersSetup = true;
   console.log('[Update] Listeners configurados com sucesso');
 }
@@ -332,7 +365,7 @@ async function checkServerStatus() {
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
         <polyline points="22 4 12 14.01 9 11.01"/>
       </svg>`;
-      statusTitle.textContent = '🔥 Atualização Robusta v2.0.18';
+      statusTitle.textContent = '🛡️ Anti-Bloqueio v2.0.19';
       statusSubtitle.textContent = '✅ Sistema operacional - Pronto para receber comandos';
     }
   } catch (error) {

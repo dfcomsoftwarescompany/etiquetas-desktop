@@ -124,8 +124,19 @@ class UpdateManager {
       try {
         if (fs.existsSync(filePath)) {
           this.installerPath = filePath;
-          log.info('[Updater] Instalador encontrado em:', filePath);
-          log.info('[Updater] Tamanho do arquivo:', fs.statSync(filePath).size);
+          const stats = fs.statSync(filePath);
+          log.info('[Updater] ✅ Instalador encontrado em:', filePath);
+          log.info('[Updater] 📁 Tamanho do arquivo:', stats.size, 'bytes');
+          log.info('[Updater] 📅 Data de criação:', stats.birthtime);
+          
+          // Verificar se é um arquivo válido (não corrompido)
+          if (stats.size < 1000000) { // Menos de 1MB pode ser suspeito
+            log.warn('[Updater] ⚠️ Arquivo parece muito pequeno para um instalador');
+          }
+          
+          // Log sobre certificado digital (informativo)
+          log.info('[Updater] ℹ️ Aplicação não possui certificado digital - Windows pode bloquear');
+          
           return;
         }
       } catch (error) {
@@ -133,7 +144,9 @@ class UpdateManager {
       }
     }
     
-    log.warn('[Updater] Instalador não encontrado nos caminhos esperados');
+    log.warn('[Updater] ❌ Instalador não encontrado nos caminhos esperados');
+    log.warn('[Updater] Caminhos verificados:');
+    possiblePaths.forEach(p => log.warn('[Updater]   -', p));
   }
 
   sendToWindow(channel, data = {}) {
@@ -172,16 +185,15 @@ class UpdateManager {
       return;
     }
 
-    // Tentar 3 métodos diferentes de instalação
+    // Tentar 4 métodos diferentes de instalação + fallback manual
     const success = await this.tryInstallMethod1() || 
                    await this.tryInstallMethod2() || 
-                   await this.tryInstallMethod3();
+                   await this.tryInstallMethod3() ||
+                   await this.tryInstallMethod4();
 
     if (!success) {
-      log.error('[Updater] ❌ Todos os métodos de instalação falharam');
-      this.sendToWindow('update:error', { 
-        message: 'Falha na instalação. Tente reiniciar o aplicativo.' 
-      });
+      log.error('[Updater] ❌ Todos os métodos de instalação falharam - oferecendo download manual');
+      await this.offerManualDownload();
     }
   }
 
@@ -246,22 +258,58 @@ class UpdateManager {
     return new Promise((resolve) => {
       try {
         log.info('[Updater] Executando:', this.installerPath);
+        log.info('[Updater] Verificando se arquivo é assinado digitalmente...');
         
-        // Executar instalador como processo separado
-        const installer = spawn(this.installerPath, [], {
-          detached: true,
-          stdio: 'ignore'
-        });
+        // Tentar diferentes métodos de execução
+        const methods = [
+          // Método 1: spawn normal
+          () => spawn(this.installerPath, [], { detached: true, stdio: 'ignore' }),
+          // Método 2: spawn com runas para elevar privilégios
+          () => spawn('powershell.exe', ['-Command', `Start-Process "${this.installerPath}" -Verb RunAs`], { detached: true, stdio: 'ignore' }),
+          // Método 3: cmd com start
+          () => spawn('cmd.exe', ['/C', 'start', '', `"${this.installerPath}"`], { detached: true, stdio: 'ignore' })
+        ];
 
-        installer.unref(); // Permitir que o processo pai termine
+        let methodIndex = 0;
+        const tryNextMethod = () => {
+          if (methodIndex >= methods.length) {
+            log.error('[Updater] Método 2: Todos os sub-métodos falharam');
+            resolve(false);
+            return;
+          }
+
+          try {
+            const installer = methods[methodIndex]();
+            methodIndex++;
+
+            installer.on('error', (err) => {
+              log.warn(`[Updater] Sub-método ${methodIndex} falhou:`, err.message);
+              if (err.code === 'ENOENT') {
+                log.warn('[Updater] Possível bloqueio por antivírus/SmartScreen');
+              }
+              tryNextMethod();
+            });
+
+            installer.on('spawn', () => {
+              log.info(`[Updater] Sub-método ${methodIndex} funcionou! Instalador iniciado`);
+              installer.unref();
+              setTimeout(() => app.quit(), 1000);
+              resolve(true);
+            });
+
+          } catch (error) {
+            log.error(`[Updater] Sub-método ${methodIndex} exception:`, error.message);
+            tryNextMethod();
+          }
+        };
+
+        tryNextMethod();
         
-        log.info('[Updater] Instalador iniciado, finalizando aplicativo...');
-        
+        // Timeout de segurança
         setTimeout(() => {
-          app.quit();
-        }, 1000);
-        
-        resolve(true);
+          log.warn('[Updater] Método 2: Timeout - possível bloqueio de segurança');
+          resolve(false);
+        }, 10000);
         
       } catch (error) {
         log.error('[Updater] Método 2 falhou:', error.message);
@@ -290,19 +338,69 @@ class UpdateManager {
     }
   }
 
+  // Método 4: Detectar problemas de certificado e oferecer alternativas
+  async tryInstallMethod4() {
+    log.info('[Updater] 🔄 Tentativa 4: Método de emergência - problemas de certificado');
+    
+    // Verificar se o arquivo existe
+    if (!this.installerPath || !fs.existsSync(this.installerPath)) {
+      log.error('[Updater] Método 4: Arquivo não encontrado para emergência');
+      return false;
+    }
+
+    try {
+      // Tentar abrir com shell (Windows vai mostrar avisos de segurança)
+      log.info('[Updater] Abrindo instalador com shell.openPath - usuário pode ver avisos de segurança');
+      await shell.openPath(this.installerPath);
+      
+      // Notificar usuário sobre o processo manual
+      this.sendToWindow('update:manual-install-required', {
+        message: 'Por favor, aceite os avisos de segurança do Windows para instalar a atualização.',
+        installerPath: this.installerPath,
+        version: this.updateInfo?.version
+      });
+      
+      // Aguardar um pouco antes de fechar o app
+      setTimeout(() => {
+        log.info('[Updater] Fechando app após abrir instalador manualmente');
+        app.quit();
+      }, 3000);
+      
+      return true;
+      
+    } catch (error) {
+      log.error('[Updater] Método 4 falhou:', error.message);
+      
+      // Último recurso: oferecer download manual
+      await this.offerManualDownload();
+      return false;
+    }
+  }
+
+  // Último recurso: oferecer download manual da release
+  async offerManualDownload() {
+    log.info('[Updater] 🆘 Último recurso: Oferecendo download manual');
+    
+    const downloadUrl = `https://github.com/dfcomsoftwarescompany/etiquetas-desktop/releases/download/v${this.updateInfo?.version}/Etiquetas-DFCOM-Setup-${this.updateInfo?.version}.exe`;
+    
+    this.sendToWindow('update:download-manually', {
+      message: 'Falha na atualização automática. Por favor, baixe e instale manualmente.',
+      downloadUrl: downloadUrl,
+      version: this.updateInfo?.version,
+      reason: 'Possível bloqueio por antivírus ou falta de certificado digital'
+    });
+    
+    try {
+      // Tentar abrir a página de releases no navegador
+      await shell.openExternal('https://github.com/dfcomsoftwarescompany/etiquetas-desktop/releases');
+    } catch (error) {
+      log.error('[Updater] Erro ao abrir página de releases:', error.message);
+    }
+  }
+
   // Método de emergência: abrir instalador com shell
   async openInstallerManually() {
-    if (this.installerPath && fs.existsSync(this.installerPath)) {
-      log.info('[Updater] 🚨 Abrindo instalador manualmente com shell');
-      try {
-        await shell.openPath(this.installerPath);
-        setTimeout(() => app.quit(), 2000);
-        return true;
-      } catch (error) {
-        log.error('[Updater] Erro ao abrir instalador:', error.message);
-      }
-    }
-    return false;
+    return await this.tryInstallMethod4();
   }
 
   isUpdateDownloaded() {
