@@ -9,15 +9,20 @@ const path = require('path');
 // Módulos
 const PrinterManager = require('./modules/printer');
 const APIClient = require('./modules/api');
-const UpdateManager = require('./modules/updater');
 const PrintServer = require('./modules/server');
 const { registerAllHandlers } = require('./ipc');
+
+// Solução oficial do Electron para updates
+require('update-electron-app')({
+  repo: 'dfcomsoftwarescompany/etiquetas-desktop',
+  updateInterval: '5 minutes',
+  logger: require('electron-log')
+});
 
 // Instâncias
 let mainWindow;
 const printerManager = new PrinterManager();
 const apiClient = new APIClient();
-let updateManager;
 let printServer;
 
 // ==================== Window ====================
@@ -49,18 +54,17 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
-  // Inicializar UpdateManager após criar janela
-  updateManager = new UpdateManager(mainWindow);
+  // Update Manager oficial do Electron já está ativo
 }
 
 // ==================== App Lifecycle ====================
 
 app.whenReady().then(async () => {
-  // Criar janela primeiro (que cria o updateManager)
+  // Criar janela
   createWindow();
   
-  // Registrar handlers IPC DEPOIS de criar o updateManager
-  registerAllHandlers({ printerManager, apiClient, updateManager });
+  // Registrar handlers IPC (sem updateManager - agora é automático)
+  registerAllHandlers({ printerManager, apiClient });
 
   // Iniciar servidor HTTP
   printServer = new PrintServer(printerManager);
@@ -70,18 +74,7 @@ app.whenReady().then(async () => {
     console.error('[App] Erro ao iniciar servidor HTTP:', error);
   }
 
-  // Verificar atualizações (apenas em produção)
-  if (app.isPackaged) {
-    // Verificação inicial após 5 segundos
-    setTimeout(() => {
-      updateManager?.checkForUpdates();
-    }, 5000);
-
-    // Verificação periódica a cada 4 horas
-    setInterval(() => {
-      updateManager?.checkForUpdates();
-    }, 4 * 60 * 60 * 1000);
-  }
+  // Update automático já configurado via update-electron-app
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

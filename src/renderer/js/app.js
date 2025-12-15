@@ -8,186 +8,8 @@ function showToast(message, type = 'success', duration = 3000) {
   setTimeout(() => toast.remove(), duration);
 }
 
-// ==================== Modal de Atualização ====================
-let updateModal = null;
-
-function createUpdateModal() {
-  if (updateModal) return updateModal;
-  
-  const modal = document.createElement('div');
-  modal.id = 'update-modal';
-  modal.className = 'update-modal';
-  modal.innerHTML = `
-    <div class="update-modal-content">
-      <div class="update-modal-header">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="update-icon">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        <h3 id="update-modal-title">Atualização Disponível</h3>
-      </div>
-      <p id="update-modal-message">Uma nova versão está disponível.</p>
-      <div class="update-progress-container" id="update-progress-container" style="display: none;">
-        <div class="update-progress-bar">
-          <div class="update-progress-fill" id="update-progress-fill"></div>
-        </div>
-        <span class="update-progress-text" id="update-progress-text">0%</span>
-      </div>
-      <div class="update-modal-buttons" id="update-modal-buttons">
-        <button class="btn-update-later" id="btn-update-later">Depois</button>
-        <button class="btn-update-now" id="btn-update-now">Atualizar Agora</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  
-  document.getElementById('btn-update-later').addEventListener('click', () => {
-    modal.classList.remove('show');
-  });
-  
-  document.getElementById('btn-update-now').addEventListener('click', async () => {
-    console.log('[Update] Botão Reiniciar clicado');
-    if (window.electronAPI && window.electronAPI.updates) {
-      console.log('[Update] Chamando install...');
-      try {
-        const result = await window.electronAPI.updates.install();
-        console.log('[Update] Resultado install:', result);
-        if (result.success) {
-          showToast('Reiniciando aplicativo...', 'info');
-          // Desabilitar botão para evitar múltiplos cliques
-          document.getElementById('btn-update-now').disabled = true;
-          document.getElementById('btn-update-now').textContent = 'Reiniciando...';
-        } else {
-          showToast(`Erro ao instalar: ${result.error}`, 'error');
-        }
-      } catch (error) {
-        console.error('[Update] Erro ao instalar:', error);
-        showToast('Erro na instalação', 'error');
-      }
-    } else {
-      console.error('[Update] API não disponível');
-    }
-  });
-  
-  updateModal = modal;
-  return modal;
-}
-
-function showUpdateModal(title, message, showButtons = true, showProgress = false) {
-  const modal = createUpdateModal();
-  document.getElementById('update-modal-title').textContent = title;
-  document.getElementById('update-modal-message').textContent = message;
-  document.getElementById('update-modal-buttons').style.display = showButtons ? 'flex' : 'none';
-  document.getElementById('update-progress-container').style.display = showProgress ? 'block' : 'none';
-  modal.classList.add('show');
-}
-
-function updateProgress(percent) {
-  const fill = document.getElementById('update-progress-fill');
-  const text = document.getElementById('update-progress-text');
-  if (fill) fill.style.width = `${percent}%`;
-  if (text) text.textContent = `${percent}%`;
-}
-
-// ==================== Listeners de Atualização ====================
-let updateListenersSetup = false; // Evitar setup múltiplo
-
-function setupUpdateListeners() {
-  if (!window.electronAPI || !window.electronAPI.updates) {
-    console.log('API de updates não disponível (modo desenvolvimento)');
-    return;
-  }
-
-  // Evitar setup múltiplo de listeners
-  if (updateListenersSetup) {
-    console.log('[Update] Listeners já configurados');
-    return;
-  }
-
-  console.log('[Update] Configurando listeners de atualização...');
-
-  window.electronAPI.updates.onChecking(() => {
-    console.log('[Update] Verificando atualizações...');
-  });
-
-  window.electronAPI.updates.onAvailable((data) => {
-    console.log('[Update] Atualização disponível:', data.version);
-    showToast(`Nova versão ${data.version} encontrada! Baixando...`, 'info', 5000);
-  });
-
-  window.electronAPI.updates.onNotAvailable((data) => {
-    console.log('[Update] Nenhuma atualização disponível');
-  });
-
-  window.electronAPI.updates.onProgress((data) => {
-    console.log(`[Update] Progresso: ${data.percent}%`);
-    showUpdateModal(
-      'Baixando Atualização',
-      `Baixando versão nova... ${data.percent}%`,
-      false,
-      true
-    );
-    updateProgress(data.percent);
-  });
-
-  window.electronAPI.updates.onDownloaded((data) => {
-    console.log('[Update] Atualização baixada:', data.version);
-    showUpdateModal(
-      '🎉 Atualização Pronta!',
-      `A versão ${data.version} foi baixada. Reinicie o aplicativo para aplicar a atualização.`,
-      true,
-      false
-    );
-    // Mudar botão para "Reiniciar Agora"
-    const btnNow = document.getElementById('btn-update-now');
-    if (btnNow) {
-      btnNow.textContent = 'Reiniciar Agora';
-      btnNow.disabled = false; // Reabilitar se estava desabilitado
-    }
-  });
-
-  window.electronAPI.updates.onError((data) => {
-    console.error('[Update] Erro:', data.message);
-    // Não mostrar erro para o usuário, apenas logar
-  });
-
-  window.electronAPI.updates.onManualInstallRequired((data) => {
-    console.warn('[Update] Instalação manual necessária:', data);
-    showUpdateModal(
-      '⚠️ Ação Necessária',
-      `${data.message}\n\nO instalador foi aberto. Por favor, siga as instruções na tela para completar a atualização.`,
-      false,
-      false
-    );
-    showToast('Instalador aberto - siga as instruções na tela', 'warning', 8000);
-  });
-
-  window.electronAPI.updates.onDownloadManually((data) => {
-    console.error('[Update] Download manual necessário:', data);
-    showUpdateModal(
-      '🔒 Problema de Segurança',
-      `${data.message}\n\nMotivo: ${data.reason}\n\nA página de downloads será aberta automaticamente.`,
-      true,
-      false
-    );
-    
-    // Alterar botões do modal
-    const modal = document.getElementById('update-modal');
-    const buttonsContainer = document.getElementById('update-modal-buttons');
-    if (modal && buttonsContainer) {
-      buttonsContainer.innerHTML = `
-        <button class="btn-update-later" onclick="document.getElementById('update-modal').classList.remove('show')">Fechar</button>
-        <button class="btn-update-now" onclick="window.open('${data.downloadUrl}', '_blank')">Baixar Manualmente</button>
-      `;
-    }
-    
-    showToast('Atualização automática bloqueada - download manual necessário', 'error', 10000);
-  });
-
-  updateListenersSetup = true;
-  console.log('[Update] Listeners configurados com sucesso');
-}
+// Update automático agora é gerenciado pelo update-electron-app
+// Diálogos nativos do sistema são exibidos automaticamente
 
 // ==================== Impressora ====================
 const printerSelect = document.getElementById('printer-select');
@@ -361,7 +183,7 @@ async function checkServerStatus() {
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
         <polyline points="22 4 12 14.01 9 11.01"/>
       </svg>`;
-      statusTitle.textContent = '🎉 SUCESSO! v2.0.29';
+      statusTitle.textContent = '📚 Solução Oficial v2.0.30';
       statusSubtitle.textContent = '✅ Sistema operacional - Pronto para receber comandos';
     }
   } catch (error) {
@@ -388,8 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Configurar listeners de atualização
-  setupUpdateListeners();
+  // Updates automáticos via update-electron-app (não precisa configurar)
 
   // Inicializar
   loadPrinters();

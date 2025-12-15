@@ -6,10 +6,10 @@ const { registerPrinterHandlers } = require('./printer');
 const { registerAPIHandlers } = require('./api');
 const { registerAppHandlers } = require('./app');
 
-function registerAllHandlers({ printerManager, apiClient, updateManager }) {
+function registerAllHandlers({ printerManager, apiClient }) {
   registerPrinterHandlers(printerManager);
   registerAPIHandlers(apiClient);
-  registerAppHandlers(updateManager);
+  registerAppHandlers(); // Sem updateManager - agora é automático
 }
 
 module.exports = { registerAllHandlers };

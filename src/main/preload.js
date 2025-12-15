@@ -38,35 +38,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     registrarImpressao: (labelData) => ipcRenderer.invoke('api:registrarImpressao', labelData)
   },
 
-  // ==================== Updates ====================
-  updates: {
-    check: () => ipcRenderer.invoke('update:check'),
-    install: () => ipcRenderer.invoke('update:install'),
-    
-    // Listeners para eventos de atualização
-    onChecking: (callback) => {
-      ipcRenderer.on('update:checking', (event, data) => callback(data));
-    },
-    onAvailable: (callback) => {
-      ipcRenderer.on('update:available', (event, data) => callback(data));
-    },
-    onNotAvailable: (callback) => {
-      ipcRenderer.on('update:not-available', (event, data) => callback(data));
-    },
-    onProgress: (callback) => {
-      ipcRenderer.on('update:progress', (event, data) => callback(data));
-    },
-    onDownloaded: (callback) => {
-      ipcRenderer.on('update:downloaded', (event, data) => callback(data));
-    },
-    onError: (callback) => {
-      ipcRenderer.on('update:error', (event, data) => callback(data));
-    },
-    onManualInstallRequired: (callback) => {
-      ipcRenderer.on('update:manual-install-required', (event, data) => callback(data));
-    },
-    onDownloadManually: (callback) => {
-      ipcRenderer.on('update:download-manually', (event, data) => callback(data));
-    }
-  }
+  // Updates agora são automáticos via update-electron-app
+  // Não precisa de API manual - tudo é gerenciado automaticamente
 });
