@@ -12,8 +12,9 @@ const APIClient = require('./modules/api');
 const PrintServer = require('./modules/server');
 const { registerAllHandlers } = require('./ipc');
 
-// Importar módulo de updates
-const { updateElectronApp } = require('update-electron-app');
+// Importar módulo de updates - Usando electron-updater diretamente
+const { autoUpdater } = require('electron-updater');
+const log = require('electron-log');
 
 // Instâncias
 let mainWindow;
@@ -62,12 +63,67 @@ app.whenReady().then(async () => {
   // Registrar handlers IPC (sem updateManager - agora é automático)
   registerAllHandlers({ printerManager, apiClient });
 
-  // Inicializar updates após app estar pronto
-  updateElectronApp({
-    updateInterval: '5 minutes',
-    logger: require('electron-log'),
-    notifyUser: true
+  // ==================== Auto-Updater Configuração ====================
+  
+  // Configurar logging
+  autoUpdater.logger = log;
+  autoUpdater.logger.transports.file.level = 'info';
+  
+  // Configurações do auto-updater
+  autoUpdater.autoDownload = false; // Não baixar automaticamente
+  autoUpdater.autoInstallOnAppQuit = true; // Instalar ao fechar app
+  
+  // ==================== Eventos do Auto-Updater ====================
+  
+  autoUpdater.on('checking-for-update', () => {
+    log.info('🔍 Verificando atualizações...');
   });
+  
+  autoUpdater.on('update-available', (info) => {
+    log.info('✅ Atualização disponível:', info.version);
+    // Aqui você pode mostrar notificação para o usuário
+    autoUpdater.downloadUpdate(); // Baixar após confirmar
+  });
+  
+  autoUpdater.on('update-not-available', (info) => {
+    log.info('ℹ️ Aplicativo está atualizado:', info.version);
+  });
+  
+  autoUpdater.on('error', (err) => {
+    log.error('❌ Erro no auto-updater:', err);
+  });
+  
+  autoUpdater.on('download-progress', (progress) => {
+    const percent = Math.round(progress.percent);
+    log.info(`📥 Download: ${percent}%`);
+    // Aqui você pode atualizar uma barra de progresso
+  });
+  
+  autoUpdater.on('update-downloaded', (info) => {
+    log.info('✅ Update baixado, versão:', info.version);
+    // Aqui você pode perguntar ao usuário se quer reiniciar
+    // autoUpdater.quitAndInstall();
+  });
+  
+  // ==================== Inicializar Auto-Updater ====================
+  
+  // Só verificar updates em produção (não em desenvolvimento)
+  if (app.isPackaged) {
+    try {
+      // Verificar na inicialização
+      autoUpdater.checkForUpdatesAndNotify();
+      
+      // Verificar periodicamente (1 hora em produção)
+      setInterval(() => {
+        autoUpdater.checkForUpdatesAndNotify();
+      }, 60 * 60 * 1000); // 1 hora
+      
+    } catch (error) {
+      log.error('Erro ao inicializar auto-updater:', error);
+    }
+  } else {
+    log.info('Desenvolvimento: Auto-updater desabilitado');
+  }
 
   // Iniciar servidor HTTP
   printServer = new PrintServer(printerManager);
