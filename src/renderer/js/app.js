@@ -183,7 +183,7 @@ async function checkServerStatus() {
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
         <polyline points="22 4 12 14.01 9 11.01"/>
       </svg>`;
-      statusTitle.textContent = '📚 Solução Oficial v2.0.30';
+      statusTitle.textContent = '✅ Oficial Funcional v2.0.31';
       statusSubtitle.textContent = '✅ Sistema operacional - Pronto para receber comandos';
     }
   } catch (error) {

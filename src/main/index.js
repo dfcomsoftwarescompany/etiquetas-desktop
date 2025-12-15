@@ -13,7 +13,8 @@ const PrintServer = require('./modules/server');
 const { registerAllHandlers } = require('./ipc');
 
 // Solução oficial do Electron para updates
-require('update-electron-app')({
+const { updateElectronApp } = require('update-electron-app');
+updateElectronApp({
   repo: 'dfcomsoftwarescompany/etiquetas-desktop',
   updateInterval: '5 minutes',
   logger: require('electron-log')
