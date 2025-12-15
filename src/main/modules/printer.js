@@ -260,36 +260,35 @@ class PrinterManager {
     // ========================================
     // VALOR GIRA/CRÉDITO (na área de informações)
     // ========================================
-    // TEMPORARIAMENTE DESATIVADO - Não mostrar campo GIRA
-    // if (valorCredito) {
-    //   currentY += 8;
+    if (valorCredito) {
+      currentY += 8;
       
-    //   // Fundo verde claro para destaque
-    //   const giraBoxY = currentY;
-    //   const giraBoxH = 62;
-    //   const giraBoxW = this.config.labelWidthPx - (margin * 2);
-    //   const giraBoxX = margin;
+      // Fundo verde claro para destaque
+      const giraBoxY = currentY;
+      const giraBoxH = 62;
+      const giraBoxW = this.config.labelWidthPx - (margin * 2);
+      const giraBoxX = margin;
       
-    //   ctx.fillStyle = '#e8f5e9';
-    //   ctx.fillRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
+      ctx.fillStyle = '#e8f5e9';
+      ctx.fillRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
       
-    //   // Borda verde
-    //   ctx.strokeStyle = '#4caf50';
-    //   ctx.lineWidth = 2;
-    //   ctx.strokeRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
+      // Borda verde
+      ctx.strokeStyle = '#4caf50';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
 
-    //   // Label "NO GIRA"
-    //   ctx.fillStyle = '#2e7d32';
-    //   ctx.font = 'bold 12px Arial';
-    //   ctx.textBaseline = 'middle';
-    //   ctx.fillText('NO GIRA', centerX, giraBoxY + 16);
+      // Label "NO GIRA"
+      ctx.fillStyle = '#2e7d32';
+      ctx.font = 'bold 12px Arial';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('NO GIRA', centerX, giraBoxY + 16);
 
-    //   // Preço GIRA grande
-    //   const precoGira = this.formatPrice(valorCredito);
-    //   ctx.fillStyle = '#1b5e20';
-    //   ctx.font = 'bold 34px Arial';
-    //   ctx.fillText(precoGira, centerX, giraBoxY + 46);
-    // }
+      // Preço GIRA grande
+      const precoGira = this.formatPrice(valorCredito);
+      ctx.fillStyle = '#1b5e20';
+      ctx.font = 'bold 34px Arial';
+      ctx.fillText(precoGira, centerX, giraBoxY + 46);
+    }
 
     // ========================================
     // ÁREA DE PREÇO À VISTA (embaixo)

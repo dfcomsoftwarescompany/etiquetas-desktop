@@ -275,9 +275,8 @@ class PrintServer {
         valor: item.value || item.valor || item.vlr || item.vlrVenda || item.preco || '0,00',
         // Tamanho (mantém compatibilidade)
         tamanho: item.tamanho || item.tam || item.size || '',
-        // TEMPORARIAMENTE DESATIVADO - Campo GIRA/Crédito
-        // valorCredito: item.valueStoreCredit || item.valor_giracredito || item.vlrGiracredito || item.giracredito || null
-        valorCredito: null // Sempre null temporariamente
+        // Novo formato: valueStoreCredit | Legado: valor_giracredito, vlrGiracredito
+        valorCredito: item.valueStoreCredit || item.valor_giracredito || item.vlrGiracredito || item.giracredito || null
       };
 
       // Adicionar item 'qtd' vezes
