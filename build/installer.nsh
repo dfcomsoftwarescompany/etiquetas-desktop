@@ -38,8 +38,3 @@
   ; Force per-user installation (não requer admin)
   !define MULTIUSER_INSTALLMODE_DEFAULT_CURRENTUSER
 !macroend
-
-; Previne que o usuário veja erros se o processo não existir
-!define MUI_FINISHPAGE_RUN
-!define MUI_FINISHPAGE_RUN_TEXT "Iniciar Etiquetas DFCOM"
-!define MUI_FINISHPAGE_RUN_FUNCTION "LaunchLink"
