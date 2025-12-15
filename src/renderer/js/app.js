@@ -149,11 +149,7 @@ function setupUpdateListeners() {
 
   window.electronAPI.updates.onError((data) => {
     console.error('[Update] Erro:', data.message);
-    // Não mostrar erro para o usuário em produção, apenas logar
-    // Em desenvolvimento, pode mostrar para debug
-    if (process.env.NODE_ENV === 'development') {
-      showToast(`Erro na atualização: ${data.message}`, 'error');
-    }
+    // Não mostrar erro para o usuário, apenas logar
   });
 
   window.electronAPI.updates.onManualInstallRequired((data) => {
@@ -365,7 +361,7 @@ async function checkServerStatus() {
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
         <polyline points="22 4 12 14.01 9 11.01"/>
       </svg>`;
-      statusTitle.textContent = '🎯 FUNCIONA! v2.0.26';
+      statusTitle.textContent = '🎯 Híbrido NSIS+Portable v2.0.27';
       statusSubtitle.textContent = '✅ Sistema operacional - Pronto para receber comandos';
     }
   } catch (error) {
