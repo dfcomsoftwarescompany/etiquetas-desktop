@@ -12,13 +12,8 @@ const APIClient = require('./modules/api');
 const PrintServer = require('./modules/server');
 const { registerAllHandlers } = require('./ipc');
 
-// Solução oficial do Electron para updates (repo público)
+// Importar módulo de updates
 const { updateElectronApp } = require('update-electron-app');
-updateElectronApp({
-  updateInterval: '5 minutes',
-  logger: require('electron-log'),
-  notifyUser: true
-});
 
 // Instâncias
 let mainWindow;
@@ -66,6 +61,13 @@ app.whenReady().then(async () => {
   
   // Registrar handlers IPC (sem updateManager - agora é automático)
   registerAllHandlers({ printerManager, apiClient });
+
+  // Inicializar updates após app estar pronto
+  updateElectronApp({
+    updateInterval: '5 minutes',
+    logger: require('electron-log'),
+    notifyUser: true
+  });
 
   // Iniciar servidor HTTP
   printServer = new PrintServer(printerManager);
