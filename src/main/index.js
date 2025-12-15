@@ -101,8 +101,30 @@ app.whenReady().then(async () => {
   
   autoUpdater.on('update-downloaded', (info) => {
     log.info('✅ Update baixado, versão:', info.version);
-    // Aqui você pode perguntar ao usuário se quer reiniciar
-    // autoUpdater.quitAndInstall();
+    
+    // Notificar o usuário e instalar automaticamente em 5 segundos
+    const { dialog } = require('electron');
+    
+    const dialogOpts = {
+      type: 'info',
+      buttons: ['Instalar Agora', 'Mais Tarde'],
+      title: 'Atualização Disponível',
+      message: `Versão ${info.version} está pronta para instalar`,
+      detail: 'A aplicação será reiniciada para aplicar a atualização.',
+      defaultId: 0,
+      cancelId: 1
+    };
+    
+    dialog.showMessageBox(mainWindow, dialogOpts).then((result) => {
+      if (result.response === 0) {
+        // Força o fechamento de TODOS os processos antes de atualizar
+        setImmediate(() => {
+          app.removeAllListeners('window-all-closed');
+          if (mainWindow) mainWindow.close();
+          autoUpdater.quitAndInstall(false, true);
+        });
+      }
+    });
   });
   
   // ==================== Inicializar Auto-Updater ====================
