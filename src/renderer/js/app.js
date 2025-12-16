@@ -172,6 +172,65 @@ const statusIcon = document.getElementById('status-icon');
 const statusTitle = document.getElementById('status-title');
 const statusSubtitle = document.getElementById('status-subtitle');
 
+// Variável para armazenar o IP local
+let localIP = 'localhost';
+
+// Função para obter e exibir o IP local
+async function getLocalIP() {
+  try {
+    if (window.electronAPI && window.electronAPI.app) {
+      const response = await window.electronAPI.app.getLocalIP();
+      if (response.success && response.ip) {
+        localIP = response.ip;
+        const serverUrl = document.getElementById('server-url');
+        const networkIndicator = document.getElementById('network-indicator');
+        
+        if (serverUrl) {
+          const url = `http://${response.ip}:${response.port}`;
+          serverUrl.textContent = url;
+          serverUrl.title = `Hostname: ${response.hostname || 'N/A'} | Clique para copiar o endereço`;
+          
+          // Destacar se não for localhost
+          if (response.ip !== 'localhost' && response.ip !== '127.0.0.1') {
+            serverUrl.style.backgroundColor = '#10b981';
+            serverUrl.style.color = '#ffffff';
+            serverUrl.style.fontWeight = '600';
+            serverUrl.style.cursor = 'pointer';
+            serverUrl.style.padding = '4px 8px';
+            serverUrl.style.borderRadius = '4px';
+            
+            // Mostrar indicador de rede
+            if (networkIndicator) {
+              networkIndicator.style.display = 'inline-block';
+            }
+            
+            // Adicionar evento de clique para copiar
+            serverUrl.onclick = async () => {
+              try {
+                await navigator.clipboard.writeText(url);
+                showToast(`✅ Endereço copiado! Use este endereço no tablet/celular`, 'success', 4000);
+              } catch (err) {
+                showToast('Erro ao copiar endereço', 'error');
+              }
+            };
+          } else {
+            // Se for localhost, esconder indicador
+            if (networkIndicator) {
+              networkIndicator.style.display = 'none';
+            }
+            serverUrl.style.cursor = 'default';
+            serverUrl.onclick = null;
+          }
+        }
+        return response.ip;
+      }
+    }
+  } catch (error) {
+    console.log('Erro ao obter IP local:', error);
+  }
+  return 'localhost';
+}
+
 async function checkServerStatus() {
   try {
     const response = await fetch('http://localhost:8547/health');
@@ -210,6 +269,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Obter e exibir IP local
+  await getLocalIP();
+  
   // Updates automáticos via update-electron-app (não precisa configurar)
 
   // Inicializar
@@ -221,4 +283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setInterval(checkServerStatus, 30000);
   setInterval(checkTokenStatus, 60000);
   setInterval(checkPrinterStatus, 15000);
+  
+  // Atualizar IP a cada 1 minuto (caso mude)
+  setInterval(getLocalIP, 60000);
 });

@@ -36,6 +36,40 @@ function registerAppHandlers() {
   });
 
   // Updates agora são gerenciados automaticamente pelo update-electron-app
+
+  // Obter IP local da máquina
+  ipcMain.handle('app:getLocalIP', () => {
+    try {
+      const interfaces = os.networkInterfaces();
+      let localIP = 'localhost';
+      
+      // Procurar por um IP IPv4 não-localhost
+      for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+          // Pular interfaces internas e IPv6
+          if (iface.family === 'IPv4' && !iface.internal) {
+            localIP = iface.address;
+            break;
+          }
+        }
+        if (localIP !== 'localhost') break;
+      }
+      
+      return { 
+        success: true, 
+        ip: localIP,
+        hostname: os.hostname(),
+        port: 8547
+      };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message,
+        ip: 'localhost',
+        port: 8547
+      };
+    }
+  });
 }
 
 module.exports = { registerAppHandlers };

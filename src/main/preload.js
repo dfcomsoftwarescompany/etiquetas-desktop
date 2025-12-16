@@ -24,7 +24,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ==================== App ====================
   app: {
     getVersion: () => ipcRenderer.invoke('app:version'),
-    getSystemInfo: () => ipcRenderer.invoke('app:systemInfo')
+    getSystemInfo: () => ipcRenderer.invoke('app:systemInfo'),
+    getLocalIP: () => ipcRenderer.invoke('app:getLocalIP')
   },
 
   // ==================== API Externa ====================
