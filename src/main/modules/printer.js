@@ -170,7 +170,7 @@ class PrinterManager {
     // ========================================
     // QR CODE (centralizado)
     // ========================================
-    const qrSize = 115;
+    const qrSize = 135;
     const qrCanvas = createCanvas(qrSize, qrSize);
     await QRCode.toCanvas(qrCanvas, codigo, {
       width: qrSize,
