@@ -140,6 +140,8 @@ class PrinterManager {
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
     const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || null;
+    const produtoNovo = labelData.produto_novo === true;
+    const evento = labelData.evento || null;
 
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
@@ -151,12 +153,54 @@ class PrinterManager {
     const centerX = this.config.labelWidthPx / 2;
     
     // Área de preço (embaixo)
-    const areaPrecoAltura = 105;
+    const areaPrecoAltura = 80;
     const areaPrecoY = this.config.labelHeightPx - areaPrecoAltura;
     
     // Fundo branco
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, this.config.labelWidthPx, this.config.labelHeightPx);
+
+    // ========================================
+    // LATERAL ESQUERDA - Data de Impressão (vertical)
+    // ========================================
+    const dataImpressao = new Date();
+    const mes = String(dataImpressao.getMonth() + 1).padStart(2, '0');
+    const dia = String(dataImpressao.getDate()).padStart(2, '0');
+    const ano = String(dataImpressao.getFullYear()).slice(-2);
+    const dataFormatada = `${mes}${dia}${ano}`;
+    
+    ctx.save();
+    ctx.translate(6, this.config.labelHeightPx / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#666666';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(dataFormatada, 0, 0);
+    ctx.restore();
+
+    // ========================================
+    // LATERAL DIREITA - Faixa "PRODUTO NOVO" (vertical)
+    // ========================================
+    if (produtoNovo) {
+      const faixaLargura = 20;
+      const faixaX = this.config.labelWidthPx - faixaLargura;
+      
+      // Fundo verde vibrante
+      ctx.fillStyle = '#00C853';
+      ctx.fillRect(faixaX, 0, faixaLargura, this.config.labelHeightPx);
+      
+      // Texto vertical "PRODUTO NOVO"
+      ctx.save();
+      ctx.translate(faixaX + faixaLargura / 2, this.config.labelHeightPx / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('PRODUTO NOVO', 0, 0);
+      ctx.restore();
+    }
 
     // ========================================
     // HEADER - Logo DFCOM
@@ -168,9 +212,9 @@ class PrinterManager {
     ctx.fillText('DFCOM', centerX, 8);
 
     // ========================================
-    // QR CODE (centralizado)
+    // QR CODE (centralizado, com margem superior maior)
     // ========================================
-    const qrSize = 135;
+    const qrSize = 120;
     const qrCanvas = createCanvas(qrSize, qrSize);
     await QRCode.toCanvas(qrCanvas, codigo, {
       width: qrSize,
@@ -180,7 +224,7 @@ class PrinterManager {
     });
 
     const qrX = Math.floor((this.config.labelWidthPx - qrSize) / 2);
-    const qrY = 40;
+    const qrY = 50;
     ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
     // ========================================
@@ -218,17 +262,15 @@ class PrinterManager {
     }
 
     // ========================================
-      // DESCRIÇÃO DO PRODUTO (fonte maior)
-      // ========================================
-     ctx.font = 'bold 20px Arial';
+    // DESCRIÇÃO DO PRODUTO (quebra automática, SEM truncamento)
+    // ========================================
+    ctx.font = 'bold 16px Arial';
     const maxWidth = this.config.labelWidthPx - (margin * 2);
     const palavras = texto.split(' ');
     let linha = '';
-    const linhaAltura = 19;
-    let linhasDesenhadas = 0;
-    const maxLinhas = 2;
+    const linhaAltura = 17;
 
-    for (let i = 0; i < palavras.length && linhasDesenhadas < maxLinhas; i++) {
+    for (let i = 0; i < palavras.length; i++) {
       const testeLinha = linha + palavras[i] + ' ';
       const metricas = ctx.measureText(testeLinha);
       
@@ -236,36 +278,73 @@ class PrinterManager {
         ctx.fillText(linha.trim(), centerX, currentY);
         linha = palavras[i] + ' ';
         currentY += linhaAltura;
-        linhasDesenhadas++;
       } else {
         linha = testeLinha;
       }
     }
     
-    if (linha.trim() !== '' && linhasDesenhadas < maxLinhas) {
+    if (linha.trim() !== '') {
       ctx.fillText(linha.trim(), centerX, currentY);
-      currentY += linhaAltura;
+      currentY += linhaAltura + 4;
     }
 
     // ========================================
     // TAMANHO (fonte maior)
     // ========================================
     if (tamanho) {
-      currentY += 4;
-      ctx.font = 'bold 18px Arial';
+      currentY += 2;
+      ctx.font = 'bold 16px Arial';
       ctx.fillText(`TAM: ${tamanho}`, centerX, currentY);
-      currentY += 22;
+      currentY += 20;
+    }
+
+    // ========================================
+    // LINHA DE EVENTO (fonte maior e destacada)
+    // ========================================
+    if (evento) {
+      currentY += 4;
+      
+      // Fundo amarelo para destaque
+      const eventoBoxH = 28;
+      const eventoBoxW = this.config.labelWidthPx - (margin * 2);
+      const eventoBoxX = margin;
+      
+      ctx.fillStyle = '#FFF9C4';
+      ctx.fillRect(eventoBoxX, currentY, eventoBoxW, eventoBoxH);
+      
+      // Borda amarela escura
+      ctx.strokeStyle = '#F9A825';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(eventoBoxX, currentY, eventoBoxW, eventoBoxH);
+
+      // Texto do evento
+      ctx.fillStyle = '#F57F17';
+      ctx.font = 'bold 11px Arial';
+      ctx.textBaseline = 'middle';
+      
+      // Quebra texto do evento se necessário
+      const eventoMaxWidth = eventoBoxW - 8;
+      const eventoTexto = evento.toString();
+      const eventoMetrics = ctx.measureText(eventoTexto);
+      
+      if (eventoMetrics.width > eventoMaxWidth) {
+        // Texto muito longo, reduz fonte
+        ctx.font = 'bold 9px Arial';
+      }
+      
+      ctx.fillText(eventoTexto, centerX, currentY + eventoBoxH / 2);
+      currentY += eventoBoxH + 6;
     }
 
     // ========================================
     // VALOR GIRA/CRÉDITO (na área de informações)
     // ========================================
     if (valorCredito) {
-      currentY += 8;
+      currentY += 4;
       
       // Fundo verde claro para destaque
       const giraBoxY = currentY;
-      const giraBoxH = 62;
+      const giraBoxH = 50;
       const giraBoxW = this.config.labelWidthPx - (margin * 2);
       const giraBoxX = margin;
       
@@ -279,19 +358,19 @@ class PrinterManager {
 
       // Label "NO GIRA"
       ctx.fillStyle = '#2e7d32';
-      ctx.font = 'bold 12px Arial';
+      ctx.font = 'bold 10px Arial';
       ctx.textBaseline = 'middle';
-      ctx.fillText('NO GIRA', centerX, giraBoxY + 16);
+      ctx.fillText('NO GIRA', centerX, giraBoxY + 12);
 
       // Preço GIRA grande
       const precoGira = this.formatPrice(valorCredito);
       ctx.fillStyle = '#1b5e20';
-      ctx.font = 'bold 34px Arial';
-      ctx.fillText(precoGira, centerX, giraBoxY + 46);
+      ctx.font = 'bold 28px Arial';
+      ctx.fillText(precoGira, centerX, giraBoxY + 35);
     }
 
     // ========================================
-    // ÁREA DE PREÇO À VISTA (embaixo)
+    // ÁREA DE PREÇO À VISTA (embaixo, centralizado)
     // ========================================
     ctx.fillStyle = '#f0f0f0';
     ctx.fillRect(0, areaPrecoY, this.config.labelWidthPx, areaPrecoAltura);
@@ -301,15 +380,10 @@ class PrinterManager {
 
     const precoTexto = this.formatPrice(preco);
     
-    // Label "À VISTA" (mais pro topo)
-    ctx.fillStyle = '#444444';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText('À VISTA', centerX, areaPrecoY + 12);
-
-    // Valor grande (mais pro topo)
+    // Valor grande e centralizado
     ctx.fillStyle = 'black';
-    ctx.font = 'bold 50px Arial';
-    ctx.fillText(precoTexto, centerX, areaPrecoY + 45);
+    ctx.font = 'bold 44px Arial';
+    ctx.fillText(precoTexto, centerX, areaPrecoY + areaPrecoAltura / 2);
 
     return canvas;
   }
