@@ -228,19 +228,19 @@ class PrinterManager {
     ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
     // ========================================
-    // CÓDIGO DE BARRAS (fonte maior)
+    // CÓDIGO DE BARRAS (fonte maior para digitação manual)
     // ========================================
     let currentY = qrY + qrSize + 10;
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    // Ajusta fonte baseado no tamanho do código
+    // Ajusta fonte baseado no tamanho do código (fontes maiores)
     const codigoLen = codigo.length;
-    let codigoFontSize = 16;
-    if (codigoLen > 20) codigoFontSize = 12;
-    else if (codigoLen > 15) codigoFontSize = 13;
-    else if (codigoLen > 10) codigoFontSize = 14;
+    let codigoFontSize = 20;
+    if (codigoLen > 20) codigoFontSize = 15;
+    else if (codigoLen > 15) codigoFontSize = 17;
+    else if (codigoLen > 10) codigoFontSize = 18;
 
     ctx.font = `bold ${codigoFontSize}px Arial`;
     
