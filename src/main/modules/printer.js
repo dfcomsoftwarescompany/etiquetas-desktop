@@ -175,7 +175,7 @@ class PrinterManager {
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.font = '600 26px Arial';
+    this.autoFitText(ctx, nomeLoja, this.config.labelWidthPx - (margin * 2), 26, 14, '600', 'Arial');
     ctx.fillText(nomeLoja, centerX, margemFuro);
 
     // ========================================
@@ -220,7 +220,7 @@ class PrinterManager {
     // Fundo preto com letra branca
     // ========================================
     if (produtoNovo) {
-      const pnTexto = 'PRODUTO NOVO';
+      const pnTexto = 'NOVO';
       const pnFontSize = 20;
       const pnPadding = 5;
       
@@ -254,27 +254,21 @@ class PrinterManager {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    // Ajusta fonte baseado no tamanho do código
-    const codigoLen = codigo.length;
-    let codigoFontSize = 24;
-    if (codigoLen > 20) codigoFontSize = 20;
-    else if (codigoLen > 15) codigoFontSize = 21;
-    else if (codigoLen > 10) codigoFontSize = 22;
-
-    ctx.font = `normal ${codigoFontSize}px Arial`;
-    
-    // Se código muito longo, quebra em 2 linhas
+    // Código de barras - fonte padrão 24px, quebra linha se necessário
     const maxCodigoWidth = this.config.labelWidthPx - (margin * 2);
+    const codigoFontSize = 24;
+    ctx.font = `normal ${codigoFontSize}px Arial`;
     const codigoMetrics = ctx.measureText(codigo);
     
-    if (codigoMetrics.width > maxCodigoWidth && codigoLen > 15) {
-      const meio = Math.ceil(codigoLen / 2);
+    if (codigoMetrics.width > maxCodigoWidth) {
+      // Quebra em 2 linhas mantendo fonte padrão
+      const meio = Math.ceil(codigo.length / 2);
       const linha1 = codigo.substring(0, meio);
       const linha2 = codigo.substring(meio);
       ctx.fillText(linha1, centerX, currentY);
-      currentY += codigoFontSize + 3;
+      currentY += codigoFontSize + 2;
       ctx.fillText(linha2, centerX, currentY);
-      currentY += codigoFontSize + 8;
+      currentY += codigoFontSize + 6;
     } else {
       ctx.fillText(codigo, centerX, currentY);
       currentY += codigoFontSize + 10;
@@ -290,13 +284,15 @@ class PrinterManager {
     currentY += 8;
 
     // ========================================
-    // DESCRIÇÃO DO PRODUTO (quebra automática, SEM truncamento)
+    // DESCRIÇÃO DO PRODUTO (quebra automática, fonte dinâmica)
     // ========================================
-    ctx.font = '500 20px Arial';
     const maxWidth = this.config.labelWidthPx - (margin * 2);
+    // Se texto muito longo (muitas palavras), diminui fonte
+    const descFontSize = texto.length > 60 ? 16 : texto.length > 40 ? 18 : 20;
+    ctx.font = `500 ${descFontSize}px Arial`;
     const palavras = texto.split(' ');
     let linha = '';
-    const linhaAltura = 22;
+    const linhaAltura = descFontSize + 2;
 
     for (let i = 0; i < palavras.length; i++) {
       const testeLinha = linha + palavras[i] + ' ';
@@ -339,23 +335,18 @@ class PrinterManager {
     const areaValoresY = areaPrecoY + eventoH;
     const areaValoresH = areaPrecoAltura - eventoH;
 
-    // ========== EVENTO (topo da área de preço, fundo preto) ==========
+    // ========== EVENTO (topo da área de preço, fundo branco, letra preta) ==========
     if (evento) {
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, areaPrecoY, this.config.labelWidthPx, eventoH);
       
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = '600 14px Helvetica, sans-serif';
+      ctx.fillStyle = '#000000';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
       const eventoTexto = evento.toString();
       const eventoMaxWidth = this.config.labelWidthPx - (margin * 4);
-      const eventoMetrics = ctx.measureText(eventoTexto);
-      
-      if (eventoMetrics.width > eventoMaxWidth) {
-        ctx.font = '600 11px Helvetica, sans-serif';
-      }
+      this.autoFitText(ctx, eventoTexto, eventoMaxWidth, 14, 8, '600', 'Helvetica, sans-serif');
       
       ctx.fillText(eventoTexto, centerX, areaPrecoY + eventoH / 2);
     }
@@ -363,7 +354,7 @@ class PrinterManager {
     // ========== VALORES ==========
     if (valorCredito) {
       const precoGira = this.formatPrice(valorCredito);
-      const linhaY = areaValoresY + Math.floor(areaValoresH / 2);
+      const linhaY = areaValoresY + Math.floor(areaValoresH * 0.65);
       
       // PARTE SUPERIOR - Valor à vista
       ctx.textAlign = 'center';
@@ -371,10 +362,11 @@ class PrinterManager {
       
       ctx.fillStyle = '#333';
       ctx.font = '500 16px Helvetica, sans-serif';
-      ctx.fillText('À VISTA', margin + 38, areaValoresY + (linhaY - areaValoresY) / 2);
+      ctx.fillText('PREÇO', margin + 38, areaValoresY + (linhaY - areaValoresY) / 2);
       
       ctx.fillStyle = 'black';
-      ctx.font = '500 30px Helvetica, sans-serif';
+      const precoAreaW = this.config.labelWidthPx - (margin + 90);
+      this.autoFitText(ctx, precoTexto, precoAreaW, 30, 18, '500', 'Helvetica, sans-serif');
       ctx.fillText(precoTexto, centerX + 34, areaValoresY + (linhaY - areaValoresY) / 2);
       
       // LINHA HORIZONTAL DIVISÓRIA (colada)
@@ -385,17 +377,21 @@ class PrinterManager {
       ctx.lineTo(this.config.labelWidthPx - margin, linhaY);
       ctx.stroke();
       
-      // PARTE INFERIOR - Valor condição pagamento (DESTAQUE)
+      // PARTE INFERIOR - Tudo fundo preto, letra branca
       const areaInferiorH = areaPrecoY + areaPrecoAltura - linhaY;
-      ctx.fillStyle = '#e8f5e9';
+      ctx.fillStyle = '#000000';
       ctx.fillRect(margin, linhaY + 1, this.config.labelWidthPx - (margin * 2), areaInferiorH - 1);
       
-      ctx.fillStyle = '#2e7d32';
-      ctx.font = '500 16px Helvetica, sans-serif';
-      ctx.fillText(condicaoPagamento, margin + 38, linhaY + areaInferiorH / 2);
+      // Condição de pagamento (letra branca sobre fundo preto, fonte dinâmica)
+      ctx.fillStyle = '#FFFFFF';
+      const condMaxW = (this.config.labelWidthPx / 2) - margin - 10;
+      this.autoFitText(ctx, condicaoPagamento, condMaxW, 18, 10, '600', 'Arial');
+      ctx.fillText(condicaoPagamento, margin + 46, linhaY + areaInferiorH / 2);
       
-      ctx.fillStyle = '#1b5e20';
-      ctx.font = '500 30px Helvetica, sans-serif';
+      // Valor crédito (letra branca sobre fundo preto, fonte dinâmica)
+      ctx.fillStyle = '#FFFFFF';
+      const giraAreaW = (this.config.labelWidthPx / 2) - margin;
+      this.autoFitText(ctx, precoGira, giraAreaW, 30, 18, '500', 'Helvetica, sans-serif');
       ctx.fillText(precoGira, centerX + 34, linhaY + areaInferiorH / 2);
       
     } else {
@@ -403,11 +399,34 @@ class PrinterManager {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = 'black';
-      ctx.font = '500 40px Helvetica, sans-serif';
+      this.autoFitText(ctx, precoTexto, this.config.labelWidthPx - (margin * 4), 40, 20, '500', 'Helvetica, sans-serif');
       ctx.fillText(precoTexto, centerX, areaValoresY + areaValoresH / 2);
     }
 
     return canvas;
+  }
+
+  /**
+   * Ajusta fonte dinamicamente para caber no espaço disponível
+   * @param {CanvasRenderingContext2D} ctx - Contexto do canvas
+   * @param {string} text - Texto a ser renderizado
+   * @param {number} maxWidth - Largura máxima disponível
+   * @param {number} idealSize - Tamanho ideal da fonte
+   * @param {number} minSize - Tamanho mínimo da fonte
+   * @param {string} weight - Peso da fonte (ex: '500', '600', 'normal')
+   * @param {string} family - Família da fonte (ex: 'Arial', 'Helvetica, sans-serif')
+   * @returns {number} - Tamanho da fonte aplicado
+   */
+  autoFitText(ctx, text, maxWidth, idealSize, minSize = 8, weight = '500', family = 'Helvetica, sans-serif') {
+    let fontSize = idealSize;
+    ctx.font = `${weight} ${fontSize}px ${family}`;
+    
+    while (ctx.measureText(text).width > maxWidth && fontSize > minSize) {
+      fontSize -= 1;
+      ctx.font = `${weight} ${fontSize}px ${family}`;
+    }
+    
+    return fontSize;
   }
 
   /**
