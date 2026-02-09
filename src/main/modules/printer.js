@@ -139,9 +139,12 @@ class PrinterManager {
     const codigo = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
-    const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || null;
+    const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || labelData.valor_giracredito || null;
+    const nomeLoja = (labelData.nome_loja || labelData.nomeLoja || 'DFCOM').toString();
+    const condicaoPagamento = (labelData.condicao_pagamento || labelData.condicaoPagamento || 'NO GIRA').toString();
     const produtoNovo = labelData.produto_novo === true;
     const evento = labelData.evento || null;
+    const dataProduto = labelData.data || null;
 
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
@@ -153,66 +156,29 @@ class PrinterManager {
     const centerX = this.config.labelWidthPx / 2;
     
     // Área de preço (embaixo)
-    const areaPrecoAltura = 80;
-    const areaPrecoY = this.config.labelHeightPx - areaPrecoAltura;
+    const areaPrecoAltura = 100;
+    const areaPrecoY = this.config.labelHeightPx - areaPrecoAltura - 25;
     
     // Fundo branco
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, this.config.labelWidthPx, this.config.labelHeightPx);
 
-    // ========================================
-    // LATERAL ESQUERDA - Data de Impressão (vertical)
-    // ========================================
-    const dataImpressao = new Date();
-    const mes = String(dataImpressao.getMonth() + 1).padStart(2, '0');
-    const dia = String(dataImpressao.getDate()).padStart(2, '0');
-    const ano = String(dataImpressao.getFullYear()).slice(-2);
-    const dataFormatada = `${mes}${dia}${ano}`;
-    
-    ctx.save();
-    ctx.translate(6, this.config.labelHeightPx / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillStyle = '#666666';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(dataFormatada, 0, 0);
-    ctx.restore();
+    // Data será renderizada ao lado do QR Code
+
+    // Produto novo será renderizado ao lado direito do QR Code
 
     // ========================================
-    // LATERAL DIREITA - Faixa "PRODUTO NOVO" (vertical)
+    // HEADER - Logo DFCOM (abaixo do furo da etiqueta)
     // ========================================
-    if (produtoNovo) {
-      const faixaLargura = 20;
-      const faixaX = this.config.labelWidthPx - faixaLargura;
-      
-      // Fundo verde vibrante
-      ctx.fillStyle = '#00C853';
-      ctx.fillRect(faixaX, 0, faixaLargura, this.config.labelHeightPx);
-      
-      // Texto vertical "PRODUTO NOVO"
-      ctx.save();
-      ctx.translate(faixaX + faixaLargura / 2, this.config.labelHeightPx / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillStyle = 'white';
-      ctx.font = 'bold 11px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('PRODUTO NOVO', 0, 0);
-      ctx.restore();
-    }
-
-    // ========================================
-    // HEADER - Logo DFCOM
-    // ========================================
+    const margemFuro = 28; // Margem para o furo de pendurar no topo
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.font = 'bold 26px Arial';
-    ctx.fillText('DFCOM', centerX, 8);
+    ctx.font = '600 26px Arial';
+    ctx.fillText(nomeLoja, centerX, margemFuro);
 
     // ========================================
-    // QR CODE (centralizado, com margem superior maior)
+    // QR CODE (centralizado, abaixo do logo)
     // ========================================
     const qrSize = 120;
     const qrCanvas = createCanvas(qrSize, qrSize);
@@ -224,8 +190,60 @@ class PrinterManager {
     });
 
     const qrX = Math.floor((this.config.labelWidthPx - qrSize) / 2);
-    const qrY = 50;
+    const qrY = margemFuro + 36;
     ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+    // ========================================
+    // DATA DO PRODUTO - Vertical ao lado esquerdo do QR Code
+    // Formato: DDYYMM (ex: 112612 = dia 11, ano 2026, mês 12)
+    // ========================================
+    const dataParaExibir = dataProduto || new Date().toISOString();
+    const dataObj = new Date(dataParaExibir);
+    const dia = String(dataObj.getDate()).padStart(2, '0');
+    const ano = String(dataObj.getFullYear()).slice(-2);
+    const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+    const dataFormatada = `${dia}${ano}${mes}`;
+    
+    ctx.save();
+    ctx.translate(qrX - 22, qrY + qrSize / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = '#444444';
+    ctx.font = 'normal 30px Helvetica, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(dataFormatada, 0, 0);
+    ctx.restore();
+
+    // ========================================
+    // PRODUTO NOVO - Vertical ao lado direito do QR Code
+    // Fundo preto com letra branca
+    // ========================================
+    if (produtoNovo) {
+      const pnTexto = 'PRODUTO NOVO';
+      const pnFontSize = 20;
+      const pnPadding = 5;
+      
+      ctx.save();
+      ctx.translate(qrX + qrSize + 32, qrY + qrSize / 4);
+      ctx.rotate(Math.PI / 2);
+      
+      // Medir texto para desenhar fundo
+      ctx.font = `600 ${pnFontSize}px Helvetica, sans-serif`;
+      const pnMetrics = ctx.measureText(pnTexto);
+      const pnBoxW = pnMetrics.width + (pnPadding * 2);
+      const pnBoxH = pnFontSize + (pnPadding * 2);
+      
+      // Fundo preto
+      ctx.fillStyle = 'black';
+      ctx.fillRect(-pnBoxW / 2, -pnBoxH / 2, pnBoxW, pnBoxH);
+      
+      // Texto branco
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pnTexto, 0, 0);
+      ctx.restore();
+    }
 
     // ========================================
     // CÓDIGO DE BARRAS (fonte maior para digitação manual)
@@ -235,14 +253,14 @@ class PrinterManager {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    // Ajusta fonte baseado no tamanho do código (fontes maiores)
+    // Ajusta fonte baseado no tamanho do código
     const codigoLen = codigo.length;
-    let codigoFontSize = 20;
-    if (codigoLen > 20) codigoFontSize = 15;
-    else if (codigoLen > 15) codigoFontSize = 17;
-    else if (codigoLen > 10) codigoFontSize = 18;
+    let codigoFontSize = 24;
+    if (codigoLen > 20) codigoFontSize = 20;
+    else if (codigoLen > 15) codigoFontSize = 21;
+    else if (codigoLen > 10) codigoFontSize = 22;
 
-    ctx.font = `bold ${codigoFontSize}px Arial`;
+    ctx.font = `normal ${codigoFontSize}px Arial`;
     
     // Se código muito longo, quebra em 2 linhas
     const maxCodigoWidth = this.config.labelWidthPx - (margin * 2);
@@ -261,14 +279,23 @@ class PrinterManager {
       currentY += codigoFontSize + 10;
     }
 
+    // Linha separadora entre código de barras e descrição
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(margin, currentY);
+    ctx.lineTo(this.config.labelWidthPx - margin, currentY);
+    ctx.stroke();
+    currentY += 8;
+
     // ========================================
     // DESCRIÇÃO DO PRODUTO (quebra automática, SEM truncamento)
     // ========================================
-    ctx.font = 'bold 16px Arial';
+    ctx.font = '500 20px Arial';
     const maxWidth = this.config.labelWidthPx - (margin * 2);
     const palavras = texto.split(' ');
     let linha = '';
-    const linhaAltura = 17;
+    const linhaAltura = 22;
 
     for (let i = 0; i < palavras.length; i++) {
       const testeLinha = linha + palavras[i] + ' ';
@@ -293,9 +320,9 @@ class PrinterManager {
     // ========================================
     if (tamanho) {
       currentY += 2;
-      ctx.font = 'bold 16px Arial';
+      ctx.font = '500 20px Arial';
       ctx.fillText(`TAM: ${tamanho}`, centerX, currentY);
-      currentY += 20;
+      currentY += 24;
     }
 
     // ========================================
@@ -319,7 +346,7 @@ class PrinterManager {
 
       // Texto do evento
       ctx.fillStyle = '#F57F17';
-      ctx.font = 'bold 11px Arial';
+      ctx.font = '600 11px Arial';
       ctx.textBaseline = 'middle';
       
       // Quebra texto do evento se necessário
@@ -329,7 +356,7 @@ class PrinterManager {
       
       if (eventoMetrics.width > eventoMaxWidth) {
         // Texto muito longo, reduz fonte
-        ctx.font = 'bold 9px Arial';
+        ctx.font = '600 9px Arial';
       }
       
       ctx.fillText(eventoTexto, centerX, currentY + eventoBoxH / 2);
@@ -337,53 +364,61 @@ class PrinterManager {
     }
 
     // ========================================
-    // VALOR GIRA/CRÉDITO (na área de informações)
-    // ========================================
-    if (valorCredito) {
-      currentY += 4;
-      
-      // Fundo verde claro para destaque
-      const giraBoxY = currentY;
-      const giraBoxH = 50;
-      const giraBoxW = this.config.labelWidthPx - (margin * 2);
-      const giraBoxX = margin;
-      
-      ctx.fillStyle = '#e8f5e9';
-      ctx.fillRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
-      
-      // Borda verde
-      ctx.strokeStyle = '#4caf50';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
-
-      // Label "NO GIRA"
-      ctx.fillStyle = '#2e7d32';
-      ctx.font = 'bold 10px Arial';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('NO GIRA', centerX, giraBoxY + 12);
-
-      // Preço GIRA grande
-      const precoGira = this.formatPrice(valorCredito);
-      ctx.fillStyle = '#1b5e20';
-      ctx.font = 'bold 28px Arial';
-      ctx.fillText(precoGira, centerX, giraBoxY + 35);
-    }
-
-    // ========================================
-    // ÁREA DE PREÇO À VISTA (embaixo, centralizado)
+    // ÁREA DE PREÇO (embaixo)
     // ========================================
     ctx.fillStyle = '#f0f0f0';
     ctx.fillRect(0, areaPrecoY, this.config.labelWidthPx, areaPrecoAltura);
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
     const precoTexto = this.formatPrice(preco);
     
-    // Valor grande e centralizado
-    ctx.fillStyle = 'black';
-    ctx.font = 'bold 44px Arial';
-    ctx.fillText(precoTexto, centerX, areaPrecoY + areaPrecoAltura / 2);
+    // Se tem valor de crédito, mostra os dois valores separados por linha horizontal
+    if (valorCredito) {
+      const precoGira = this.formatPrice(valorCredito);
+      const metadeAltura = areaPrecoAltura / 2;
+      
+      // ========== PARTE SUPERIOR - Valor à vista ==========
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Label "À VISTA" + valor na mesma linha
+      ctx.fillStyle = '#333';
+      ctx.font = '500 14px Helvetica, sans-serif';
+      ctx.fillText('À VISTA', margin + 38, areaPrecoY + metadeAltura / 2);
+      
+      ctx.fillStyle = 'black';
+      ctx.font = '500 36px Helvetica, sans-serif';
+      ctx.fillText(precoTexto, centerX + 30, areaPrecoY + metadeAltura / 2);
+      
+      // ========== LINHA HORIZONTAL DIVISÓRIA ==========
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(margin, areaPrecoY + metadeAltura);
+      ctx.lineTo(this.config.labelWidthPx - margin, areaPrecoY + metadeAltura);
+      ctx.stroke();
+      
+      // ========== PARTE INFERIOR - Valor condição pagamento (DESTAQUE) ==========
+      // Fundo verde claro para destaque
+      ctx.fillStyle = '#e8f5e9';
+      ctx.fillRect(margin, areaPrecoY + metadeAltura + 2, this.config.labelWidthPx - (margin * 2), metadeAltura - 4);
+      
+      // Label condição de pagamento + valor na mesma linha
+      ctx.fillStyle = '#2e7d32';
+      ctx.font = '500 14px Helvetica, sans-serif';
+      ctx.fillText(condicaoPagamento, margin + 38, areaPrecoY + metadeAltura + (metadeAltura / 2));
+      
+      ctx.fillStyle = '#1b5e20';
+      ctx.font = '500 36px Helvetica, sans-serif';
+      ctx.fillText(precoGira, centerX + 30, areaPrecoY + metadeAltura + (metadeAltura / 2));
+      
+    } else {
+      // ========== APENAS VALOR À VISTA (centralizado) ==========
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'black';
+      ctx.font = '500 44px Helvetica, sans-serif';
+      ctx.fillText(precoTexto, centerX, areaPrecoY + areaPrecoAltura / 2);
+    }
 
     return canvas;
   }

@@ -75,11 +75,26 @@ X-Etiquetas-Token: seu-token-aqui
       "qtd": 1,
       "codbarras": "7891234567890",
       "valor": "25.90",
-      "tamanho": "M"
+      "valor_giracredito": "19.90",
+      "tamanho": "M",
+      "data": "2026-12-11",
+      "produto_novo": true,
+      "evento": "BLACK FRIDAY"
     }
   ]
 }
 ```
+
+**Campos Disponíveis:**
+- `descricao` (obrigatório): Nome do produto
+- `qtd` (obrigatório): Quantidade de etiquetas
+- `codbarras` (obrigatório): Código de barras (gera QR Code)
+- `valor` (obrigatório): Preço à vista
+- `valor_giracredito` (opcional): Preço especial GIRA (exibido em coluna à direita com destaque verde)
+- `tamanho` (opcional): Tamanho do produto (P, M, G, GG, 38, 40, etc)
+- `data` (opcional): Data do produto no formato ISO (ex: "2026-12-11"). Será exibida como DDYYMM (112612). Se não informada, usa data atual.
+- `produto_novo` (opcional): `true` = Exibe faixa verde "PRODUTO NOVO" na lateral direita
+- `evento` (opcional): Texto de destaque (ex: "QUEIMA DE ESTOQUE", "BLACK FRIDAY")
 
 **Body (Payload Completo do Sistema de Avaliação):**
 ```json
@@ -95,17 +110,31 @@ X-Etiquetas-Token: seu-token-aqui
         "descricao": "ACESSORIOS - BOLSINHA - SIMPLES - PADRAO - OTIMO",
         "qtd": 1,
         "codbarras": "0095025104001500001200020",
-        "valor": "15",
-        "valor_giracredito": "12",
-        "tamanho": "P"
+        "valor": "49.90",
+        "valor_giracredito": "39.90",
+        "tamanho": "U",
+        "data": "2026-12-11",
+        "produto_novo": true,
+        "evento": "SUPER PROMO - 20% OFF"
       },
       {
-        "descricao": "CALCA JEANS - MASCULINA - SLIM - AZUL - BOM",
+        "descricao": "CAMISETA POLO AZUL MARINHO",
         "qtd": 2,
-        "codbarras": "0095001234567890001500012",
-        "valor": "89.90",
-        "valor_giracredito": "75",
-        "tamanho": "42"
+        "codbarras": "0095025104001500001200021",
+        "valor": "79.90",
+        "valor_giracredito": "69.90",
+        "tamanho": "M",
+        "data": "2026-11-28"
+      },
+      {
+        "descricao": "BERMUDA JEANS PRETA TRADICIONAL",
+        "qtd": 1,
+        "codbarras": "0095025104001500001200022",
+        "valor": "129.90",
+        "valor_giracredito": "109.90",
+        "tamanho": "42",
+        "data": "2026-12-05",
+        "evento": "QUEIMA DE ESTOQUE"
       }
     ]
   }
