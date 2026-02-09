@@ -146,6 +146,7 @@ class PrinterManager {
     const evento = labelData.evento || null;
     const dataProduto = labelData.data || null;
 
+
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
 
@@ -155,8 +156,8 @@ class PrinterManager {
     const margin = 8;
     const centerX = this.config.labelWidthPx / 2;
     
-    // Área de preço (embaixo)
-    const areaPrecoAltura = 100;
+    // Área de preço + evento (embaixo)
+    const areaPrecoAltura = 120;
     const areaPrecoY = this.config.labelHeightPx - areaPrecoAltura - 25;
     
     // Fundo branco
@@ -326,98 +327,84 @@ class PrinterManager {
     }
 
     // ========================================
-    // LINHA DE EVENTO (fonte maior e destacada)
-    // ========================================
-    if (evento) {
-      currentY += 4;
-      
-      // Fundo amarelo para destaque
-      const eventoBoxH = 28;
-      const eventoBoxW = this.config.labelWidthPx - (margin * 2);
-      const eventoBoxX = margin;
-      
-      ctx.fillStyle = '#FFF9C4';
-      ctx.fillRect(eventoBoxX, currentY, eventoBoxW, eventoBoxH);
-      
-      // Borda amarela escura
-      ctx.strokeStyle = '#F9A825';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(eventoBoxX, currentY, eventoBoxW, eventoBoxH);
-
-      // Texto do evento
-      ctx.fillStyle = '#F57F17';
-      ctx.font = '600 11px Arial';
-      ctx.textBaseline = 'middle';
-      
-      // Quebra texto do evento se necessário
-      const eventoMaxWidth = eventoBoxW - 8;
-      const eventoTexto = evento.toString();
-      const eventoMetrics = ctx.measureText(eventoTexto);
-      
-      if (eventoMetrics.width > eventoMaxWidth) {
-        // Texto muito longo, reduz fonte
-        ctx.font = '600 9px Arial';
-      }
-      
-      ctx.fillText(eventoTexto, centerX, currentY + eventoBoxH / 2);
-      currentY += eventoBoxH + 6;
-    }
-
-    // ========================================
-    // ÁREA DE PREÇO (embaixo)
+    // ÁREA DE PREÇO + EVENTO (embaixo)
     // ========================================
     ctx.fillStyle = '#f0f0f0';
     ctx.fillRect(0, areaPrecoY, this.config.labelWidthPx, areaPrecoAltura);
 
     const precoTexto = this.formatPrice(preco);
     
-    // Se tem valor de crédito, mostra os dois valores separados por linha horizontal
+    // Calcular offset para evento dentro da área
+    const eventoH = evento ? 18 : 0;
+    const areaValoresY = areaPrecoY + eventoH;
+    const areaValoresH = areaPrecoAltura - eventoH;
+
+    // ========== EVENTO (topo da área de preço, fundo preto) ==========
+    if (evento) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, areaPrecoY, this.config.labelWidthPx, eventoH);
+      
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '600 14px Helvetica, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      const eventoTexto = evento.toString();
+      const eventoMaxWidth = this.config.labelWidthPx - (margin * 4);
+      const eventoMetrics = ctx.measureText(eventoTexto);
+      
+      if (eventoMetrics.width > eventoMaxWidth) {
+        ctx.font = '600 11px Helvetica, sans-serif';
+      }
+      
+      ctx.fillText(eventoTexto, centerX, areaPrecoY + eventoH / 2);
+    }
+
+    // ========== VALORES ==========
     if (valorCredito) {
       const precoGira = this.formatPrice(valorCredito);
-      const metadeAltura = areaPrecoAltura / 2;
+      const linhaY = areaValoresY + Math.floor(areaValoresH / 2);
       
-      // ========== PARTE SUPERIOR - Valor à vista ==========
+      // PARTE SUPERIOR - Valor à vista
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // Label "À VISTA" + valor na mesma linha
       ctx.fillStyle = '#333';
-      ctx.font = '500 14px Helvetica, sans-serif';
-      ctx.fillText('À VISTA', margin + 38, areaPrecoY + metadeAltura / 2);
+      ctx.font = '500 16px Helvetica, sans-serif';
+      ctx.fillText('À VISTA', margin + 38, areaValoresY + (linhaY - areaValoresY) / 2);
       
       ctx.fillStyle = 'black';
-      ctx.font = '500 36px Helvetica, sans-serif';
-      ctx.fillText(precoTexto, centerX + 30, areaPrecoY + metadeAltura / 2);
+      ctx.font = '500 30px Helvetica, sans-serif';
+      ctx.fillText(precoTexto, centerX + 34, areaValoresY + (linhaY - areaValoresY) / 2);
       
-      // ========== LINHA HORIZONTAL DIVISÓRIA ==========
+      // LINHA HORIZONTAL DIVISÓRIA (colada)
       ctx.strokeStyle = '#999';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(margin, areaPrecoY + metadeAltura);
-      ctx.lineTo(this.config.labelWidthPx - margin, areaPrecoY + metadeAltura);
+      ctx.moveTo(margin, linhaY);
+      ctx.lineTo(this.config.labelWidthPx - margin, linhaY);
       ctx.stroke();
       
-      // ========== PARTE INFERIOR - Valor condição pagamento (DESTAQUE) ==========
-      // Fundo verde claro para destaque
+      // PARTE INFERIOR - Valor condição pagamento (DESTAQUE)
+      const areaInferiorH = areaPrecoY + areaPrecoAltura - linhaY;
       ctx.fillStyle = '#e8f5e9';
-      ctx.fillRect(margin, areaPrecoY + metadeAltura + 2, this.config.labelWidthPx - (margin * 2), metadeAltura - 4);
+      ctx.fillRect(margin, linhaY + 1, this.config.labelWidthPx - (margin * 2), areaInferiorH - 1);
       
-      // Label condição de pagamento + valor na mesma linha
       ctx.fillStyle = '#2e7d32';
-      ctx.font = '500 14px Helvetica, sans-serif';
-      ctx.fillText(condicaoPagamento, margin + 38, areaPrecoY + metadeAltura + (metadeAltura / 2));
+      ctx.font = '500 16px Helvetica, sans-serif';
+      ctx.fillText(condicaoPagamento, margin + 38, linhaY + areaInferiorH / 2);
       
       ctx.fillStyle = '#1b5e20';
-      ctx.font = '500 36px Helvetica, sans-serif';
-      ctx.fillText(precoGira, centerX + 30, areaPrecoY + metadeAltura + (metadeAltura / 2));
+      ctx.font = '500 30px Helvetica, sans-serif';
+      ctx.fillText(precoGira, centerX + 34, linhaY + areaInferiorH / 2);
       
     } else {
-      // ========== APENAS VALOR À VISTA (centralizado) ==========
+      // APENAS VALOR À VISTA (centralizado)
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = 'black';
-      ctx.font = '500 44px Helvetica, sans-serif';
-      ctx.fillText(precoTexto, centerX, areaPrecoY + areaPrecoAltura / 2);
+      ctx.font = '500 40px Helvetica, sans-serif';
+      ctx.fillText(precoTexto, centerX, areaValoresY + areaValoresH / 2);
     }
 
     return canvas;
