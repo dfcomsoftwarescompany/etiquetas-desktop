@@ -276,7 +276,17 @@ class PrintServer {
         // Tamanho (mantém compatibilidade)
         tamanho: item.tamanho || item.tam || item.size || '',
         // Novo formato: valueStoreCredit | Legado: valor_giracredito, vlrGiracredito
-        valorCredito: item.valueStoreCredit || item.valor_giracredito || item.vlrGiracredito || item.giracredito || null
+        valorCredito: item.valueStoreCredit || item.valor_giracredito || item.vlrGiracredito || item.giracredito || null,
+        // Data do produto
+        data: item.data || null,
+        // Produto novo (boolean)
+        produto_novo: item.produto_novo === true || item.produtoNovo === true,
+        // Evento (string)
+        evento: item.evento || null,
+        // Nome da loja (dinâmico)
+        nome_loja: item.nome_loja || item.nomeLoja || null,
+        // Condição de pagamento (dinâmico)
+        condicao_pagamento: item.condicao_pagamento || item.condicaoPagamento || null
       };
 
       // Adicionar item 'qtd' vezes

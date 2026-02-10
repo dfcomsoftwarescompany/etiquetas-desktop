@@ -139,7 +139,13 @@ class PrinterManager {
     const codigo = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
-    const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || null;
+    const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || labelData.valor_giracredito || null;
+    const nomeLoja = (labelData.nome_loja || labelData.nomeLoja || 'DFCOM').toString();
+    const condicaoPagamento = (labelData.condicao_pagamento || labelData.condicaoPagamento || 'NO GIRA').toString();
+    const produtoNovo = labelData.produto_novo === true;
+    const evento = labelData.evento || null;
+    const dataProduto = labelData.data || null;
+
 
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
@@ -150,27 +156,32 @@ class PrinterManager {
     const margin = 8;
     const centerX = this.config.labelWidthPx / 2;
     
-    // Área de preço (embaixo)
-    const areaPrecoAltura = 105;
-    const areaPrecoY = this.config.labelHeightPx - areaPrecoAltura;
+    // Área de preço + evento (embaixo)
+    const areaPrecoAltura = 120;
+    const areaPrecoY = this.config.labelHeightPx - areaPrecoAltura - 25;
     
     // Fundo branco
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, this.config.labelWidthPx, this.config.labelHeightPx);
 
+    // Data será renderizada ao lado do QR Code
+
+    // Produto novo será renderizado ao lado direito do QR Code
+
     // ========================================
-    // HEADER - Logo DFCOM
+    // HEADER - Logo DFCOM (abaixo do furo da etiqueta)
     // ========================================
+    const margemFuro = 28; // Margem para o furo de pendurar no topo
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.font = 'bold 26px Arial';
-    ctx.fillText('DFCOM', centerX, 8);
+    this.autoFitText(ctx, nomeLoja, this.config.labelWidthPx - (margin * 2), 26, 14, '600', 'Arial');
+    ctx.fillText(nomeLoja, centerX, margemFuro);
 
     // ========================================
-    // QR CODE (centralizado)
+    // QR CODE (centralizado, abaixo do logo)
     // ========================================
-    const qrSize = 135;
+    const qrSize = 120;
     const qrCanvas = createCanvas(qrSize, qrSize);
     await QRCode.toCanvas(qrCanvas, codigo, {
       width: qrSize,
@@ -180,55 +191,110 @@ class PrinterManager {
     });
 
     const qrX = Math.floor((this.config.labelWidthPx - qrSize) / 2);
-    const qrY = 40;
+    const qrY = margemFuro + 36;
     ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
 
     // ========================================
-    // CÓDIGO DE BARRAS (fonte maior)
+    // DATA DO PRODUTO - Vertical ao lado esquerdo do QR Code
+    // Formato: DDYYMM (ex: 112612 = dia 11, ano 2026, mês 12)
+    // ========================================
+    const dataParaExibir = dataProduto || new Date().toISOString();
+    const dataObj = new Date(dataParaExibir);
+    const dia = String(dataObj.getDate()).padStart(2, '0');
+    const ano = String(dataObj.getFullYear()).slice(-2);
+    const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+    const dataFormatada = `${dia}${ano}${mes}`;
+    
+    ctx.save();
+    ctx.translate(qrX - 22, qrY + qrSize / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = '#444444';
+    ctx.font = 'normal 30px Helvetica, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(dataFormatada, 0, 0);
+    ctx.restore();
+
+    // ========================================
+    // PRODUTO NOVO - Vertical ao lado direito do QR Code
+    // Fundo preto com letra branca
+    // ========================================
+    if (produtoNovo) {
+      const pnTexto = 'NOVO';
+      const pnFontSize = 20;
+      const pnPadding = 5;
+      
+      ctx.save();
+      ctx.translate(qrX + qrSize + 32, qrY + qrSize / 4);
+      ctx.rotate(Math.PI / 2);
+      
+      // Medir texto para desenhar fundo
+      ctx.font = `600 ${pnFontSize}px Helvetica, sans-serif`;
+      const pnMetrics = ctx.measureText(pnTexto);
+      const pnBoxW = pnMetrics.width + (pnPadding * 2);
+      const pnBoxH = pnFontSize + (pnPadding * 2);
+      
+      // Fundo preto
+      ctx.fillStyle = 'black';
+      ctx.fillRect(-pnBoxW / 2, -pnBoxH / 2, pnBoxW, pnBoxH);
+      
+      // Texto branco
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(pnTexto, 0, 0);
+      ctx.restore();
+    }
+
+    // ========================================
+    // CÓDIGO DE BARRAS (fonte maior para digitação manual)
     // ========================================
     let currentY = qrY + qrSize + 10;
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    // Ajusta fonte baseado no tamanho do código
-    const codigoLen = codigo.length;
-    let codigoFontSize = 16;
-    if (codigoLen > 20) codigoFontSize = 12;
-    else if (codigoLen > 15) codigoFontSize = 13;
-    else if (codigoLen > 10) codigoFontSize = 14;
-
-    ctx.font = `bold ${codigoFontSize}px Arial`;
-    
-    // Se código muito longo, quebra em 2 linhas
+    // Código de barras - fonte padrão 24px, quebra linha se necessário
     const maxCodigoWidth = this.config.labelWidthPx - (margin * 2);
+    const codigoFontSize = 24;
+    ctx.font = `normal ${codigoFontSize}px Arial`;
     const codigoMetrics = ctx.measureText(codigo);
     
-    if (codigoMetrics.width > maxCodigoWidth && codigoLen > 15) {
-      const meio = Math.ceil(codigoLen / 2);
+    if (codigoMetrics.width > maxCodigoWidth) {
+      // Quebra em 2 linhas mantendo fonte padrão
+      const meio = Math.ceil(codigo.length / 2);
       const linha1 = codigo.substring(0, meio);
       const linha2 = codigo.substring(meio);
       ctx.fillText(linha1, centerX, currentY);
-      currentY += codigoFontSize + 3;
+      currentY += codigoFontSize + 2;
       ctx.fillText(linha2, centerX, currentY);
-      currentY += codigoFontSize + 8;
+      currentY += codigoFontSize + 6;
     } else {
       ctx.fillText(codigo, centerX, currentY);
       currentY += codigoFontSize + 10;
     }
 
+    // Linha separadora entre código de barras e descrição
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(margin, currentY);
+    ctx.lineTo(this.config.labelWidthPx - margin, currentY);
+    ctx.stroke();
+    currentY += 8;
+
     // ========================================
-      // DESCRIÇÃO DO PRODUTO (fonte maior)
-      // ========================================
-     ctx.font = 'bold 20px Arial';
+    // DESCRIÇÃO DO PRODUTO (quebra automática, fonte dinâmica)
+    // ========================================
     const maxWidth = this.config.labelWidthPx - (margin * 2);
+    // Se texto muito longo (muitas palavras), diminui fonte
+    const descFontSize = texto.length > 60 ? 16 : texto.length > 40 ? 18 : 20;
+    ctx.font = `500 ${descFontSize}px Arial`;
     const palavras = texto.split(' ');
     let linha = '';
-    const linhaAltura = 19;
-    let linhasDesenhadas = 0;
-    const maxLinhas = 2;
+    const linhaAltura = descFontSize + 2;
 
-    for (let i = 0; i < palavras.length && linhasDesenhadas < maxLinhas; i++) {
+    for (let i = 0; i < palavras.length; i++) {
       const testeLinha = linha + palavras[i] + ' ';
       const metricas = ctx.measureText(testeLinha);
       
@@ -236,82 +302,131 @@ class PrinterManager {
         ctx.fillText(linha.trim(), centerX, currentY);
         linha = palavras[i] + ' ';
         currentY += linhaAltura;
-        linhasDesenhadas++;
       } else {
         linha = testeLinha;
       }
     }
     
-    if (linha.trim() !== '' && linhasDesenhadas < maxLinhas) {
+    if (linha.trim() !== '') {
       ctx.fillText(linha.trim(), centerX, currentY);
-      currentY += linhaAltura;
+      currentY += linhaAltura + 4;
     }
 
     // ========================================
     // TAMANHO (fonte maior)
     // ========================================
     if (tamanho) {
-      currentY += 4;
-      ctx.font = 'bold 18px Arial';
+      currentY += 2;
+      ctx.font = '500 20px Arial';
       ctx.fillText(`TAM: ${tamanho}`, centerX, currentY);
-      currentY += 22;
+      currentY += 24;
     }
 
     // ========================================
-    // VALOR GIRA/CRÉDITO (na área de informações)
-    // ========================================
-    if (valorCredito) {
-      currentY += 8;
-      
-      // Fundo verde claro para destaque
-      const giraBoxY = currentY;
-      const giraBoxH = 62;
-      const giraBoxW = this.config.labelWidthPx - (margin * 2);
-      const giraBoxX = margin;
-      
-      ctx.fillStyle = '#e8f5e9';
-      ctx.fillRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
-      
-      // Borda verde
-      ctx.strokeStyle = '#4caf50';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(giraBoxX, giraBoxY, giraBoxW, giraBoxH);
-
-      // Label "NO GIRA"
-      ctx.fillStyle = '#2e7d32';
-      ctx.font = 'bold 12px Arial';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('NO GIRA', centerX, giraBoxY + 16);
-
-      // Preço GIRA grande
-      const precoGira = this.formatPrice(valorCredito);
-      ctx.fillStyle = '#1b5e20';
-      ctx.font = 'bold 34px Arial';
-      ctx.fillText(precoGira, centerX, giraBoxY + 46);
-    }
-
-    // ========================================
-    // ÁREA DE PREÇO À VISTA (embaixo)
+    // ÁREA DE PREÇO + EVENTO (embaixo)
     // ========================================
     ctx.fillStyle = '#f0f0f0';
     ctx.fillRect(0, areaPrecoY, this.config.labelWidthPx, areaPrecoAltura);
 
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
     const precoTexto = this.formatPrice(preco);
     
-    // Label "À VISTA" (mais pro topo)
-    ctx.fillStyle = '#444444';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText('À VISTA', centerX, areaPrecoY + 12);
+    // Calcular offset para evento dentro da área
+    const eventoH = evento ? 18 : 0;
+    const areaValoresY = areaPrecoY + eventoH;
+    const areaValoresH = areaPrecoAltura - eventoH;
 
-    // Valor grande (mais pro topo)
-    ctx.fillStyle = 'black';
-    ctx.font = 'bold 50px Arial';
-    ctx.fillText(precoTexto, centerX, areaPrecoY + 45);
+    // ========== EVENTO (topo da área de preço, fundo branco, letra preta) ==========
+    if (evento) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, areaPrecoY, this.config.labelWidthPx, eventoH);
+      
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      const eventoTexto = evento.toString();
+      const eventoMaxWidth = this.config.labelWidthPx - (margin * 4);
+      this.autoFitText(ctx, eventoTexto, eventoMaxWidth, 14, 8, '600', 'Helvetica, sans-serif');
+      
+      ctx.fillText(eventoTexto, centerX, areaPrecoY + eventoH / 2);
+    }
+
+    // ========== VALORES ==========
+    if (valorCredito) {
+      const precoGira = this.formatPrice(valorCredito);
+      const linhaY = areaValoresY + Math.floor(areaValoresH * 0.65);
+      
+      // PARTE SUPERIOR - Valor à vista
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      ctx.fillStyle = '#333';
+      ctx.font = '500 16px Helvetica, sans-serif';
+      ctx.fillText('PREÇO', margin + 38, areaValoresY + (linhaY - areaValoresY) / 2);
+      
+      ctx.fillStyle = 'black';
+      const precoAreaW = this.config.labelWidthPx - (margin + 90);
+      this.autoFitText(ctx, precoTexto, precoAreaW, 30, 18, '500', 'Helvetica, sans-serif');
+      ctx.fillText(precoTexto, centerX + 34, areaValoresY + (linhaY - areaValoresY) / 2);
+      
+      // LINHA HORIZONTAL DIVISÓRIA (colada)
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, linhaY);
+      ctx.lineTo(this.config.labelWidthPx - margin, linhaY);
+      ctx.stroke();
+      
+      // PARTE INFERIOR - Tudo fundo preto, letra branca
+      const areaInferiorH = areaPrecoY + areaPrecoAltura - linhaY;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(margin, linhaY + 1, this.config.labelWidthPx - (margin * 2), areaInferiorH - 1);
+      
+      // Condição de pagamento (letra branca sobre fundo preto, fonte dinâmica)
+      ctx.fillStyle = '#FFFFFF';
+      const condMaxW = (this.config.labelWidthPx / 2) - margin - 10;
+      this.autoFitText(ctx, condicaoPagamento, condMaxW, 18, 10, '600', 'Arial');
+      ctx.fillText(condicaoPagamento, margin + 46, linhaY + areaInferiorH / 2);
+      
+      // Valor crédito (letra branca sobre fundo preto, fonte dinâmica)
+      ctx.fillStyle = '#FFFFFF';
+      const giraAreaW = (this.config.labelWidthPx / 2) - margin;
+      this.autoFitText(ctx, precoGira, giraAreaW, 30, 18, '500', 'Helvetica, sans-serif');
+      ctx.fillText(precoGira, centerX + 34, linhaY + areaInferiorH / 2);
+      
+    } else {
+      // APENAS VALOR À VISTA (centralizado)
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'black';
+      this.autoFitText(ctx, precoTexto, this.config.labelWidthPx - (margin * 4), 40, 20, '500', 'Helvetica, sans-serif');
+      ctx.fillText(precoTexto, centerX, areaValoresY + areaValoresH / 2);
+    }
 
     return canvas;
+  }
+
+  /**
+   * Ajusta fonte dinamicamente para caber no espaço disponível
+   * @param {CanvasRenderingContext2D} ctx - Contexto do canvas
+   * @param {string} text - Texto a ser renderizado
+   * @param {number} maxWidth - Largura máxima disponível
+   * @param {number} idealSize - Tamanho ideal da fonte
+   * @param {number} minSize - Tamanho mínimo da fonte
+   * @param {string} weight - Peso da fonte (ex: '500', '600', 'normal')
+   * @param {string} family - Família da fonte (ex: 'Arial', 'Helvetica, sans-serif')
+   * @returns {number} - Tamanho da fonte aplicado
+   */
+  autoFitText(ctx, text, maxWidth, idealSize, minSize = 8, weight = '500', family = 'Helvetica, sans-serif') {
+    let fontSize = idealSize;
+    ctx.font = `${weight} ${fontSize}px ${family}`;
+    
+    while (ctx.measureText(text).width > maxWidth && fontSize > minSize) {
+      fontSize -= 1;
+      ctx.font = `${weight} ${fontSize}px ${family}`;
+    }
+    
+    return fontSize;
   }
 
   /**
