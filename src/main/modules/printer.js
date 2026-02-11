@@ -136,7 +136,12 @@ class PrinterManager {
   async generateSingleLabel(labelData) {
     // Sanitizar dados com valores padrão seguros
     const texto = (labelData.texto || labelData.descricao || 'PRODUTO').toString();
-    const codigo = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
+    const codigoCompleto = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
+    // Separar: código completo pro QR Code, só número pro display
+    // Suporta /dp- em qualquer caso (minúsculo, maiúsculo, misto)
+    const codigo = codigoCompleto; // QR Code usa o código completo
+    const dpIndex = codigoCompleto.toLowerCase().indexOf('/dp-');
+    const codigoExibir = dpIndex !== -1 ? codigoCompleto.substring(0, dpIndex) : codigoCompleto;
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
     const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || labelData.valor_giracredito || null;
@@ -254,25 +259,11 @@ class PrinterManager {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    // Código de barras - fonte padrão 24px, quebra linha se necessário
-    const maxCodigoWidth = this.config.labelWidthPx - (margin * 2);
-    const codigoFontSize = 24;
-    ctx.font = `normal ${codigoFontSize}px Arial`;
-    const codigoMetrics = ctx.measureText(codigo);
-    
-    if (codigoMetrics.width > maxCodigoWidth) {
-      // Quebra em 2 linhas mantendo fonte padrão
-      const meio = Math.ceil(codigo.length / 2);
-      const linha1 = codigo.substring(0, meio);
-      const linha2 = codigo.substring(meio);
-      ctx.fillText(linha1, centerX, currentY);
-      currentY += codigoFontSize + 2;
-      ctx.fillText(linha2, centerX, currentY);
-      currentY += codigoFontSize + 6;
-    } else {
-      ctx.fillText(codigo, centerX, currentY);
-      currentY += codigoFontSize + 10;
-    }
+    // Código de barras - exibe só o número (sem /dp-nome), diminui fonte dinamicamente
+    const maxCodigoWidth = this.config.labelWidthPx - (margin * 4);
+    const codigoFontSize = this.autoFitText(ctx, codigoExibir, maxCodigoWidth, 24, 8, 'normal', 'Arial');
+    ctx.fillText(codigoExibir, centerX, currentY);
+    currentY += codigoFontSize + 10;
 
     // Linha separadora entre código de barras e descrição
     ctx.strokeStyle = '#cccccc';
@@ -351,51 +342,50 @@ class PrinterManager {
       ctx.fillText(eventoTexto, centerX, areaPrecoY + eventoH / 2);
     }
 
-    // ========== VALORES ==========
+    // ========== VALORES (2 colunas verticais: label em cima, valor embaixo) ==========
     if (valorCredito) {
       const precoGira = this.formatPrice(valorCredito);
-      const linhaY = areaValoresY + Math.floor(areaValoresH * 0.65);
+      const metadeWidth = this.config.labelWidthPx / 2;
+      const colunaW = metadeWidth - margin - 2;
       
-      // PARTE SUPERIOR - Valor à vista
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
+      // ========== COLUNA ESQUERDA (PREÇO) ==========
+      // Label "PREÇO" em cima
       ctx.fillStyle = '#333';
-      ctx.font = '500 16px Helvetica, sans-serif';
-      ctx.fillText('PREÇO', margin + 38, areaValoresY + (linhaY - areaValoresY) / 2);
+      this.autoFitText(ctx, 'PREÇO', colunaW, 16, 10, '500', 'Helvetica, sans-serif');
+      ctx.fillText('PREÇO', metadeWidth / 2, areaValoresY + 16);
       
+      // Valor embaixo
       ctx.fillStyle = 'black';
-      const precoAreaW = this.config.labelWidthPx - (margin + 90);
-      this.autoFitText(ctx, precoTexto, precoAreaW, 30, 18, '500', 'Helvetica, sans-serif');
-      ctx.fillText(precoTexto, centerX + 34, areaValoresY + (linhaY - areaValoresY) / 2);
+      this.autoFitText(ctx, precoTexto, colunaW, 32, 16, '500', 'Helvetica, sans-serif');
+      ctx.fillText(precoTexto, metadeWidth / 2, areaValoresY + areaValoresH / 2 + 8);
       
-      // LINHA HORIZONTAL DIVISÓRIA (colada)
+      // ========== LINHA VERTICAL DIVISÓRIA ==========
       ctx.strokeStyle = '#999';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(margin, linhaY);
-      ctx.lineTo(this.config.labelWidthPx - margin, linhaY);
+      ctx.moveTo(metadeWidth, areaValoresY + 4);
+      ctx.lineTo(metadeWidth, areaValoresY + areaValoresH - 4);
       ctx.stroke();
       
-      // PARTE INFERIOR - Tudo fundo preto, letra branca
-      const areaInferiorH = areaPrecoY + areaPrecoAltura - linhaY;
+      // ========== COLUNA DIREITA (CONDIÇÃO PAGAMENTO) - Fundo preto ==========
       ctx.fillStyle = '#000000';
-      ctx.fillRect(margin, linhaY + 1, this.config.labelWidthPx - (margin * 2), areaInferiorH - 1);
+      ctx.fillRect(metadeWidth + 1, areaValoresY, metadeWidth - margin - 1, areaValoresH);
       
-      // Condição de pagamento (letra branca sobre fundo preto, fonte dinâmica)
+      // Label condição em cima
       ctx.fillStyle = '#FFFFFF';
-      const condMaxW = (this.config.labelWidthPx / 2) - margin - 10;
-      this.autoFitText(ctx, condicaoPagamento, condMaxW, 18, 10, '600', 'Arial');
-      ctx.fillText(condicaoPagamento, margin + 46, linhaY + areaInferiorH / 2);
+      this.autoFitText(ctx, condicaoPagamento, colunaW - 6, 16, 8, '600', 'Arial');
+      ctx.fillText(condicaoPagamento, metadeWidth + (metadeWidth / 2) - (margin / 2), areaValoresY + 16);
       
-      // Valor crédito (letra branca sobre fundo preto, fonte dinâmica)
+      // Valor crédito embaixo
       ctx.fillStyle = '#FFFFFF';
-      const giraAreaW = (this.config.labelWidthPx / 2) - margin;
-      this.autoFitText(ctx, precoGira, giraAreaW, 30, 18, '500', 'Helvetica, sans-serif');
-      ctx.fillText(precoGira, centerX + 34, linhaY + areaInferiorH / 2);
+      this.autoFitText(ctx, precoGira, colunaW - 6, 32, 16, '500', 'Helvetica, sans-serif');
+      ctx.fillText(precoGira, metadeWidth + (metadeWidth / 2) - (margin / 2), areaValoresY + areaValoresH / 2 + 8);
       
     } else {
-      // APENAS VALOR À VISTA (centralizado)
+      // APENAS VALOR (centralizado)
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = 'black';
