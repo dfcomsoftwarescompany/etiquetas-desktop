@@ -13,11 +13,11 @@
   --text-primary: #f0f6fc;
   --text-secondary: #8b9eb3;
   --text-muted: #5a7189;
-  /* Cores DFCOM - Azul e Verde */
-  --accent: #22c55e;
-  --accent-hover: #16a34a;
-  --blue: #3b82f6;
-  --blue-hover: #2563eb;
+  /* Cores LOOPII - Cyan e Azul */
+  --accent: #2AC9DC;
+  --accent-hover: #22b0c2;
+  --blue: #2657F0;
+  --blue-hover: #1e45c0;
   --warning: #f59e0b;
   --danger: #ef4444;
   --radius: 12px;
@@ -46,35 +46,26 @@ body {
 .logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
-.logo-icon {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, var(--blue), var(--accent));
-  border-radius: var(--radius-sm);
+.logo-svg {
+  height: 34px;
+  width: auto;
+}
+
+.logo-info {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.logo-icon svg {
-  width: 24px;
-  height: 24px;
-  color: white;
-}
-
-.logo h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.logo h1 span {
-  background: linear-gradient(135deg, var(--blue), var(--accent));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.logo-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .version {
@@ -124,7 +115,7 @@ body {
   width: 80px;
   height: 80px;
   margin: 0 auto 20px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(34, 197, 94, 0.15));
+  background: linear-gradient(135deg, rgba(38, 87, 240, 0.15), rgba(42, 201, 220, 0.15));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -132,7 +123,7 @@ body {
 }
 
 .status-icon.active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(34, 197, 94, 0.2));
+  background: linear-gradient(135deg, rgba(38, 87, 240, 0.2), rgba(42, 201, 220, 0.2));
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -292,9 +283,9 @@ body {
 }
 
 .printer-status.online {
-  background: rgba(34, 197, 94, 0.1);
+  background: rgba(42, 201, 220, 0.1);
   color: var(--accent);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  border: 1px solid rgba(42, 201, 220, 0.3);
 }
 
 .printer-status.offline {
@@ -574,7 +565,7 @@ body {
 
 .btn-update-now:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(38, 87, 240, 0.4);
 }
 
 @keyframes slideIn {
