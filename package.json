@@ -1,6 +1,6 @@
 {
   "name": "etiquetas-desktop",
-  "version": "2.0.45",
+  "version": "2.0.46",
   "description": "Aplicativo para impressão de etiquetas 40x60mm com QR Code em impressoras Argox OS-2140",
   "main": "src/main/index.js",
   "scripts": {
@@ -13,7 +13,7 @@
     "publish:prod": "electron-builder --win --publish always",
     "rebuild": "electron-rebuild"
   },
-  "author": "DFCOM",
+  "author": "LOOPII",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -33,8 +33,8 @@
     "qrcode": "^1.5.3"
   },
   "build": {
-    "appId": "com.dfcom.etiquetas",
-    "productName": "Etiquetas DFCOM",
+    "appId": "com.loopii.etiquetas",
+    "productName": "Etiquetas LOOPII",
     "directories": {
       "output": "dist"
     },
@@ -55,8 +55,8 @@
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "include": "build/installer.nsh",
-      "shortcutName": "Etiquetas DFCOM",
-      "uninstallDisplayName": "Etiquetas DFCOM"
+      "shortcutName": "Etiquetas LOOPII",
+      "uninstallDisplayName": "Etiquetas LOOPII"
     },
     "publish": {
       "provider": "github",

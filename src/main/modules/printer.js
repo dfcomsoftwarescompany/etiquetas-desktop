@@ -145,7 +145,7 @@ class PrinterManager {
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
     const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || labelData.valor_giracredito || null;
-    const nomeLoja = (labelData.nome_loja || labelData.nomeLoja || 'DFCOM').toString();
+    const nomeLoja = (labelData.nome_loja || labelData.nomeLoja || 'LOOPII').toString();
     const condicaoPagamento = (labelData.condicao_pagamento || labelData.condicaoPagamento || 'NO GIRA').toString();
     const produtoNovo = labelData.produto_novo === true;
     const evento = labelData.evento || null;
@@ -174,7 +174,7 @@ class PrinterManager {
     // Produto novo será renderizado ao lado direito do QR Code
 
     // ========================================
-    // HEADER - Logo DFCOM (abaixo do furo da etiqueta)
+    // HEADER - Logo LOOPII (abaixo do furo da etiqueta)
     // ========================================
     const margemFuro = 28; // Margem para o furo de pendurar no topo
     ctx.fillStyle = 'black';
@@ -477,7 +477,7 @@ class PrinterManager {
   async generateTestCanvas() {
     const testData = {
       texto: 'Etiqueta Teste',
-      codigo: 'TEST-DFCOM-2024',
+      codigo: 'TEST-LOOPII-2024',
       preco: '00,00',
       tamanho: 'M'
     };
