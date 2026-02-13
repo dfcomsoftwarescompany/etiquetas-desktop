@@ -23,7 +23,9 @@ class PrinterManager {
       // Papel completo (2 colunas)
       paperWidth: 80,
       paperWidthPx: 640,   // 80mm @ 203dpi
-      columns: 2
+      columns: 2,
+      // Layout invertido: true = papel instalado de cabeça para baixo (não aplicar rotação 180°)
+      layoutInvertido: false
     };
   }
 
@@ -176,7 +178,8 @@ class PrinterManager {
     // ========================================
     // HEADER - Logo LOOPII (abaixo do furo da etiqueta)
     // ========================================
-    const margemFuro = 28; // Margem para o furo de pendurar no topo
+    // Quando layout invertido (papel de cabeça para baixo), aumenta margem para evitar conteúdo próximo ao furo
+    const margemFuro = this.config.layoutInvertido ? 44 : 28;
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -455,9 +458,12 @@ class PrinterManager {
     const canvasLargo = createCanvas(this.config.paperWidthPx, this.config.labelHeightPx);
     const ctxLargo = canvasLargo.getContext('2d');
 
-    // ROTAÇÃO 180° DO CANVAS COMPLETO - Compensar saída invertida da impressora
-    ctxLargo.translate(this.config.paperWidthPx, this.config.labelHeightPx);
-    ctxLargo.rotate(Math.PI);
+    // ROTAÇÃO 180° - Aplicar apenas quando layout NÃO está invertido (papel instalado normalmente)
+    // Se layoutInvertido=true, o papel foi instalado de cabeça para baixo, então não rotacionar
+    if (!this.config.layoutInvertido) {
+      ctxLargo.translate(this.config.paperWidthPx, this.config.labelHeightPx);
+      ctxLargo.rotate(Math.PI);
+    }
 
     // Gera etiqueta individual
     const etiquetaIndividual = await this.generateSingleLabel(labelData);
@@ -647,9 +653,11 @@ class PrinterManager {
     const canvas = createCanvas(this.config.paperWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
     
-    // Rotação 180° do canvas completo
-    ctx.translate(this.config.paperWidthPx, this.config.labelHeightPx);
-    ctx.rotate(Math.PI);
+    // Rotação 180° - aplicar apenas quando layout não está invertido
+    if (!this.config.layoutInvertido) {
+      ctx.translate(this.config.paperWidthPx, this.config.labelHeightPx);
+      ctx.rotate(Math.PI);
+    }
     
     // Coluna 1 (esquerda) - Item 1
     const label1 = await this.generateSingleLabel(item1);
@@ -672,9 +680,11 @@ class PrinterManager {
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
     
-    // Rotação 180° do canvas
-    ctx.translate(this.config.labelWidthPx, this.config.labelHeightPx);
-    ctx.rotate(Math.PI);
+    // Rotação 180° - aplicar apenas quando layout não está invertido
+    if (!this.config.layoutInvertido) {
+      ctx.translate(this.config.labelWidthPx, this.config.labelHeightPx);
+      ctx.rotate(Math.PI);
+    }
     
     // Gerar e desenhar etiqueta
     const label = await this.generateSingleLabel(item);

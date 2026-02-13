@@ -109,6 +109,37 @@ printerSelect.addEventListener('change', async () => {
   }
 });
 
+// Layout invertido (180°) - para papel instalado de cabeça para baixo
+const layoutInvertCheckbox = document.getElementById('layout-invert-checkbox');
+
+async function loadLayoutInvertSetting() {
+  if (!layoutInvertCheckbox) return;
+  try {
+    const saved = localStorage.getItem('layoutInvertido') === 'true';
+    layoutInvertCheckbox.checked = saved;
+    await window.electronAPI.printer.setConfig({ layoutInvertido: saved });
+  } catch (error) {
+    console.error('Erro ao carregar configuração de layout:', error);
+  }
+}
+
+if (layoutInvertCheckbox) {
+  layoutInvertCheckbox.addEventListener('change', async () => {
+  const invertido = layoutInvertCheckbox.checked;
+  localStorage.setItem('layoutInvertido', invertido);
+  try {
+    await window.electronAPI.printer.setConfig({ layoutInvertido: invertido });
+    showToast(
+      invertido ? 'Layout invertido ativado — impressão corrigida para papel de cabeça para baixo' : 'Layout normal restaurado',
+      'success'
+    );
+  } catch (error) {
+    console.error('Erro ao salvar configuração de layout:', error);
+    showToast('Erro ao salvar configuração', 'error');
+  }
+});
+}
+
 btnRefresh.addEventListener('click', () => {
   loadPrinters();
   showToast('Lista de impressoras atualizada', 'success');
@@ -276,6 +307,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Inicializar
   loadPrinters();
+  loadLayoutInvertSetting();
   checkTokenStatus();
   checkServerStatus();
 
