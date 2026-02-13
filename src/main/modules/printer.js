@@ -178,7 +178,8 @@ class PrinterManager {
     // ========================================
     // HEADER - Logo LOOPII (abaixo do furo da etiqueta)
     // ========================================
-    const margemFuro = 28; // Margem para o furo de pendurar no topo
+    // Quando layout invertido (papel de cabeça para baixo), aumenta margem para evitar conteúdo próximo ao furo
+    const margemFuro = this.config.layoutInvertido ? 44 : 28;
     ctx.fillStyle = 'black';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
