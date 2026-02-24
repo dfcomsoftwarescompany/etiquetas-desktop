@@ -149,7 +149,7 @@ class PrinterManager {
     const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || labelData.valor_giracredito || null;
     const nomeLoja = (labelData.nome_loja || labelData.nomeLoja || 'LOOPII').toString();
     const condicaoPagamento = (labelData.condicao_pagamento || labelData.condicaoPagamento || 'NO GIRA').toString();
-    const produtoNovo = labelData.produto_novo === true;
+    const produtoNovo = labelData.produto_novo === true || (texto && texto.toLowerCase().includes('novo'));
     const evento = labelData.evento || null;
     const dataProduto = labelData.data || null;
 
@@ -214,7 +214,7 @@ class PrinterManager {
     const dataFormatada = `${dia}${ano}${mes}`;
     
     ctx.save();
-    ctx.translate(qrX - 22, qrY + qrSize / 2);
+    ctx.translate(qrX - 38, qrY + qrSize / 2);
     ctx.rotate(Math.PI / 2);
     ctx.fillStyle = '#444444';
     ctx.font = 'normal 30px Helvetica, sans-serif';
@@ -224,33 +224,17 @@ class PrinterManager {
     ctx.restore();
 
     // ========================================
-    // PRODUTO NOVO - Vertical ao lado direito do QR Code
-    // Fundo preto com letra branca
+    // TAMANHO - Vertical ao lado direito do QR Code
     // ========================================
-    if (produtoNovo) {
-      const pnTexto = 'NOVO';
-      const pnFontSize = 20;
-      const pnPadding = 5;
-      
+    if (tamanho) {
       ctx.save();
-      ctx.translate(qrX + qrSize + 32, qrY + qrSize / 4);
+      ctx.translate(qrX + qrSize + 32, qrY + qrSize / 2);
       ctx.rotate(Math.PI / 2);
-      
-      // Medir texto para desenhar fundo
-      ctx.font = `600 ${pnFontSize}px Helvetica, sans-serif`;
-      const pnMetrics = ctx.measureText(pnTexto);
-      const pnBoxW = pnMetrics.width + (pnPadding * 2);
-      const pnBoxH = pnFontSize + (pnPadding * 2);
-      
-      // Fundo preto
       ctx.fillStyle = 'black';
-      ctx.fillRect(-pnBoxW / 2, -pnBoxH / 2, pnBoxW, pnBoxH);
-      
-      // Texto branco
-      ctx.fillStyle = 'white';
+      ctx.font = '600 20px Helvetica, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(pnTexto, 0, 0);
+      ctx.fillText(`TAM: ${tamanho}`, 0, 0);
       ctx.restore();
     }
 
@@ -307,13 +291,26 @@ class PrinterManager {
     }
 
     // ========================================
-    // TAMANHO (fonte maior)
+    // PRODUTO NOVO - Faixa horizontal entre descrição e preços
     // ========================================
-    if (tamanho) {
-      currentY += 2;
-      ctx.font = '500 20px Arial';
-      ctx.fillText(`TAM: ${tamanho}`, centerX, currentY);
-      currentY += 24;
+    const faixaProdutoNovoAltura = 28;
+    const faixaProdutoNovoY = areaPrecoY - faixaProdutoNovoAltura - 6;
+    if (produtoNovo) {
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, faixaProdutoNovoY, this.config.labelWidthPx, faixaProdutoNovoAltura);
+      ctx.fillStyle = 'white';
+      ctx.font = '600 16px Helvetica, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('PRODUTO NOVO', centerX, faixaProdutoNovoY + faixaProdutoNovoAltura / 2);
+      ctx.strokeStyle = '#cccccc';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin, faixaProdutoNovoY + faixaProdutoNovoAltura + 2);
+      ctx.lineTo(this.config.labelWidthPx - margin, faixaProdutoNovoY + faixaProdutoNovoAltura + 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     // ========================================
@@ -426,10 +423,11 @@ class PrinterManager {
    * Formata preço para exibição
    */
   formatPrice(value) {
-    if (!value) return 'R$ 0,00';
+    if (!value) return 'GRÁTIS';
     const str = value.toString().replace(',', '.');
     const num = parseFloat(str);
     if (isNaN(num)) return `R$ ${value}`;
+    if (num === 0) return 'GRÁTIS';
     return `R$ ${num.toFixed(2).replace('.', ',')}`;
   }
 
