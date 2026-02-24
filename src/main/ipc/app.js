@@ -28,7 +28,7 @@ function registerAppHandlers() {
         color: { dark: '#000000', light: '#ffffff' },
         errorCorrectionLevel: 'M'
       };
-      const dataUrl = await QRCode.toDataURL(data || 'DFCOM', qrOptions);
+      const dataUrl = await QRCode.toDataURL(data || 'LOOPII', qrOptions);
       return { success: true, dataUrl };
     } catch (error) {
       return { success: false, error: error.message };

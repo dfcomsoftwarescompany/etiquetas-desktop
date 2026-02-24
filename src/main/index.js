@@ -1,5 +1,5 @@
 /**
- * Etiquetas DFCOM - Main Process
+ * Etiquetas LOOPII - Main Process
  * Aplicativo Electron para impressão de etiquetas
  */
 

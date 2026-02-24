@@ -1,4 +1,4 @@
-; Script customizado NSIS para Etiquetas DFCOM
+; Script customizado NSIS para Etiquetas LOOPII
 ; Este arquivo é usado pelo electron-builder para personalizar o instalador
 
 !macro preInit
@@ -11,7 +11,7 @@
 
 !macro customInit
   ; Fechar aplicação se estiver rodando antes de instalar
-  nsExec::Exec 'taskkill /F /IM "Etiquetas DFCOM.exe"'
+  nsExec::Exec 'taskkill /F /IM "Etiquetas LOOPII.exe"'
   Pop $0
   
   ; Aguardar um momento para garantir que processos foram fechados
@@ -20,7 +20,7 @@
 
 !macro customUnInit
   ; Fechar aplicação antes de desinstalar
-  nsExec::Exec 'taskkill /F /IM "Etiquetas DFCOM.exe"'
+  nsExec::Exec 'taskkill /F /IM "Etiquetas LOOPII.exe"'
   Pop $0
   Sleep 500
 !macroend

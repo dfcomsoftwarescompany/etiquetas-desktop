@@ -27,7 +27,7 @@ class APIClient {
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Etiquetas-DFCOM/2.0.0'
+        'User-Agent': 'Etiquetas-LOOPII/2.0.0'
       }
     };
     
