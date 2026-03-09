@@ -735,6 +735,12 @@ class PrinterManager {
    */
   async getDefaultPrinter() {
     const printers = await this.listPrinters();
+
+    const printer = this.config.defaultPrinter
+
+    if(printer) {
+      return printer;
+    }
     
     // Buscar Argox primeiro
     const argox = printers.find(p => p.Name.toLowerCase().includes('argox'));
