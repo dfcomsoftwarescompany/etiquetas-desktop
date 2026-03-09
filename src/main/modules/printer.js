@@ -597,14 +597,7 @@ class PrinterManager {
     return new Promise((resolve, reject) => {
       try {
         let couponHTML = '';
-        if (typeof htmlOrCanvas === 'string') {
           couponHTML = htmlOrCanvas;
-        } else if (htmlOrCanvas && typeof htmlOrCanvas.toHTML === 'function') {
-          couponHTML = htmlOrCanvas.toHTML();
-        } else if (htmlOrCanvas && typeof htmlOrCanvas.toDataURL === 'function') {
-          const dataUrl = htmlOrCanvas.toDataURL('image/png');
-          couponHTML = `<img src="${dataUrl}" width="100%" height="100%" style="display:block" alt="" />`;
-        }
 
         const html = `
 <!DOCTYPE html>
@@ -649,7 +642,10 @@ class PrinterManager {
 
         printWindow.webContents.once('did-finish-load', () => {
           
-          printWindow.webContents.print({}, (success, failureReason) => {
+          printWindow.webContents.print({
+            silent: true,
+            deviceName: printerName,
+          }, (success, failureReason) => {
             if (success) {
 
               // Limpeza segura APÓS a impressão
