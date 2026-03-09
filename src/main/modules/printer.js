@@ -579,7 +579,7 @@ class PrinterManager {
   }
 
   async printCoupons(printerName, coupons) {
-    const canvas = createCanvas(2400, 4500);
+    const canvas = createCanvas(576, 480)
     const ctx = canvas.getContext('2d');
 
     for (const coupon of coupons) {
