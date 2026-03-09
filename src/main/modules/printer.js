@@ -579,7 +579,7 @@ class PrinterManager {
   }
 
   async printCoupons(printerName, coupons) {
-    const canvas = createCanvas(576, 480)
+    const canvas = createCanvas(this.config.paperWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
 
     for (const coupon of coupons) {
@@ -643,8 +643,17 @@ class PrinterManager {
         printWindow.webContents.once('did-finish-load', () => {
           
           printWindow.webContents.print({
-            silent: true,
-            deviceName: printerName,
+              silent: true,
+              printBackground: true,
+              deviceName: printerName,
+              color: false,
+              margins: { marginType: 'none' },
+              pageSize: { width: 40000, height: 60000 }, // 40mm x 60mm
+              dpi: { horizontal: 203, vertical: 203 },
+              copies: copies,
+              landscape: false,
+              scaleFactor: 100,
+              shouldPrintBackgrounds: true
           }, (success, failureReason) => {
             if (success) {
 
