@@ -579,7 +579,7 @@ class PrinterManager {
   }
 
   async printCoupons(printerName, coupons) {
-    const canvas = createCanvas(1300, 2000);
+    const canvas = createCanvas(1000, 1500);
     const ctx = canvas.getContext('2d');
 
     for (const coupon of coupons) {
@@ -627,14 +627,13 @@ class PrinterManager {
     .w-full { width: 100%; }
     .mt-6 { margin-top: 1.5rem; }
     .textAlign { text-align: center; }
-    .w-full { width: 100%; }
     .h-full { height: 100%; }
   </style>
 </head>
 <body>
   ${couponHTML}
-    <div style="w-full h-full">
-    <p class="text-center">.p>
+    <div class="w-full h-full">
+    <p class="text-center">.</p>
     </div>
 
 </body>
