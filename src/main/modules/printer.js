@@ -465,7 +465,7 @@ class PrinterManager {
 
     // Gera etiqueta individual
     const etiquetaIndividual = await this.generateSingleLabel(labelData);
-
+    
     // COLUNA 1 (esquerda)
     ctxLargo.drawImage(etiquetaIndividual, 0, 0);
 
@@ -533,6 +533,119 @@ class PrinterManager {
           };
 
           printWindow.webContents.print(printOptions, (success, failureReason) => {
+            if (success) {
+
+              // Limpeza segura APÓS a impressão
+              setTimeout(() => {
+                try {
+                  if (!printWindow.isDestroyed()) {
+                    printWindow.close();
+                  }
+                } catch (e) {
+                  console.error('[Printer] ⚠️ Erro ao fechar janela:', e);
+                }
+
+                // Limpeza de referências após mais tempo
+                setTimeout(() => {
+                  try {
+                    if (!printWindow.isDestroyed()) {
+                      printWindow.destroy();
+                    }
+                  } catch (e) {
+                    console.error('[Printer] Erro na limpeza:', e);
+                  }
+                }, 2000);
+
+                resolve();
+              }, 500); // Tempo mínimo para impressora processar
+            } else {
+              console.error('[Printer] ❌ ✗ Falha na impressão:', failureReason);
+              reject(new Error(failureReason || 'Falha na impressão'));
+            }
+          });
+        });
+
+        setTimeout(() => {
+          if (!printWindow.isDestroyed()) {
+            printWindow.close();
+            reject(new Error('Timeout'));
+          }
+        }, 10000);
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  async printCoupons(printerName, coupons) {
+    const canvas = createCanvas(2400, 4500);
+    const ctx = canvas.getContext('2d');
+
+    for (const coupon of coupons) {
+      ctx.drawImage(coupon, 0, 0);
+    }
+
+    await this.printCanvasCoupon(printerName, canvas, 1);
+  }
+
+  /**
+   * @param {string} printerName
+   * @param {string|{ toHTML?: () => string; toDataURL?: (type?: string) => string }} htmlOrCanvas - String HTML (ex: renderToStaticMarkup) ou canvas (com toHTML ou toDataURL)
+   */
+  async printCanvasCoupon(printerName, htmlOrCanvas, copies = 1) {
+    return new Promise((resolve, reject) => {
+      try {
+        let couponHTML = '';
+          couponHTML = htmlOrCanvas;
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { width: 80mm; min-height: 60mm; font-family: system-ui, sans-serif; font-size: 12px; }
+    img { width: 100%; height: 100%; display: block; }
+    /* Tailwind-equivalent utilities para cupom (BusinessReceipt) */
+    .p-1 { padding: 0.25rem; }
+    .p-4 { padding: 1rem; }
+    .hidden { display: none; }
+    .print\\:block { display: block !important; }
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .items-center { align-items: center; }
+    .items-end { align-items: flex-end; }
+    .text-xs { font-size: 0.75rem; line-height: 1rem; }
+    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+    .font-bold { font-weight: 700; }
+    .border-t { border-top-width: 1px; }
+    .border-b { border-bottom-width: 1px; }
+    .border-black { border-color: #000; }
+    .border-dashed { border-style: dashed; }
+    .w-full { width: 100%; }
+    .mt-6 { margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  ${couponHTML}
+</body>
+</html>`;
+
+        const printWindow = new BrowserWindow({
+          show: false,
+          webPreferences: { offscreen: true, nodeIntegration: false }
+        });
+
+        printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+        printWindow.webContents.once('did-finish-load', () => {
+          
+          printWindow.webContents.print({
+            silent: true,
+            deviceName: printerName,
+          }, (success, failureReason) => {
             if (success) {
 
               // Limpeza segura APÓS a impressão

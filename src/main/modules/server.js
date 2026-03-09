@@ -158,6 +158,43 @@ class PrintServer {
       }
     });
 
+    this.app.post('/print/coupon', this.authMiddleware.bind(this), async (req, res) => {
+      try {
+        const { coupons } = req.body;
+
+        if (!coupons) {
+          return res.status(400).json({ 
+            error: 'Nenhum cupom para imprimir',
+            hint: 'Envie um cupom'
+          });
+        }
+
+        const printerName = await this.printerManager.getDefaultPrinter();
+        if (!printerName) {
+          return res.status(400).json({ error: 'Nenhuma impressora configurada' });
+        }
+        
+        const printerStatus = await this.printerManager.checkPrinterStatus(printerName);
+        if (!printerStatus.online) {
+          return res.status(503).json({ 
+            error: 'Impressora indisponível',
+            printer: printerName,
+            status: printerStatus.status,
+            hint: 'Verifique se a impressora está ligada e conectada'
+          });
+        }
+
+        for(const coupon of coupons) {
+          await this.printerManager.printCanvasCoupon(printerName, coupon);
+        }
+
+        res.json({ success: true, message: 'Cupom impresso com sucesso' });
+      } catch (error) {
+        console.error('[Server] Erro na impressão:', error);
+        res.status(500).json({ error: 'Falha na impressão' });
+      }
+    });
+
     // Verificar status da impressora
     this.app.get('/printer/status', async (req, res) => {
       try {
