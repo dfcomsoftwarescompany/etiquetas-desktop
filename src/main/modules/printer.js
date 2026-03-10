@@ -606,7 +606,7 @@ class PrinterManager {
   <meta charset="UTF-8">
   <style>
     *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { width: 80mm; min-height: 60mm; font-family: system-ui, sans-serif; font-size: 12px; }
+    body {  width: 72.1mm; max-width: 72.1mm; min-height: 209mm; overflow-x: hidden; font-family: system-ui, sans-serif; font-size: 12px; }
     img { width: 100%; height: 100%; display: block; }
     /* Tailwind-equivalent utilities para cupom (BusinessReceipt) */
     .p-1 { padding: 0.25rem; }
@@ -654,6 +654,12 @@ class PrinterManager {
               deviceName: printerName,
               color: false,
               margins: { marginType: 'none' },
+              pageSize: { width: 72100, height: 209000 },
+              dpi: { horizontal: 203, vertical: 203 },
+              copies: copies,
+              landscape: false,
+              scaleFactor: 100,
+              shouldPrintBackgrounds: true
           }, (success, failureReason) => {
             if (success) {
 
