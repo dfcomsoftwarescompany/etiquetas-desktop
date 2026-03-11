@@ -614,6 +614,7 @@ class PrinterManager {
     .hidden { display: none; }
     .print\\:block { display: block !important; }
     .flex { display: flex; }
+    .flex-row { flex-direction: row; }
     .flex-col { flex-direction: column; }
     .items-center { align-items: center; }
     .items-end { align-items: flex-end; }
@@ -628,6 +629,11 @@ class PrinterManager {
     .mt-6 { margin-top: 1.5rem; }
     .textAlign { text-align: center; }
     .h-full { height: 100%; }
+    .text-center { text-align: center; }
+    .justify-between { justify-content: space-between; }
+    .grid { display: grid; }
+    .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .mt-1 { margin-top: 0.25rem; }
   </style>
 </head>
 <body>
