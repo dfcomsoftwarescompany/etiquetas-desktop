@@ -597,7 +597,7 @@ class PrinterManager {
     return new Promise((resolve, reject) => {
       try {
         let couponHTML = '';
-          couponHTML = htmlOrCanvas;
+        couponHTML = htmlOrCanvas;
 
         const html = `
 <!DOCTYPE html>
@@ -634,6 +634,7 @@ class PrinterManager {
     .grid { display: grid; }
     .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
     .mt-1 { margin-top: 0.25rem; }
+    .w-[150px] { width: 150px; }
   </style>
 </head>
 <body>
