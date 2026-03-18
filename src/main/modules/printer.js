@@ -634,7 +634,7 @@ class PrinterManager {
     .grid { display: grid; }
     .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
     .mt-1 { margin-top: 0.25rem; }
-    .w-[150px] { width: 150px; }
+    .w-[150px] { width: 80px; }
   </style>
 </head>
 <body>
