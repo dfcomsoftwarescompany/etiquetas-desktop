@@ -3,8 +3,45 @@
  */
 
 const { ipcMain } = require('electron');
+const http = require('http');
 
 function registerAPIHandlers(apiClient) {
+  async function getNgrokUrl() {
+    await new Promise(r => setTimeout(r, 800));
+
+    return new Promise((resolve, reject) => {
+      const req = http.get(
+        'http://127.0.0.1:4040/api/tunnels',
+        {
+          headers: {
+            'Accept': 'application/json'
+          }
+        },
+        (res) => {
+          let data = '';
+  
+          res.on('data', chunk => data += chunk);
+  
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data);
+              const url = json?.tunnels?.[0]?.public_url || null;
+              resolve(url);
+            } catch (err) {
+              reject(err);
+            }
+          });
+        }
+      );
+  
+      req.on('error', reject);
+    });
+  }
+
+  ipcMain.handle('ngrok:geturl', async () => {
+    return await getNgrokUrl();
+  });
+
   ipcMain.handle('api:setBaseURL', (event, url) => {
     apiClient.setBaseURL(url);
     if (url && !url.includes('localhost')) {
