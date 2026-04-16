@@ -30,9 +30,13 @@ let ngrokProcess;
 
 async function startNgrok(port) {
   return new Promise((resolve, reject) => {
-    const ngrokPath = path.join(__dirname, '../../tools/ngrok.exe');
-    const configPath = path.join(__dirname, '../../tools/ngrok.yml');
-
+    const ngrokPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'tools', 'ngrok.exe')
+    : path.join(__dirname, '../../tools/ngrok.exe');
+    
+    const configPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'tools', 'ngrok.yml')
+    : path.join(__dirname, '../../tools/ngrok.yml');
     ngrokProcess = spawn(ngrokPath, ['http', port, '--config', configPath]);
 
     let url = '';
