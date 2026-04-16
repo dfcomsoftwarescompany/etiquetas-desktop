@@ -215,10 +215,9 @@ async function getLocalIP() {
         localIP = response.ip;
         const serverUrl = document.getElementById('server-url');
         const networkIndicator = document.getElementById('network-indicator');
-        const ngrok = await window.electronAPI.ngrok.getUrl();
         
         if (serverUrl) {
-          const url = ngrok || `http://${response.ip}:${response.port}`;
+          const url = `http://${response.ip}:${response.port}`;
           serverUrl.textContent = url;
           serverUrl.title = `Hostname: ${response.hostname || 'N/A'} | Clique para copiar o endereço`;
           

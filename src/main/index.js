@@ -22,68 +22,6 @@ const printerManager = new PrinterManager();
 const apiClient = new APIClient();
 let printServer;
 
-// Ngrok
-const { spawn } = require('child_process');
-const http = require('http');
-
-let ngrokProcess;
-
-async function startNgrok(port) {
-  return new Promise((resolve, reject) => {
-    const ngrokPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'tools', 'ngrok.exe')
-    : path.join(__dirname, '../../tools/ngrok.exe');
-    
-    const configPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'tools', 'ngrok.yml')
-    : path.join(__dirname, '../../tools/ngrok.yml');
-    ngrokProcess = spawn(ngrokPath, ['http', port, '--config', configPath]);
-
-    let url = '';
-
-    ngrokProcess.stdout.on('data', (data) => {
-      const text = data.toString();
-
-      console.log('[ngrok]', text);
-
-      // tenta capturar a URL pública
-      const match = text.match(/https:\/\/[a-z0-9\-]+\.ngrok[^ ]+/i);
-      if (match) {
-        url = match[0];
-        resolve(url);
-      }
-    });
-
-    ngrokProcess.stderr.on('data', (data) => {
-      console.error('[ngrok error]', data.toString());
-    });
-
-    ngrokProcess.on('close', (code) => {
-      console.log('ngrok finalizado com código:', code);
-      if (!url) reject(new Error('Ngrok fechou sem URL'));
-    });
-  });
-}
-
-async function getNgrokUrl() {
-  return new Promise((resolve) => {
-    http.get('http://127.0.0.1:4040/api/tunnels', (res) => {
-      let data = '';
-
-      res.on('data', chunk => data += chunk);
-
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          resolve(json?.tunnels?.[0]?.public_url || null);
-        } catch {
-          resolve(null);
-        }
-      });
-    }).on('error', () => resolve(null));
-  });
-}
-
 // ==================== Window ====================
 
 function createWindow() {
@@ -213,7 +151,6 @@ app.whenReady().then(async () => {
   printServer = new PrintServer(printerManager);
   try {
     await printServer.start();
-    await startNgrok(printServer.port);
   } catch (error) {
     console.error('[App] Erro ao iniciar servidor HTTP:', error);
   }

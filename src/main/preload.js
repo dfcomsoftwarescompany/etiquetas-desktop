@@ -5,11 +5,6 @@ const { contextBridge, ipcRenderer } = require('electron');
  * Expõe APIs específicas para impressão de etiquetas Argox OS-2140
  */
 contextBridge.exposeInMainWorld('electronAPI', {    
-  // ==================== Ngrok ====================
-  ngrok: {
-    getUrl: () => ipcRenderer.invoke('ngrok:geturl')
-  },
-
   // ==================== Printer ====================
   printer: {
     list: () => ipcRenderer.invoke('printer:list'),
