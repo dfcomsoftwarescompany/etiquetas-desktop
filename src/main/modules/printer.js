@@ -322,7 +322,7 @@ class PrinterManager {
     const precoTexto = this.formatPrice(preco);
     
     // Calcular offset para evento dentro da área
-    const eventoH = evento ? 18 : 0;
+    const eventoH = evento ? 24 : 0;
     const areaValoresY = areaPrecoY + eventoH;
     const areaValoresH = areaPrecoAltura - eventoH;
 
@@ -337,7 +337,7 @@ class PrinterManager {
       
       const eventoTexto = evento.toString();
       const eventoMaxWidth = this.config.labelWidthPx - (margin * 4);
-      this.autoFitText(ctx, eventoTexto, eventoMaxWidth, 14, 8, '600', 'Helvetica, sans-serif');
+      this.autoFitText(ctx, eventoTexto, eventoMaxWidth, 18, 10, '600', 'Helvetica, sans-serif');
       
       ctx.fillText(eventoTexto, centerX, areaPrecoY + eventoH / 2);
     }
