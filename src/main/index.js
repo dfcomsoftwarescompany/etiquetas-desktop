@@ -10,6 +10,7 @@ const path = require('path');
 const PrinterManager = require('./modules/printer');
 const APIClient = require('./modules/api');
 const PrintServer = require('./modules/server');
+const PrinterWsClient = require('./modules/ws-client');
 const { registerAllHandlers } = require('./ipc');
 
 // Importar módulo de updates - Usando electron-updater diretamente
@@ -21,6 +22,7 @@ let mainWindow;
 const printerManager = new PrinterManager();
 const apiClient = new APIClient();
 let printServer;
+let printerWsClient;
 
 // ==================== Window ====================
 
@@ -155,6 +157,10 @@ app.whenReady().then(async () => {
     console.error('[App] Erro ao iniciar servidor HTTP:', error);
   }
 
+  printerWsClient = new PrinterWsClient(printServer);
+  printServer.onTokenUpdated = () => printerWsClient.reconnect();
+  printerWsClient.start();
+
   // Update automático já configurado via update-electron-app
 
   app.on('activate', () => {
@@ -165,6 +171,10 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
+  if (printerWsClient) {
+    printerWsClient.stop();
+  }
+
   // Parar servidor HTTP
   if (printServer) {
     printServer.stop();

@@ -104,94 +104,26 @@ class PrintServer {
     // Endpoint principal de impressão
     this.app.post('/print/etiqueta', this.authMiddleware.bind(this), async (req, res) => {
       try {
-        const { Itens, data, ownerPrinterCnpj, typeId, codunidade } = req.body;
-        
-        // Suportar ambos os formatos
-        const items = Itens || data?.Itens || [];
-        
-        if (!items || items.length === 0) {
-          return res.status(400).json({ 
-            error: 'Nenhum item para imprimir',
-            hint: 'Envie um array "Itens" com os produtos'
-          });
-        }
-        
-        const printerName = await this.printerManager.getDefaultPrinter();
-        if (!printerName) {
-          return res.status(400).json({ error: 'Nenhuma impressora configurada' });
-        }
-
-        // Verificar status da impressora antes de imprimir
-        const printerStatus = await this.printerManager.checkPrinterStatus(printerName);
-        if (!printerStatus.online) {
-          return res.status(503).json({ 
-            error: 'Impressora indisponível',
-            printer: printerName,
-            status: printerStatus.status,
-            hint: 'Verifique se a impressora está ligada e conectada'
-          });
-        }
-        
-        // Expandir itens baseado na quantidade
-        const expandedItems = this.expandItems(items);
-
-        // Imprimir agrupando em pares
-        await this.printMultipleLabels(printerName, expandedItems);
-
-        // Resposta simplificada para evitar problemas de JSON
-        const response = {
-          success: true,
-          message: `${items.length} item(ns) processado(s)`,
-          total: expandedItems.length,
-          printer: printerName,
-          printerStatus: printerStatus.status
-        };
-
-        res.json(response);
-        
+        const result = await this.printEtiqueta(req.body);
+        res.json(result);
       } catch (error) {
         console.error('[Server] Erro na impressão:', error);
-        res.status(500).json({ 
-          error: 'Falha na impressão',
-          details: error.message 
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({
+          error: error.message || 'Falha na impressão',
+          details: error.details,
         });
       }
     });
 
     this.app.post('/print/coupon', this.authMiddleware.bind(this), async (req, res) => {
       try {
-        const { coupons } = req.body;
-
-        if (!coupons) {
-          return res.status(400).json({ 
-            error: 'Nenhum cupom para imprimir',
-            hint: 'Envie um cupom'
-          });
-        }
-
-        const printerName = await this.printerManager.getDefaultPrinter();
-        if (!printerName) {
-          return res.status(400).json({ error: 'Nenhuma impressora configurada' });
-        }
-        
-        const printerStatus = await this.printerManager.checkPrinterStatus(printerName);
-        if (!printerStatus.online) {
-          return res.status(503).json({ 
-            error: 'Impressora indisponível',
-            printer: printerName,
-            status: printerStatus.status,
-            hint: 'Verifique se a impressora está ligada e conectada'
-          });
-        }
-
-        for(const coupon of coupons) {
-          await this.printerManager.printCanvasCoupon(printerName, coupon);
-        }
-
-        res.json({ success: true, message: 'Cupom impresso com sucesso' });
+        const result = await this.printCoupon(req.body);
+        res.json(result);
       } catch (error) {
         console.error('[Server] Erro na impressão:', error);
-        res.status(500).json({ error: 'Falha na impressão' });
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json({ error: error.message || 'Falha na impressão' });
       }
     });
 
@@ -284,6 +216,73 @@ class PrintServer {
         message: valid ? 'Token válido' : 'Token inválido'
       });
     });
+  }
+
+  createHttpError(message, statusCode = 500, details) {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    error.details = details;
+    return error;
+  }
+
+  async printEtiqueta(body = {}) {
+    const { Itens, data } = body;
+    const items = Itens || data?.Itens || [];
+
+    if (!items || items.length === 0) {
+      throw this.createHttpError('Nenhum item para imprimir', 400);
+    }
+
+    const printerName = await this.printerManager.getDefaultPrinter();
+    if (!printerName) {
+      throw this.createHttpError('Nenhuma impressora configurada', 400);
+    }
+
+    const printerStatus = await this.printerManager.checkPrinterStatus(printerName);
+    if (!printerStatus.online) {
+      throw this.createHttpError('Impressora indisponível', 503, {
+        printer: printerName,
+        status: printerStatus.status,
+      });
+    }
+
+    const expandedItems = this.expandItems(items);
+    await this.printMultipleLabels(printerName, expandedItems);
+
+    return {
+      success: true,
+      message: `${items.length} item(ns) processado(s)`,
+      total: expandedItems.length,
+      printer: printerName,
+      printerStatus: printerStatus.status,
+    };
+  }
+
+  async printCoupon(body = {}) {
+    const { coupons } = body;
+
+    if (!coupons) {
+      throw this.createHttpError('Nenhum cupom para imprimir', 400);
+    }
+
+    const printerName = await this.printerManager.getDefaultPrinter();
+    if (!printerName) {
+      throw this.createHttpError('Nenhuma impressora configurada', 400);
+    }
+
+    const printerStatus = await this.printerManager.checkPrinterStatus(printerName);
+    if (!printerStatus.online) {
+      throw this.createHttpError('Impressora indisponível', 503, {
+        printer: printerName,
+        status: printerStatus.status,
+      });
+    }
+
+    for (const coupon of coupons) {
+      await this.printerManager.printCanvasCoupon(printerName, coupon);
+    }
+
+    return { success: true, message: 'Cupom impresso com sucesso' };
   }
 
   /**
@@ -419,6 +418,10 @@ class PrintServer {
     };
     
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
+
+    if (typeof this.onTokenUpdated === 'function') {
+      this.onTokenUpdated(token);
+    }
   }
 
   getTokenConfig() {
