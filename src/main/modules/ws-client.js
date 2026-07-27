@@ -1,7 +1,7 @@
 const { io } = require('socket.io-client');
 const log = require('electron-log');
 
-const DEFAULT_WS_URL = 'http://localhost:3033/notifications-printer';
+const DEFAULT_WS_URL = 'https://socket.dfcom.com.br/notifications-printer';
 
 class PrinterWsClient {
   constructor(printServer) {
