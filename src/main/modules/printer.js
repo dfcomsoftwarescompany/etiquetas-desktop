@@ -786,10 +786,21 @@ class PrinterManager {
   }
 
   /**
+   * Obtém impressora de cupom configurada (fallback para a impressora de etiquetas)
+   */
+  async getCouponPrinter() {
+    if (this.config.couponPrinter) {
+      return this.config.couponPrinter;
+    }
+
+    return await this.getDefaultPrinter();
+  }
+
+  /**
    * Define impressora padrão
    */
   setDefaultPrinter(printerName) {
-    this.defaultPrinter = printerName;
+    this.config = { ...this.config, defaultPrinter: printerName };
   }
 
   /**

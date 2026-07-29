@@ -13,23 +13,30 @@ function showToast(message, type = 'success', duration = 3000) {
 
 // ==================== Impressora ====================
 const printerSelect = document.getElementById('printer-select');
+const couponPrinterSelect = document.getElementById('coupon-printer-select');
 const btnRefresh = document.getElementById('btn-refresh');
 
 async function loadPrinters() {
   try {
     printerSelect.disabled = true;
+    if (couponPrinterSelect) couponPrinterSelect.disabled = true;
     printerSelect.innerHTML = '<option value="">Carregando...</option>';
+    if (couponPrinterSelect) couponPrinterSelect.innerHTML = '<option value="">Carregando...</option>';
     
     const result = await window.electronAPI.printer.list();
     
     if (result.success && result.printers.length > 0) {
-      printerSelect.innerHTML = result.printers
+      const optionsHtml = result.printers
         .map(p => {
           const statusIndicator = p.Online ? '🟢' : '🔴';
           return `<option value="${p.Name}" ${p.Default ? 'selected' : ''}>${statusIndicator} ${p.Name}</option>`;
         })
         .join('');
+
+      printerSelect.innerHTML = optionsHtml;
+      if (couponPrinterSelect) couponPrinterSelect.innerHTML = optionsHtml;
       printerSelect.disabled = false;
+      if (couponPrinterSelect) couponPrinterSelect.disabled = false;
       
       // Salvar impressora selecionada
       const saved = localStorage.getItem('selectedPrinter');
@@ -37,14 +44,26 @@ async function loadPrinters() {
         printerSelect.value = saved;
       }
 
+      // Salvar impressora de cupom selecionada (fallback para a mesma de etiquetas)
+      if (couponPrinterSelect) {
+        const savedCoupon = localStorage.getItem('selectedCouponPrinter');
+        if (savedCoupon && result.printers.find(p => p.Name === savedCoupon)) {
+          couponPrinterSelect.value = savedCoupon;
+        } else if (saved && result.printers.find(p => p.Name === saved)) {
+          couponPrinterSelect.value = saved;
+        }
+      }
+
       // Verificar status da impressora selecionada
       checkPrinterStatus();
     } else {
       printerSelect.innerHTML = '<option value="">Nenhuma impressora encontrada</option>';
+      if (couponPrinterSelect) couponPrinterSelect.innerHTML = '<option value="">Nenhuma impressora encontrada</option>';
     }
   } catch (error) {
     console.error('Erro ao carregar impressoras:', error);
     printerSelect.innerHTML = '<option value="">Erro ao carregar</option>';
+    if (couponPrinterSelect) couponPrinterSelect.innerHTML = '<option value="">Erro ao carregar</option>';
     showToast('Erro ao carregar impressoras', 'error');
   }
 }
@@ -108,6 +127,21 @@ printerSelect.addEventListener('change', async () => {
     }
   }
 });
+
+if (couponPrinterSelect) {
+  couponPrinterSelect.addEventListener('change', async () => {
+    const printer = couponPrinterSelect.value;
+    if (printer) {
+      localStorage.setItem('selectedCouponPrinter', printer);
+      try {
+        await window.electronAPI.printer.setConfig({ couponPrinter: printer });
+        showToast(`Impressora de cupom selecionada: ${printer}`, 'success');
+      } catch (error) {
+        console.error('Erro ao salvar impressora de cupom:', error);
+      }
+    }
+  });
+}
 
 // Layout invertido (180°) - para papel instalado de cabeça para baixo
 const layoutInvertCheckbox = document.getElementById('layout-invert-checkbox');

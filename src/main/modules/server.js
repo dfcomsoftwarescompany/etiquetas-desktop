@@ -130,21 +130,31 @@ class PrintServer {
     // Verificar status da impressora
     this.app.get('/printer/status', async (req, res) => {
       try {
-        const printerName = await this.printerManager.getDefaultPrinter();
-        if (!printerName) {
+        const defaultPrinter = await this.printerManager.getDefaultPrinter();
+        if (!defaultPrinter) {
           return res.json({ 
             configured: false,
             error: 'Nenhuma impressora configurada'
           });
         }
 
-        const status = await this.printerManager.checkPrinterStatus(printerName);
+        const status = await this.printerManager.checkPrinterStatus(defaultPrinter);
+
+        const couponPrinter = await this.printerManager.getCouponPrinter();
+        const couponStatus = couponPrinter
+          ? await this.printerManager.checkPrinterStatus(couponPrinter)
+          : null;
+
         res.json({
           configured: true,
-          printer: printerName,
+          printer: defaultPrinter,
           online: status.online,
           status: status.status,
-          statusCode: status.statusCode
+          statusCode: status.statusCode,
+          couponPrinter,
+          couponOnline: couponStatus?.online ?? false,
+          couponStatus: couponStatus?.status ?? null,
+          couponStatusCode: couponStatus?.statusCode ?? null,
         });
       } catch (error) {
         console.error('[Server] Erro ao verificar status:', error);
@@ -265,7 +275,7 @@ class PrintServer {
       throw this.createHttpError('Nenhum cupom para imprimir', 400);
     }
 
-    const printerName = await this.printerManager.getDefaultPrinter();
+    const printerName = await this.printerManager.getCouponPrinter();
     if (!printerName) {
       throw this.createHttpError('Nenhuma impressora configurada', 400);
     }
