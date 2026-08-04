@@ -108,6 +108,25 @@
               <option value="">Carregando impressoras...</option>
             </select>
           </div>
+          <div class="layout-invert-toggle" title="Desative neste PC se a impressão for feita em outro computador. O WebSocket será desconectado.">
+            <div class="layout-invert-content">
+              <div class="layout-invert-label">
+                <svg class="layout-invert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 6 2 18 2 18 9"/>
+                  <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+                  <rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                <div>
+                  <span class="layout-invert-title">Impressão habilitada</span>
+                  <span class="layout-invert-desc">Desative para usar outro computador</span>
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="printing-enabled-checkbox" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
           <div class="layout-invert-toggle" title="Ative se o papel de etiquetas foi instalado de cabeça para baixo e a impressão está saindo invertida">
             <div class="layout-invert-content">
               <div class="layout-invert-label">

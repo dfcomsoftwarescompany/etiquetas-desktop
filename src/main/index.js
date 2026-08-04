@@ -5,6 +5,7 @@
 
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 // Módulos
 const PrinterManager = require('./modules/printer');
@@ -23,6 +24,34 @@ const printerManager = new PrinterManager();
 const apiClient = new APIClient();
 let printServer;
 let printerWsClient;
+
+function getPrinterSettingsPath() {
+  return path.join(app.getPath('userData'), 'printer-settings.json');
+}
+
+function loadPersistedPrinterSettings() {
+  try {
+    const raw = fs.readFileSync(getPrinterSettingsPath(), 'utf8');
+    const saved = JSON.parse(raw);
+    if (typeof saved.printingEnabled === 'boolean') {
+      printerManager.setConfig({ printingEnabled: saved.printingEnabled });
+    }
+  } catch {
+    // Arquivo inexistente ou inválido — usa default
+  }
+}
+
+function persistPrinterSettings(config) {
+  try {
+    fs.writeFileSync(
+      getPrinterSettingsPath(),
+      JSON.stringify({ printingEnabled: config.printingEnabled !== false }, null, 2),
+      { mode: 0o600 }
+    );
+  } catch (error) {
+    log.error('[App] Erro ao persistir printer-settings:', error);
+  }
+}
 
 // ==================== Window ====================
 
@@ -59,11 +88,33 @@ function createWindow() {
 // ==================== App Lifecycle ====================
 
 app.whenReady().then(async () => {
+  loadPersistedPrinterSettings();
+
   // Criar janela
   createWindow();
   
   // Registrar handlers IPC (sem updateManager - agora é automático)
-  registerAllHandlers({ printerManager, apiClient });
+  registerAllHandlers({
+    printerManager,
+    apiClient,
+    onPrinterConfigChange: (prev, next) => {
+      if (prev.printingEnabled !== next.printingEnabled) {
+        persistPrinterSettings(next);
+      }
+
+      if (!printerWsClient) return;
+      if (prev.printingEnabled === next.printingEnabled) return;
+
+      if (next.printingEnabled === false) {
+        log.info('[App] Impressão desabilitada — desconectando WebSocket');
+        printerWsClient.stop();
+        return;
+      }
+
+      log.info('[App] Impressão habilitada — reconectando WebSocket');
+      printerWsClient.start();
+    }
+  });
 
   // ==================== Auto-Updater Configuração ====================
   
@@ -158,8 +209,19 @@ app.whenReady().then(async () => {
   }
 
   printerWsClient = new PrinterWsClient(printServer);
-  printServer.onTokenUpdated = () => printerWsClient.reconnect();
-  printerWsClient.start();
+  printServer.onTokenUpdated = () => {
+    if (printerManager.getConfig().printingEnabled === false) {
+      log.info('[App] Token atualizado, mas impressão está desabilitada — WS permanece desconectado');
+      return;
+    }
+    printerWsClient.reconnect();
+  };
+
+  if (printerManager.getConfig().printingEnabled === false) {
+    log.info('[App] Impressão desabilitada — WebSocket não será iniciado');
+  } else {
+    printerWsClient.start();
+  }
 
   // Update automático já configurado via update-electron-app
 

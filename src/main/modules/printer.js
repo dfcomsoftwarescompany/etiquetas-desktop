@@ -25,7 +25,9 @@ class PrinterManager {
       paperWidthPx: 640,   // 80mm @ 203dpi
       columns: 2,
       // Layout invertido: true = papel instalado de cabeça para baixo (não aplicar rotação 180°)
-      layoutInvertido: false
+      layoutInvertido: false,
+      // Impressão habilitada: false = este PC não recebe/processa jobs (outro computador imprime)
+      printingEnabled: true
     };
   }
 
@@ -606,7 +608,7 @@ class PrinterManager {
   <meta charset="UTF-8">
   <style>
     *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {  width: 72.1mm; max-width: 72.1mm; min-height: 209mm; overflow-x: hidden; font-family: system-ui, sans-serif; font-size: 12px; }
+    body {  width: 72.1mm; max-width: 72.1mm; min-height: 209mm; overflow-x: hidden; font-family: system-ui, sans-serif; font-size: 14px; }
     img { width: 100%; height: 100%; display: block; }
     /* Tailwind-equivalent utilities para cupom (BusinessReceipt) */
     .p-1 { padding: 0.25rem; }
@@ -618,8 +620,8 @@ class PrinterManager {
     .flex-col { flex-direction: column; }
     .items-center { align-items: center; }
     .items-end { align-items: flex-end; }
-    .text-xs { font-size: 0.75rem; line-height: 1rem; }
-    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+    .text-xs { font-size: 0.875rem; line-height: 1.125rem; }
+    .text-sm { font-size: 1rem; line-height: 1.375rem; }
     .font-bold { font-weight: 700; }
     .border-t { border-top-width: 1px; }
     .border-b { border-bottom-width: 1px; }

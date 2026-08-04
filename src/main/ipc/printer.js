@@ -4,7 +4,7 @@
 
 const { ipcMain } = require('electron');
 
-function registerPrinterHandlers(printerManager) {
+function registerPrinterHandlers(printerManager, { onConfigChange } = {}) {
   ipcMain.handle('printer:list', async () => {
     try {
       const printers = await printerManager.listPrinters();
@@ -44,8 +44,15 @@ function registerPrinterHandlers(printerManager) {
   ipcMain.handle('printer:getConfig', () => printerManager.getConfig());
   
   ipcMain.handle('printer:setConfig', (event, config) => {
+    const prev = printerManager.getConfig();
     printerManager.setConfig(config);
-    return printerManager.getConfig();
+    const next = printerManager.getConfig();
+
+    if (typeof onConfigChange === 'function') {
+      onConfigChange(prev, next);
+    }
+
+    return next;
   });
 }
 

@@ -130,10 +130,13 @@ class PrintServer {
     // Verificar status da impressora
     this.app.get('/printer/status', async (req, res) => {
       try {
+        const printingEnabled = this.printerManager.getConfig().printingEnabled !== false;
+
         const defaultPrinter = await this.printerManager.getDefaultPrinter();
         if (!defaultPrinter) {
           return res.json({ 
             configured: false,
+            printingEnabled,
             error: 'Nenhuma impressora configurada'
           });
         }
@@ -147,6 +150,7 @@ class PrintServer {
 
         res.json({
           configured: true,
+          printingEnabled,
           printer: defaultPrinter,
           online: status.online,
           status: status.status,
@@ -236,6 +240,10 @@ class PrintServer {
   }
 
   async printEtiqueta(body = {}) {
+    if (this.printerManager.getConfig().printingEnabled === false) {
+      throw this.createHttpError('Impressão desabilitada neste computador', 503);
+    }
+
     const { Itens, data } = body;
     const items = Itens || data?.Itens || [];
 
@@ -269,6 +277,10 @@ class PrintServer {
   }
 
   async printCoupon(body = {}) {
+    if (this.printerManager.getConfig().printingEnabled === false) {
+      throw this.createHttpError('Impressão desabilitada neste computador', 503);
+    }
+
     const { coupons } = body;
 
     if (!coupons) {

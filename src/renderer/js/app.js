@@ -77,7 +77,17 @@ async function checkPrinterStatus() {
     const data = await response.json();
     
     if (printerStatusEl) {
-      if (!data.configured) {
+      if (data.printingEnabled === false) {
+        printerStatusEl.className = 'printer-status warning';
+        printerStatusEl.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>Impressão desabilitada neste PC</span>
+        `;
+      } else if (!data.configured) {
         printerStatusEl.className = 'printer-status warning';
         printerStatusEl.innerHTML = `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
@@ -172,6 +182,71 @@ if (layoutInvertCheckbox) {
     showToast('Erro ao salvar configuração', 'error');
   }
 });
+}
+
+// Impressão habilitada — desconecta o WebSocket quando desligada
+const printingEnabledCheckbox = document.getElementById('printing-enabled-checkbox');
+
+async function updateServerStatusForPrinting(enabled) {
+  if (!statusIcon || !statusTitle || !statusSubtitle) return;
+
+  if (!enabled) {
+    statusIcon.className = 'status-icon inactive';
+    statusIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="15" y1="9" x2="9" y2="15"/>
+      <line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>`;
+    statusTitle.textContent = 'Impressão Desabilitada';
+    statusSubtitle.textContent = 'Este PC não recebe jobs — use outro computador ou reative o switch';
+    return;
+  }
+
+  await checkServerStatus();
+}
+
+async function loadPrintingEnabledSetting() {
+  if (!printingEnabledCheckbox) return;
+  try {
+    let enabled = localStorage.getItem('printingEnabled') !== 'false';
+    try {
+      const config = await window.electronAPI.printer.getConfig();
+      if (typeof config.printingEnabled === 'boolean') {
+        enabled = config.printingEnabled;
+      }
+    } catch {
+      // Mantém valor do localStorage
+    }
+
+    printingEnabledCheckbox.checked = enabled;
+    localStorage.setItem('printingEnabled', enabled);
+    await window.electronAPI.printer.setConfig({ printingEnabled: enabled });
+    await updateServerStatusForPrinting(enabled);
+    checkPrinterStatus();
+  } catch (error) {
+    console.error('Erro ao carregar configuração de impressão:', error);
+  }
+}
+
+if (printingEnabledCheckbox) {
+  printingEnabledCheckbox.addEventListener('change', async () => {
+    const enabled = printingEnabledCheckbox.checked;
+    localStorage.setItem('printingEnabled', enabled);
+    try {
+      await window.electronAPI.printer.setConfig({ printingEnabled: enabled });
+      await updateServerStatusForPrinting(enabled);
+      checkPrinterStatus();
+      showToast(
+        enabled
+          ? 'Impressão habilitada — reconectando ao servidor'
+          : 'Impressão desabilitada — WebSocket desconectado neste PC',
+        enabled ? 'success' : 'warning'
+      );
+    } catch (error) {
+      console.error('Erro ao salvar configuração de impressão:', error);
+      showToast('Erro ao salvar configuração', 'error');
+    }
+  });
 }
 
 btnRefresh.addEventListener('click', () => {
@@ -297,6 +372,22 @@ async function getLocalIP() {
 }
 
 async function checkServerStatus() {
+  const printingEnabled = printingEnabledCheckbox
+    ? printingEnabledCheckbox.checked
+    : localStorage.getItem('printingEnabled') !== 'false';
+
+  if (!printingEnabled) {
+    statusIcon.className = 'status-icon inactive';
+    statusIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="15" y1="9" x2="9" y2="15"/>
+      <line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>`;
+    statusTitle.textContent = 'Impressão Desabilitada';
+    statusSubtitle.textContent = 'Este PC não recebe jobs — use outro computador ou reative o switch';
+    return;
+  }
+
   try {
     const response = await fetch('http://localhost:8547/health');
     const data = await response.json();
@@ -341,6 +432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Inicializar
   loadPrinters();
   loadLayoutInvertSetting();
+  await loadPrintingEnabledSetting();
   checkTokenStatus();
   checkServerStatus();
 
