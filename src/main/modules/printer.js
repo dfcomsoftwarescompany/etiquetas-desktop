@@ -26,9 +26,22 @@ class PrinterManager {
       columns: 2,
       // Layout invertido: true = papel instalado de cabeça para baixo (não aplicar rotação 180°)
       layoutInvertido: false,
-      // Impressão habilitada: false = este PC não recebe/processa jobs (outro computador imprime)
-      printingEnabled: true
+      // Enable/disable por tipo — evita um PC bloquear etiqueta e cupom juntos
+      labelPrintingEnabled: true,
+      couponPrintingEnabled: true,
     };
+  }
+
+  isLabelPrintingEnabled() {
+    return this.config.labelPrintingEnabled !== false;
+  }
+
+  isCouponPrintingEnabled() {
+    return this.config.couponPrintingEnabled !== false;
+  }
+
+  isAnyPrintingEnabled() {
+    return this.isLabelPrintingEnabled() || this.isCouponPrintingEnabled();
   }
 
   mmToPixels(mm) {
@@ -754,11 +767,32 @@ class PrinterManager {
   }
 
   getConfig() {
-    return { ...this.config };
+    const labelPrintingEnabled = this.config.labelPrintingEnabled !== false;
+    const couponPrintingEnabled = this.config.couponPrintingEnabled !== false;
+
+    return {
+      ...this.config,
+      labelPrintingEnabled,
+      couponPrintingEnabled,
+      // Retrocompatível: true se pelo menos um tipo estiver habilitado neste PC
+      printingEnabled: labelPrintingEnabled || couponPrintingEnabled,
+    };
   }
 
-  setConfig(newConfig) {
-    this.config = { ...this.config, ...newConfig };
+  setConfig(newConfig = {}) {
+    const next = { ...this.config, ...newConfig };
+
+    // Migração: callers antigos ainda podem enviar printingEnabled global
+    if (
+      typeof newConfig.printingEnabled === 'boolean' &&
+      typeof newConfig.labelPrintingEnabled !== 'boolean' &&
+      typeof newConfig.couponPrintingEnabled !== 'boolean'
+    ) {
+      next.labelPrintingEnabled = newConfig.printingEnabled;
+      next.couponPrintingEnabled = newConfig.printingEnabled;
+    }
+
+    this.config = next;
   }
 
   /**

@@ -130,13 +130,18 @@ class PrintServer {
     // Verificar status da impressora
     this.app.get('/printer/status', async (req, res) => {
       try {
-        const printingEnabled = this.printerManager.getConfig().printingEnabled !== false;
+        const config = this.printerManager.getConfig();
+        const labelPrintingEnabled = config.labelPrintingEnabled !== false;
+        const couponPrintingEnabled = config.couponPrintingEnabled !== false;
+        const printingEnabled = labelPrintingEnabled || couponPrintingEnabled;
 
         const defaultPrinter = await this.printerManager.getDefaultPrinter();
         if (!defaultPrinter) {
           return res.json({ 
             configured: false,
             printingEnabled,
+            labelPrintingEnabled,
+            couponPrintingEnabled,
             error: 'Nenhuma impressora configurada'
           });
         }
@@ -151,6 +156,8 @@ class PrintServer {
         res.json({
           configured: true,
           printingEnabled,
+          labelPrintingEnabled,
+          couponPrintingEnabled,
           printer: defaultPrinter,
           online: status.online,
           status: status.status,
@@ -240,8 +247,8 @@ class PrintServer {
   }
 
   async printEtiqueta(body = {}) {
-    if (this.printerManager.getConfig().printingEnabled === false) {
-      throw this.createHttpError('Impressão desabilitada neste computador', 503);
+    if (this.printerManager.getConfig().labelPrintingEnabled === false) {
+      throw this.createHttpError('Impressão de etiquetas desabilitada neste computador', 503);
     }
 
     const { Itens, data } = body;
@@ -277,8 +284,8 @@ class PrintServer {
   }
 
   async printCoupon(body = {}) {
-    if (this.printerManager.getConfig().printingEnabled === false) {
-      throw this.createHttpError('Impressão desabilitada neste computador', 503);
+    if (this.printerManager.getConfig().couponPrintingEnabled === false) {
+      throw this.createHttpError('Impressão de cupons desabilitada neste computador', 503);
     }
 
     const { coupons } = body;

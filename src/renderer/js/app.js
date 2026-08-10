@@ -77,7 +77,10 @@ async function checkPrinterStatus() {
     const data = await response.json();
     
     if (printerStatusEl) {
-      if (data.printingEnabled === false) {
+      const labelEnabled = data.labelPrintingEnabled !== false;
+      const couponEnabled = data.couponPrintingEnabled !== false;
+
+      if (!labelEnabled && !couponEnabled) {
         printerStatusEl.className = 'printer-status warning';
         printerStatusEl.innerHTML = `
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
@@ -85,7 +88,27 @@ async function checkPrinterStatus() {
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          <span>Impressão desabilitada neste PC</span>
+          <span>Etiqueta e cupom desabilitados neste PC</span>
+        `;
+      } else if (!labelEnabled) {
+        printerStatusEl.className = 'printer-status warning';
+        printerStatusEl.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>Etiqueta desabilitada — cupom ativo</span>
+        `;
+      } else if (!couponEnabled) {
+        printerStatusEl.className = 'printer-status warning';
+        printerStatusEl.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>Cupom desabilitado — etiqueta ativa</span>
         `;
       } else if (!data.configured) {
         printerStatusEl.className = 'printer-status warning';
@@ -184,13 +207,29 @@ if (layoutInvertCheckbox) {
 });
 }
 
-// Impressão habilitada — desconecta o WebSocket quando desligada
-const printingEnabledCheckbox = document.getElementById('printing-enabled-checkbox');
+// Impressão habilitada por tipo — WebSocket só desconecta se ambos estiverem off
+const labelPrintingEnabledCheckbox = document.getElementById('label-printing-enabled-checkbox');
+const couponPrintingEnabledCheckbox = document.getElementById('coupon-printing-enabled-checkbox');
 
-async function updateServerStatusForPrinting(enabled) {
+function getPrintingFlagsFromUi() {
+  const labelPrintingEnabled = labelPrintingEnabledCheckbox
+    ? labelPrintingEnabledCheckbox.checked
+    : localStorage.getItem('labelPrintingEnabled') !== 'false';
+  const couponPrintingEnabled = couponPrintingEnabledCheckbox
+    ? couponPrintingEnabledCheckbox.checked
+    : localStorage.getItem('couponPrintingEnabled') !== 'false';
+
+  return {
+    labelPrintingEnabled,
+    couponPrintingEnabled,
+    anyEnabled: labelPrintingEnabled || couponPrintingEnabled,
+  };
+}
+
+async function updateServerStatusForPrinting(anyEnabled) {
   if (!statusIcon || !statusTitle || !statusSubtitle) return;
 
-  if (!enabled) {
+  if (!anyEnabled) {
     statusIcon.className = 'status-icon inactive';
     statusIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"/>
@@ -198,55 +237,100 @@ async function updateServerStatusForPrinting(enabled) {
       <line x1="9" y1="9" x2="15" y2="15"/>
     </svg>`;
     statusTitle.textContent = 'Impressão Desabilitada';
-    statusSubtitle.textContent = 'Este PC não recebe jobs — use outro computador ou reative o switch';
+    statusSubtitle.textContent = 'Etiqueta e cupom off neste PC — WebSocket desconectado';
     return;
   }
 
   await checkServerStatus();
 }
 
+function migrateLegacyPrintingEnabledLocalStorage() {
+  const hasTypedFlags =
+    localStorage.getItem('labelPrintingEnabled') !== null ||
+    localStorage.getItem('couponPrintingEnabled') !== null;
+
+  if (hasTypedFlags) return;
+
+  const legacy = localStorage.getItem('printingEnabled');
+  if (legacy === null) return;
+
+  localStorage.setItem('labelPrintingEnabled', legacy);
+  localStorage.setItem('couponPrintingEnabled', legacy);
+}
+
 async function loadPrintingEnabledSetting() {
-  if (!printingEnabledCheckbox) return;
+  if (!labelPrintingEnabledCheckbox || !couponPrintingEnabledCheckbox) return;
+
   try {
-    let enabled = localStorage.getItem('printingEnabled') !== 'false';
+    migrateLegacyPrintingEnabledLocalStorage();
+
+    let labelPrintingEnabled = localStorage.getItem('labelPrintingEnabled') !== 'false';
+    let couponPrintingEnabled = localStorage.getItem('couponPrintingEnabled') !== 'false';
+
     try {
       const config = await window.electronAPI.printer.getConfig();
-      if (typeof config.printingEnabled === 'boolean') {
-        enabled = config.printingEnabled;
+      if (typeof config.labelPrintingEnabled === 'boolean') {
+        labelPrintingEnabled = config.labelPrintingEnabled;
+      }
+      if (typeof config.couponPrintingEnabled === 'boolean') {
+        couponPrintingEnabled = config.couponPrintingEnabled;
       }
     } catch {
       // Mantém valor do localStorage
     }
 
-    printingEnabledCheckbox.checked = enabled;
-    localStorage.setItem('printingEnabled', enabled);
-    await window.electronAPI.printer.setConfig({ printingEnabled: enabled });
-    await updateServerStatusForPrinting(enabled);
+    labelPrintingEnabledCheckbox.checked = labelPrintingEnabled;
+    couponPrintingEnabledCheckbox.checked = couponPrintingEnabled;
+    localStorage.setItem('labelPrintingEnabled', labelPrintingEnabled);
+    localStorage.setItem('couponPrintingEnabled', couponPrintingEnabled);
+
+    await window.electronAPI.printer.setConfig({
+      labelPrintingEnabled,
+      couponPrintingEnabled,
+    });
+
+    await updateServerStatusForPrinting(labelPrintingEnabled || couponPrintingEnabled);
     checkPrinterStatus();
   } catch (error) {
     console.error('Erro ao carregar configuração de impressão:', error);
   }
 }
 
-if (printingEnabledCheckbox) {
-  printingEnabledCheckbox.addEventListener('change', async () => {
-    const enabled = printingEnabledCheckbox.checked;
-    localStorage.setItem('printingEnabled', enabled);
-    try {
-      await window.electronAPI.printer.setConfig({ printingEnabled: enabled });
-      await updateServerStatusForPrinting(enabled);
-      checkPrinterStatus();
-      showToast(
-        enabled
-          ? 'Impressão habilitada — reconectando ao servidor'
-          : 'Impressão desabilitada — WebSocket desconectado neste PC',
-        enabled ? 'success' : 'warning'
-      );
-    } catch (error) {
-      console.error('Erro ao salvar configuração de impressão:', error);
-      showToast('Erro ao salvar configuração', 'error');
+async function handlePrintingFlagChange() {
+  const { labelPrintingEnabled, couponPrintingEnabled, anyEnabled } = getPrintingFlagsFromUi();
+
+  localStorage.setItem('labelPrintingEnabled', labelPrintingEnabled);
+  localStorage.setItem('couponPrintingEnabled', couponPrintingEnabled);
+
+  try {
+    await window.electronAPI.printer.setConfig({
+      labelPrintingEnabled,
+      couponPrintingEnabled,
+    });
+    await updateServerStatusForPrinting(anyEnabled);
+    checkPrinterStatus();
+
+    if (!anyEnabled) {
+      showToast('Etiqueta e cupom desabilitados — WebSocket desconectado neste PC', 'warning');
+      return;
     }
-  });
+
+    const parts = [];
+    parts.push(labelPrintingEnabled ? 'etiqueta ON' : 'etiqueta OFF');
+    parts.push(couponPrintingEnabled ? 'cupom ON' : 'cupom OFF');
+    showToast(`${parts.join(' · ')} — WebSocket conectado`, 'success');
+  } catch (error) {
+    console.error('Erro ao salvar configuração de impressão:', error);
+    showToast('Erro ao salvar configuração', 'error');
+  }
+}
+
+if (labelPrintingEnabledCheckbox) {
+  labelPrintingEnabledCheckbox.addEventListener('change', handlePrintingFlagChange);
+}
+
+if (couponPrintingEnabledCheckbox) {
+  couponPrintingEnabledCheckbox.addEventListener('change', handlePrintingFlagChange);
 }
 
 btnRefresh.addEventListener('click', () => {
@@ -372,11 +456,9 @@ async function getLocalIP() {
 }
 
 async function checkServerStatus() {
-  const printingEnabled = printingEnabledCheckbox
-    ? printingEnabledCheckbox.checked
-    : localStorage.getItem('printingEnabled') !== 'false';
+  const { anyEnabled } = getPrintingFlagsFromUi();
 
-  if (!printingEnabled) {
+  if (!anyEnabled) {
     statusIcon.className = 'status-icon inactive';
     statusIcon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"/>
@@ -384,7 +466,7 @@ async function checkServerStatus() {
       <line x1="9" y1="9" x2="15" y2="15"/>
     </svg>`;
     statusTitle.textContent = 'Impressão Desabilitada';
-    statusSubtitle.textContent = 'Este PC não recebe jobs — use outro computador ou reative o switch';
+    statusSubtitle.textContent = 'Etiqueta e cupom off neste PC — WebSocket desconectado';
     return;
   }
 

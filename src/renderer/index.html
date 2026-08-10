@@ -108,7 +108,7 @@
               <option value="">Carregando impressoras...</option>
             </select>
           </div>
-          <div class="layout-invert-toggle" title="Desative neste PC se a impressão for feita em outro computador. O WebSocket será desconectado.">
+          <div class="layout-invert-toggle" title="Habilita ou desabilita somente a impressão de etiquetas (ITEM) neste PC.">
             <div class="layout-invert-content">
               <div class="layout-invert-label">
                 <svg class="layout-invert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -117,12 +117,32 @@
                   <rect x="6" y="14" width="12" height="8"/>
                 </svg>
                 <div>
-                  <span class="layout-invert-title">Impressão habilitada</span>
-                  <span class="layout-invert-desc">Desative para usar outro computador</span>
+                  <span class="layout-invert-title">Etiqueta (ITEM) habilitada</span>
+                  <span class="layout-invert-desc">Desative se outro PC imprime etiquetas</span>
                 </div>
               </div>
               <label class="toggle-switch">
-                <input type="checkbox" id="printing-enabled-checkbox" checked>
+                <input type="checkbox" id="label-printing-enabled-checkbox" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="layout-invert-toggle" title="Habilita ou desabilita somente a impressão de cupons neste PC.">
+            <div class="layout-invert-content">
+              <div class="layout-invert-label">
+                <svg class="layout-invert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/>
+                  <path d="M14 8H8"/>
+                  <path d="M16 12H8"/>
+                  <path d="M13 16H8"/>
+                </svg>
+                <div>
+                  <span class="layout-invert-title">Cupom habilitado</span>
+                  <span class="layout-invert-desc">Desative se outro PC imprime cupons</span>
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="coupon-printing-enabled-checkbox" checked>
                 <span class="toggle-slider"></span>
               </label>
             </div>

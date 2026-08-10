@@ -33,8 +33,24 @@ function loadPersistedPrinterSettings() {
   try {
     const raw = fs.readFileSync(getPrinterSettingsPath(), 'utf8');
     const saved = JSON.parse(raw);
+    const hasTypedFlags =
+      typeof saved.labelPrintingEnabled === 'boolean' ||
+      typeof saved.couponPrintingEnabled === 'boolean';
+
+    if (hasTypedFlags) {
+      printerManager.setConfig({
+        labelPrintingEnabled: saved.labelPrintingEnabled !== false,
+        couponPrintingEnabled: saved.couponPrintingEnabled !== false,
+      });
+      return;
+    }
+
+    // Migração do switch global antigo
     if (typeof saved.printingEnabled === 'boolean') {
-      printerManager.setConfig({ printingEnabled: saved.printingEnabled });
+      printerManager.setConfig({
+        labelPrintingEnabled: saved.printingEnabled,
+        couponPrintingEnabled: saved.printingEnabled,
+      });
     }
   } catch {
     // Arquivo inexistente ou inválido — usa default
@@ -43,14 +59,39 @@ function loadPersistedPrinterSettings() {
 
 function persistPrinterSettings(config) {
   try {
+    const labelPrintingEnabled = config.labelPrintingEnabled !== false;
+    const couponPrintingEnabled = config.couponPrintingEnabled !== false;
+
     fs.writeFileSync(
       getPrinterSettingsPath(),
-      JSON.stringify({ printingEnabled: config.printingEnabled !== false }, null, 2),
+      JSON.stringify(
+        {
+          labelPrintingEnabled,
+          couponPrintingEnabled,
+          // Mantém campo legado para leitura por builds antigas
+          printingEnabled: labelPrintingEnabled || couponPrintingEnabled,
+        },
+        null,
+        2
+      ),
       { mode: 0o600 }
     );
   } catch (error) {
     log.error('[App] Erro ao persistir printer-settings:', error);
   }
+}
+
+function syncWebSocketWithPrintingConfig() {
+  if (!printerWsClient) return;
+
+  if (printerManager.isAnyPrintingEnabled()) {
+    log.info('[App] Ao menos um tipo de impressão habilitado — WebSocket conectado');
+    printerWsClient.start();
+    return;
+  }
+
+  log.info('[App] Etiqueta e cupom desabilitados — desconectando WebSocket');
+  printerWsClient.stop();
 }
 
 // ==================== Window ====================
@@ -98,21 +139,15 @@ app.whenReady().then(async () => {
     printerManager,
     apiClient,
     onPrinterConfigChange: (prev, next) => {
-      if (prev.printingEnabled !== next.printingEnabled) {
+      const flagsChanged =
+        prev.labelPrintingEnabled !== next.labelPrintingEnabled ||
+        prev.couponPrintingEnabled !== next.couponPrintingEnabled ||
+        prev.printingEnabled !== next.printingEnabled;
+
+      if (flagsChanged) {
         persistPrinterSettings(next);
+        syncWebSocketWithPrintingConfig();
       }
-
-      if (!printerWsClient) return;
-      if (prev.printingEnabled === next.printingEnabled) return;
-
-      if (next.printingEnabled === false) {
-        log.info('[App] Impressão desabilitada — desconectando WebSocket');
-        printerWsClient.stop();
-        return;
-      }
-
-      log.info('[App] Impressão habilitada — reconectando WebSocket');
-      printerWsClient.start();
     }
   });
 
@@ -210,18 +245,14 @@ app.whenReady().then(async () => {
 
   printerWsClient = new PrinterWsClient(printServer);
   printServer.onTokenUpdated = () => {
-    if (printerManager.getConfig().printingEnabled === false) {
-      log.info('[App] Token atualizado, mas impressão está desabilitada — WS permanece desconectado');
+    if (!printerManager.isAnyPrintingEnabled()) {
+      log.info('[App] Token atualizado, mas nenhum tipo de impressão está habilitado — WS permanece desconectado');
       return;
     }
     printerWsClient.reconnect();
   };
 
-  if (printerManager.getConfig().printingEnabled === false) {
-    log.info('[App] Impressão desabilitada — WebSocket não será iniciado');
-  } else {
-    printerWsClient.start();
-  }
+  syncWebSocketWithPrintingConfig();
 
   // Update automático já configurado via update-electron-app
 
