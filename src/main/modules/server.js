@@ -109,10 +109,7 @@ class PrintServer {
       } catch (error) {
         console.error('[Server] Erro na impressão:', error);
         const statusCode = error.statusCode || 500;
-        res.status(statusCode).json({
-          error: error.message || 'Falha na impressão',
-          details: error.details,
-        });
+        res.status(statusCode).json(this.formatPrintErrorBody(error));
       }
     });
 
@@ -123,7 +120,7 @@ class PrintServer {
       } catch (error) {
         console.error('[Server] Erro na impressão:', error);
         const statusCode = error.statusCode || 500;
-        res.status(statusCode).json({ error: error.message || 'Falha na impressão' });
+        res.status(statusCode).json(this.formatPrintErrorBody(error));
       }
     });
 
@@ -237,6 +234,38 @@ class PrintServer {
         message: valid ? 'Token válido' : 'Token inválido'
       });
     });
+
+    // Tenant enviado pelo sistema de avaliação (modal Conectar Impressora)
+    this.app.post('/tenant', this.authMiddleware.bind(this), (req, res) => {
+      const tenant_name =
+        typeof req.body?.tenant_name === 'string' ? req.body.tenant_name.trim() : '';
+
+      if (!tenant_name) {
+        return res.status(400).json({
+          message: 'tenant_name é obrigatório',
+          error: 'tenant_name é obrigatório',
+        });
+      }
+
+      this.printerManager.setConfig({ tenant_name });
+
+      if (typeof this.onTenantUpdated === 'function') {
+        this.onTenantUpdated(tenant_name);
+      }
+
+      res.json({ success: true, tenant_name });
+    });
+
+    this.app.get('/tenant', (req, res) => {
+      res.json({
+        tenant_name: this.getTenantName(),
+        configured: Boolean(this.getTenantName()),
+      });
+    });
+  }
+
+  getTenantName() {
+    return this.printerManager.getConfig().tenant_name || null;
   }
 
   createHttpError(message, statusCode = 500, details) {
@@ -244,6 +273,18 @@ class PrintServer {
     error.statusCode = statusCode;
     error.details = details;
     return error;
+  }
+
+  /**
+   * Corpo de erro HTTP com `message` (padrão API/web) e `error` (legado).
+   */
+  formatPrintErrorBody(error) {
+    const text = error?.message || 'Falha na impressão';
+    return {
+      message: text,
+      error: text,
+      details: error?.details,
+    };
   }
 
   async printEtiqueta(body = {}) {

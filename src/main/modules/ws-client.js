@@ -16,6 +16,18 @@ class PrinterWsClient {
     return this.printServer.getConfiguredToken();
   }
 
+  getAuthPayload() {
+    const config = this.printServer.printerManager.getConfig();
+
+    return {
+      token: this.getToken(),
+      clientType: 'desktop',
+      tenant_name: this.printServer.getTenantName() || undefined,
+      labelPrintingEnabled: config.labelPrintingEnabled !== false,
+      couponPrintingEnabled: config.couponPrintingEnabled !== false,
+    };
+  }
+
   connect() {
     const token = this.getToken();
 
@@ -31,13 +43,13 @@ class PrinterWsClient {
       this.socket = null;
     }
 
-    log.info(`[WS] Conectando em ${this.wsUrl}`);
+    const auth = this.getAuthPayload();
+    log.info(
+      `[WS] Conectando em ${this.wsUrl} | tenant=${auth.tenant_name || 'n/d'} | etiqueta=${auth.labelPrintingEnabled} | cupom=${auth.couponPrintingEnabled}`
+    );
 
     this.socket = io(this.wsUrl, {
-      auth: {
-        token,
-        clientType: 'desktop',
-      },
+      auth,
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -65,6 +77,26 @@ class PrinterWsClient {
     const { jobId, type, data } = payload || {};
 
     if (!jobId || !type) {
+      return;
+    }
+
+    const config = this.printServer.printerManager.getConfig();
+
+    if (type === 'etiqueta' && config.labelPrintingEnabled === false) {
+      this.socket?.emit('print-result', {
+        jobId,
+        success: false,
+        error: 'Impressão de etiquetas desabilitada neste computador',
+      });
+      return;
+    }
+
+    if (type === 'coupon' && config.couponPrintingEnabled === false) {
+      this.socket?.emit('print-result', {
+        jobId,
+        success: false,
+        error: 'Impressão de cupons desabilitada neste computador',
+      });
       return;
     }
 

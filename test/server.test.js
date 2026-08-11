@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const PrintServer = require('../src/main/modules/server');
 const PrinterManager = require('../src/main/modules/printer');
+const { buildPersistedSettings } = require('../src/main/modules/printer-settings');
 
 describe('PrintServer', () => {
   describe('se a impressão de etiqueta estiver desabilitada', () => {
@@ -88,6 +89,22 @@ describe('PrinterManager', () => {
     });
   });
 
+  describe('se a impressora de cupom não estiver configurada', () => {
+    describe('e existir apenas a impressora de etiquetas instalada', () => {
+      it('deve deixar de resolver a impressora de cupom em vez de usar a de etiquetas', async () => {
+        // Arrange
+        const printerManager = new PrinterManager();
+        printerManager.listPrinters = async () => [{ Name: 'Argox OS-2140 PPLA', Online: true }];
+
+        // Act
+        const couponPrinter = await printerManager.getCouponPrinter();
+
+        // Assert
+        assert.equal(couponPrinter, null);
+      });
+    });
+  });
+
   describe('se receber o switch global legado', () => {
     it('deve aplicar o mesmo valor para etiqueta e cupom', () => {
       // Arrange
@@ -101,6 +118,66 @@ describe('PrinterManager', () => {
       assert.equal(config.labelPrintingEnabled, false);
       assert.equal(config.couponPrintingEnabled, false);
       assert.equal(config.printingEnabled, false);
+    });
+  });
+});
+
+describe('printer-settings', () => {
+  describe('se a impressora de cupom e a de etiqueta estiverem selecionadas', () => {
+    it('deve incluir couponPrinter e defaultPrinter no payload persistido', () => {
+      // Arrange
+      const config = {
+        labelPrintingEnabled: true,
+        couponPrintingEnabled: true,
+        defaultPrinter: 'Argox OS-2140 PPLA',
+        couponPrinter: 'Bematech MP-4200 TH',
+      };
+
+      // Act
+      const payload = buildPersistedSettings(config);
+
+      // Assert
+      assert.equal(payload.couponPrinter, 'Bematech MP-4200 TH');
+      assert.equal(payload.defaultPrinter, 'Argox OS-2140 PPLA');
+      assert.equal(payload.labelPrintingEnabled, true);
+      assert.equal(payload.couponPrintingEnabled, true);
+    });
+  });
+
+  describe('se o tenant_name for informado pelo web', () => {
+    it('deve incluir tenant_name no payload persistido', () => {
+      // Arrange
+      const config = {
+        labelPrintingEnabled: true,
+        couponPrintingEnabled: true,
+        tenant_name: 'loja-demo',
+      };
+
+      // Act
+      const payload = buildPersistedSettings(config);
+
+      // Assert
+      assert.equal(payload.tenant_name, 'loja-demo');
+    });
+  });
+});
+
+describe('PrintServer formatPrintErrorBody', () => {
+  describe('se a impressão falhar com mensagem específica', () => {
+    it('deve expor message e error com o mesmo texto para o cliente web', () => {
+      // Arrange
+      const printServer = new PrintServer({ getConfig: () => ({}) });
+      const error = printServer.createHttpError(
+        'Impressão de cupons desabilitada neste computador',
+        503
+      );
+
+      // Act
+      const body = printServer.formatPrintErrorBody(error);
+
+      // Assert
+      assert.equal(body.message, 'Impressão de cupons desabilitada neste computador');
+      assert.equal(body.error, 'Impressão de cupons desabilitada neste computador');
     });
   });
 });

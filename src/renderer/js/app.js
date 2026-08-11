@@ -37,20 +37,35 @@ async function loadPrinters() {
       if (couponPrinterSelect) couponPrinterSelect.innerHTML = optionsHtml;
       printerSelect.disabled = false;
       if (couponPrinterSelect) couponPrinterSelect.disabled = false;
-      
-      // Salvar impressora selecionada
-      const saved = localStorage.getItem('selectedPrinter');
-      if (saved && result.printers.find(p => p.Name === saved)) {
-        printerSelect.value = saved;
+
+      let persistedConfig = {};
+      try {
+        persistedConfig = await window.electronAPI.printer.getConfig();
+      } catch {
+        // Mantém fallback via localStorage
       }
 
-      // Salvar impressora de cupom selecionada (fallback para a mesma de etiquetas)
+      const saved =
+        persistedConfig.defaultPrinter ||
+        localStorage.getItem('selectedPrinter');
+      if (saved && result.printers.find(p => p.Name === saved)) {
+        printerSelect.value = saved;
+        localStorage.setItem('selectedPrinter', saved);
+        if (!persistedConfig.defaultPrinter) {
+          await window.electronAPI.printer.setConfig({ defaultPrinter: saved });
+        }
+      }
+
       if (couponPrinterSelect) {
-        const savedCoupon = localStorage.getItem('selectedCouponPrinter');
+        const savedCoupon =
+          persistedConfig.couponPrinter ||
+          localStorage.getItem('selectedCouponPrinter');
         if (savedCoupon && result.printers.find(p => p.Name === savedCoupon)) {
           couponPrinterSelect.value = savedCoupon;
-        } else if (saved && result.printers.find(p => p.Name === saved)) {
-          couponPrinterSelect.value = saved;
+          localStorage.setItem('selectedCouponPrinter', savedCoupon);
+          if (!persistedConfig.couponPrinter) {
+            await window.electronAPI.printer.setConfig({ couponPrinter: savedCoupon });
+          }
         }
       }
 

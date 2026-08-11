@@ -822,14 +822,12 @@ class PrinterManager {
   }
 
   /**
-   * Obtém impressora de cupom configurada (fallback para a impressora de etiquetas)
+   * Obtém impressora de cupom configurada.
+   * Sem fallback para a impressora de etiquetas: se não houver impressora de
+   * cupom definida, retorna null para o cupom não sair na impressora errada.
    */
   async getCouponPrinter() {
-    if (this.config.couponPrinter) {
-      return this.config.couponPrinter;
-    }
-
-    return await this.getDefaultPrinter();
+    return this.config.couponPrinter || null;
   }
 
   /**

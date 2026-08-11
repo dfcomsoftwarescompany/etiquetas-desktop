@@ -12,6 +12,10 @@ const PrinterManager = require('./modules/printer');
 const APIClient = require('./modules/api');
 const PrintServer = require('./modules/server');
 const PrinterWsClient = require('./modules/ws-client');
+const {
+  buildPersistedSettings,
+  resolveConfigFromPersisted,
+} = require('./modules/printer-settings');
 const { registerAllHandlers } = require('./ipc');
 
 // Importar módulo de updates - Usando electron-updater diretamente
@@ -33,24 +37,10 @@ function loadPersistedPrinterSettings() {
   try {
     const raw = fs.readFileSync(getPrinterSettingsPath(), 'utf8');
     const saved = JSON.parse(raw);
-    const hasTypedFlags =
-      typeof saved.labelPrintingEnabled === 'boolean' ||
-      typeof saved.couponPrintingEnabled === 'boolean';
+    const config = resolveConfigFromPersisted(saved);
 
-    if (hasTypedFlags) {
-      printerManager.setConfig({
-        labelPrintingEnabled: saved.labelPrintingEnabled !== false,
-        couponPrintingEnabled: saved.couponPrintingEnabled !== false,
-      });
-      return;
-    }
-
-    // Migração do switch global antigo
-    if (typeof saved.printingEnabled === 'boolean') {
-      printerManager.setConfig({
-        labelPrintingEnabled: saved.printingEnabled,
-        couponPrintingEnabled: saved.printingEnabled,
-      });
+    if (Object.keys(config).length > 0) {
+      printerManager.setConfig(config);
     }
   } catch {
     // Arquivo inexistente ou inválido — usa default
@@ -59,21 +49,9 @@ function loadPersistedPrinterSettings() {
 
 function persistPrinterSettings(config) {
   try {
-    const labelPrintingEnabled = config.labelPrintingEnabled !== false;
-    const couponPrintingEnabled = config.couponPrintingEnabled !== false;
-
     fs.writeFileSync(
       getPrinterSettingsPath(),
-      JSON.stringify(
-        {
-          labelPrintingEnabled,
-          couponPrintingEnabled,
-          // Mantém campo legado para leitura por builds antigas
-          printingEnabled: labelPrintingEnabled || couponPrintingEnabled,
-        },
-        null,
-        2
-      ),
+      JSON.stringify(buildPersistedSettings(config), null, 2),
       { mode: 0o600 }
     );
   } catch (error) {
@@ -144,8 +122,17 @@ app.whenReady().then(async () => {
         prev.couponPrintingEnabled !== next.couponPrintingEnabled ||
         prev.printingEnabled !== next.printingEnabled;
 
-      if (flagsChanged) {
+      const printersChanged =
+        prev.defaultPrinter !== next.defaultPrinter ||
+        prev.couponPrinter !== next.couponPrinter;
+
+      const tenantChanged = prev.tenant_name !== next.tenant_name;
+
+      if (flagsChanged || printersChanged || tenantChanged) {
         persistPrinterSettings(next);
+      }
+
+      if (flagsChanged || tenantChanged) {
         syncWebSocketWithPrintingConfig();
       }
     }
@@ -247,6 +234,15 @@ app.whenReady().then(async () => {
   printServer.onTokenUpdated = () => {
     if (!printerManager.isAnyPrintingEnabled()) {
       log.info('[App] Token atualizado, mas nenhum tipo de impressão está habilitado — WS permanece desconectado');
+      return;
+    }
+    printerWsClient.reconnect();
+  };
+  printServer.onTenantUpdated = (tenant_name) => {
+    log.info(`[App] tenant_name atualizado: ${tenant_name}`);
+    persistPrinterSettings(printerManager.getConfig());
+    if (!printerManager.isAnyPrintingEnabled()) {
+      log.info('[App] Tenant salvo, mas nenhum tipo de impressão está habilitado — WS permanece desconectado');
       return;
     }
     printerWsClient.reconnect();
