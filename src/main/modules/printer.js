@@ -2,6 +2,7 @@ const { createCanvas } = require('canvas');
 const QRCode = require('qrcode');
 const { BrowserWindow } = require('electron');
 const { exec } = require('child_process');
+const { prepareCouponPrintHtml } = require('./coupon-html');
 
 /**
  * Módulo de impressão - Argox OS-2140 PPLA
@@ -611,62 +612,7 @@ class PrinterManager {
   async printCanvasCoupon(printerName, htmlOrCanvas, copies = 1) {
     return new Promise((resolve, reject) => {
       try {
-        let couponHTML = '';
-        couponHTML = htmlOrCanvas;
-
-        const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {  width: 72.1mm; max-width: 72.1mm; min-height: 209mm; overflow-x: hidden; font-family: system-ui, sans-serif; font-size: 14px; }
-    img { width: 100%; height: 100%; display: block; }
-    /* Tailwind-equivalent utilities para cupom (BusinessReceipt) */
-    .p-1 { padding: 0.25rem; }
-    .p-4 { padding: 1rem; }
-    .hidden { display: none; }
-    .print\\:block { display: block !important; }
-    .flex { display: flex; }
-    .flex-row { flex-direction: row; }
-    .flex-col { flex-direction: column; }
-    .items-center { align-items: center; }
-    .items-end { align-items: flex-end; }
-    .text-xs { font-size: 0.875rem; line-height: 1.125rem; }
-    .text-sm { font-size: 1rem; line-height: 1.375rem; }
-    .font-bold { font-weight: 700; }
-    .border-t { border-top-width: 1px; }
-    .border-b { border-bottom-width: 1px; }
-    .border-black { border-color: #000; }
-    .border-dashed { border-style: dashed; }
-    .w-full { width: 100%; }
-    .mt-6 { margin-top: 1.5rem; }
-    .textAlign { text-align: center; }
-    .h-full { height: 100%; }
-    .text-center { text-align: center; }
-    .justify-between { justify-content: space-between; }
-    .grid { display: grid; }
-    .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
-    .mt-1 { margin-top: 0.25rem; }
-    .w-[150px] { width: 80px; }
-
-    img {
-      margin: 0 auto;
-      width: 100px;
-      height: 100px;
-      object-fit: contain;
-    }
-  </style>
-</head>
-<body>
-  ${couponHTML}
-    <div class="w-full h-full">
-    <p class="text-center">.</p>
-    </div>
-
-</body>
-</html>`;
+        const html = prepareCouponPrintHtml(htmlOrCanvas);
 
         const printWindow = new BrowserWindow({
           show: false,
@@ -676,50 +622,54 @@ class PrinterManager {
         printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
         printWindow.webContents.once('did-finish-load', () => {
-          
-          printWindow.webContents.print({
-              silent: true,
-              printBackground: true,
-              deviceName: printerName,
-              color: false,
-              margins: { marginType: 'none' },
-              pageSize: { width: 72100, height: 209000 },
-              dpi: { horizontal: 203, vertical: 203 },
-              copies: copies,
-              landscape: false,
-              scaleFactor: 100,
-              shouldPrintBackgrounds: true
-          }, (success, failureReason) => {
-            if (success) {
+          // Aguarda imagens (QR/assinatura) antes de mandar para a térmica
+          setTimeout(() => {
+            if (printWindow.isDestroyed()) {
+              reject(new Error('Janela de impressão destruída'));
+              return;
+            }
 
-              // Limpeza segura APÓS a impressão
-              setTimeout(() => {
-                try {
-                  if (!printWindow.isDestroyed()) {
-                    printWindow.close();
-                  }
-                } catch (e) {
-                  console.error('[Printer] ⚠️ Erro ao fechar janela:', e);
-                }
-
-                // Limpeza de referências após mais tempo
+            printWindow.webContents.print({
+                silent: true,
+                printBackground: true,
+                deviceName: printerName,
+                color: false,
+                margins: { marginType: 'none' },
+                pageSize: { width: 72100, height: 209000 },
+                dpi: { horizontal: 203, vertical: 203 },
+                copies: copies,
+                landscape: false,
+                scaleFactor: 100,
+                shouldPrintBackgrounds: true
+            }, (success, failureReason) => {
+              if (success) {
                 setTimeout(() => {
                   try {
                     if (!printWindow.isDestroyed()) {
-                      printWindow.destroy();
+                      printWindow.close();
                     }
                   } catch (e) {
-                    console.error('[Printer] Erro na limpeza:', e);
+                    console.error('[Printer] ⚠️ Erro ao fechar janela:', e);
                   }
-                }, 2000);
 
-                resolve();
-              }, 500); // Tempo mínimo para impressora processar
-            } else {
-              console.error('[Printer] ❌ ✗ Falha na impressão:', failureReason);
-              reject(new Error(failureReason || 'Falha na impressão'));
-            }
-          });
+                  setTimeout(() => {
+                    try {
+                      if (!printWindow.isDestroyed()) {
+                        printWindow.destroy();
+                      }
+                    } catch (e) {
+                      console.error('[Printer] Erro na limpeza:', e);
+                    }
+                  }, 2000);
+
+                  resolve();
+                }, 500);
+              } else {
+                console.error('[Printer] ❌ ✗ Falha na impressão:', failureReason);
+                reject(new Error(failureReason || 'Falha na impressão'));
+              }
+            });
+          }, 350);
         });
 
         setTimeout(() => {
@@ -727,7 +677,7 @@ class PrinterManager {
             printWindow.close();
             reject(new Error('Timeout'));
           }
-        }, 10000);
+        }, 15000);
 
       } catch (error) {
         reject(error);
