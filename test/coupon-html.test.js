@@ -1,13 +1,19 @@
-const { describe, it } = require('node:test');
+const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   prepareCouponPrintHtml,
   isFullHtmlDocument,
+  buildMontserratFontFaceCss,
+  resetFontFaceCacheForTests,
 } = require('../src/main/modules/coupon-html');
 
 describe('prepareCouponPrintHtml', () => {
+  beforeEach(() => {
+    resetFontFaceCacheForTests();
+  });
+
   describe('se o web enviar documento HTML completo do recibo', () => {
-    it('deve preservar as classes receipt e injetar overrides de fonte/cor sem reembrulhar', () => {
+    it('deve preservar as classes receipt e injetar Montserrat local sem Google Fonts', () => {
       // Arrange
       const incoming = `<!DOCTYPE html>
 <html>
@@ -29,14 +35,16 @@ describe('prepareCouponPrintHtml', () => {
       assert.match(html, /receipt-text/);
       assert.match(html, /etiquetas-coupon-overrides/);
       assert.match(html, /font-size: 16px/);
+      assert.match(html, /font-family: 'Montserrat'/);
+      assert.match(html, /@font-face/);
+      assert.match(html, /data:font\/woff2;base64,/);
       assert.equal(html.includes('fonts.googleapis.com'), false);
-      // Não deve haver documento aninhado (dois DOCTYPE)
       assert.equal((html.match(/<!DOCTYPE/gi) || []).length, 1);
     });
   });
 
   describe('se receber apenas fragmento HTML legado', () => {
-    it('deve embrulhar com shell local e fontes maiores', () => {
+    it('deve embrulhar com shell local, Montserrat embutida e fontes maiores', () => {
       // Arrange
       const fragment = '<div class="text-sm">Cupom</div>';
 
@@ -48,6 +56,21 @@ describe('prepareCouponPrintHtml', () => {
       assert.match(html, /Cupom/);
       assert.match(html, /font-size: 16px/);
       assert.match(html, /color: #000/);
+      assert.match(html, /font-family: 'Montserrat'/);
+      assert.match(html, /@font-face/);
+    });
+  });
+
+  describe('se as fontes locais estiverem em assets/fonts', () => {
+    it('deve gerar @font-face com pesos 400, 600 e 700', () => {
+      // Act
+      const css = buildMontserratFontFaceCss();
+
+      // Assert
+      assert.match(css, /font-weight: 400/);
+      assert.match(css, /font-weight: 600/);
+      assert.match(css, /font-weight: 700/);
+      assert.equal((css.match(/@font-face/g) || []).length, 3);
     });
   });
 });

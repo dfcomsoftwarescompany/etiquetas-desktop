@@ -2,7 +2,15 @@
  * Prepara HTML de cupom para impressão térmica no Electron.
  * O web envia documento completo (wrapReceiptHtml + RECEIPT_CSS);
  * reembrulhar com CSS Tailwind quebrava estilos e podia sair em branco.
+ *
+ * Montserrat é embutida localmente (assets/fonts) — mesmo visual do web,
+ * sem depender do Google Fonts na térmica.
  */
+
+const fs = require('fs');
+const path = require('path');
+
+const FONT_STACK = `'Montserrat', Arial, Helvetica, sans-serif`;
 
 const COUPON_PRINT_OVERRIDES = `
   @media print {
@@ -17,13 +25,14 @@ const COUPON_PRINT_OVERRIDES = `
     max-width: 72mm !important;
     margin: 0 !important;
     padding: 0 !important;
+    font-family: ${FONT_STACK} !important;
   }
   .receipt {
     width: 72mm !important;
     max-width: 72mm !important;
     color: #000 !important;
     background: #fff !important;
-    font-family: Arial, Helvetica, sans-serif !important;
+    font-family: ${FONT_STACK} !important;
     font-size: 16px !important;
     line-height: 1.35 !important;
     padding: 8px !important;
@@ -40,6 +49,7 @@ const COUPON_PRINT_OVERRIDES = `
   .receipt-footer-copy {
     font-size: 16px !important;
     color: #000 !important;
+    font-family: ${FONT_STACK} !important;
   }
   .receipt-text-bold,
   .receipt-title,
@@ -64,19 +74,89 @@ const COUPON_PRINT_OVERRIDES = `
   }
 `;
 
-const LEGACY_COUPON_SHELL = `
+let cachedFontFaceCss = null;
+
+function resolveFontsDir() {
+  try {
+    const { app } = require('electron');
+    if (app?.isPackaged) {
+      return path.join(process.resourcesPath, 'assets', 'fonts');
+    }
+  } catch {
+    // testes / fora do Electron
+  }
+
+  return path.join(__dirname, '..', '..', '..', 'assets', 'fonts');
+}
+
+function readFontAsDataUri(fileName) {
+  const filePath = path.join(resolveFontsDir(), fileName);
+  const bytes = fs.readFileSync(filePath);
+  return `data:font/woff2;base64,${bytes.toString('base64')}`;
+}
+
+/**
+ * @font-face Montserrat local (400/600/700) embutido em data URI.
+ * Compatível com loadURL data:text/html.
+ */
+function buildMontserratFontFaceCss() {
+  if (cachedFontFaceCss !== null) {
+    return cachedFontFaceCss;
+  }
+
+  try {
+    const regular = readFontAsDataUri('Montserrat-Regular.woff2');
+    const semiBold = readFontAsDataUri('Montserrat-SemiBold.woff2');
+    const bold = readFontAsDataUri('Montserrat-Bold.woff2');
+
+    cachedFontFaceCss = `
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('${regular}') format('woff2');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+  src: url('${semiBold}') format('woff2');
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('${bold}') format('woff2');
+}
+`;
+  } catch (error) {
+    console.error('[coupon-html] Falha ao carregar Montserrat local:', error.message);
+    cachedFontFaceCss = '';
+  }
+
+  return cachedFontFaceCss;
+}
+
+function buildLegacyCouponShell() {
+  const fontFace = buildMontserratFontFaceCss();
+
+  return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
+    ${fontFace}
     *, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       width: 72.1mm;
       max-width: 72.1mm;
       min-height: 209mm;
       overflow-x: hidden;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: ${FONT_STACK};
       font-size: 16px;
       color: #000;
       background: #fff;
@@ -115,6 +195,7 @@ const LEGACY_COUPON_SHELL = `
 </body>
 </html>
 `;
+}
 
 function isFullHtmlDocument(html) {
   if (typeof html !== 'string') return false;
@@ -131,10 +212,11 @@ function stripRemoteFontImports(html) {
 }
 
 /**
- * Injeta overrides de fonte/cor no <head> do documento completo.
+ * Injeta @font-face local + overrides de fonte/cor no <head>.
  */
 function injectPrintOverrides(html) {
-  const styleTag = `<style id="etiquetas-coupon-overrides">${COUPON_PRINT_OVERRIDES}</style>`;
+  const fontFace = buildMontserratFontFaceCss();
+  const styleTag = `<style id="etiquetas-coupon-overrides">${fontFace}${COUPON_PRINT_OVERRIDES}</style>`;
   if (/<\/head>/i.test(html)) {
     return html.replace(/<\/head>/i, `${styleTag}</head>`);
   }
@@ -157,12 +239,20 @@ function prepareCouponPrintHtml(couponHtml) {
     return injectPrintOverrides(stripRemoteFontImports(couponHtml));
   }
 
-  return LEGACY_COUPON_SHELL.replace('__COUPON__', couponHtml);
+  return buildLegacyCouponShell().replace('__COUPON__', couponHtml);
+}
+
+/** Só para testes — limpa cache de @font-face */
+function resetFontFaceCacheForTests() {
+  cachedFontFaceCss = null;
 }
 
 module.exports = {
   prepareCouponPrintHtml,
   isFullHtmlDocument,
   stripRemoteFontImports,
+  buildMontserratFontFaceCss,
+  resetFontFaceCacheForTests,
   COUPON_PRINT_OVERRIDES,
+  FONT_STACK,
 };
