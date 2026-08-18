@@ -156,10 +156,13 @@ class PrinterManager {
     const texto = (labelData.texto || labelData.descricao || 'PRODUTO').toString();
     const codigoCompleto = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
     // Separar: código completo pro QR Code, só número pro display
-    // Suporta /dp- em qualquer caso (minúsculo, maiúsculo, misto)
+    // Suporta /dp- (consignado) e /ctl- (catálogo) em qualquer caso
     const codigo = codigoCompleto; // QR Code usa o código completo
-    const dpIndex = codigoCompleto.toLowerCase().indexOf('/dp-');
-    const codigoExibir = dpIndex !== -1 ? codigoCompleto.substring(0, dpIndex) : codigoCompleto;
+    const suffixIndex = ['/dp-', '/ctl-']
+      .map((suffix) => codigoCompleto.toLowerCase().indexOf(suffix))
+      .filter((index) => index !== -1)
+      .sort((a, b) => a - b)[0];
+    const codigoExibir = suffixIndex != null ? codigoCompleto.substring(0, suffixIndex) : codigoCompleto;
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
     const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || labelData.valor_giracredito || null;
@@ -262,7 +265,7 @@ class PrinterManager {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    // Código de barras - exibe só o número (sem /dp-nome), diminui fonte dinamicamente
+    // Código de barras - exibe só o número (sem /dp- ou /ctl-), diminui fonte dinamicamente
     const maxCodigoWidth = this.config.labelWidthPx - (margin * 4);
     const codigoFontSize = this.autoFitText(ctx, codigoExibir, maxCodigoWidth, 24, 8, 'normal', 'Arial');
     ctx.fillText(codigoExibir, centerX, currentY);
