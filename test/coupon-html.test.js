@@ -34,7 +34,7 @@ describe('prepareCouponPrintHtml', () => {
       assert.match(html, /class="receipt"/);
       assert.match(html, /receipt-text/);
       assert.match(html, /etiquetas-coupon-overrides/);
-      assert.match(html, /font-size: 16px/);
+      assert.match(html, /font-size: 14px/);
       assert.match(html, /font-family: 'Montserrat'/);
       assert.match(html, /@font-face/);
       assert.match(html, /data:font\/woff2;base64,/);
@@ -54,7 +54,7 @@ describe('prepareCouponPrintHtml', () => {
       // Assert
       assert.match(html, /<!DOCTYPE html>/i);
       assert.match(html, /Cupom/);
-      assert.match(html, /font-size: 16px/);
+      assert.match(html, /font-size: 14px/);
       assert.match(html, /color: #000/);
       assert.match(html, /font-family: 'Montserrat'/);
       assert.match(html, /@font-face/);

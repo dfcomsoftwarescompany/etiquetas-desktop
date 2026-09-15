@@ -33,11 +33,11 @@ const COUPON_PRINT_OVERRIDES = `
     color: #000 !important;
     background: #fff !important;
     font-family: ${FONT_STACK} !important;
-    font-size: 16px !important;
+    font-size: 14px !important;
     line-height: 1.35 !important;
     padding: 8px !important;
   }
-  .receipt-company-name { font-size: 20px !important; font-weight: 700 !important; color: #000 !important; }
+  .receipt-company-name { font-size: 18px !important; font-weight: 700 !important; color: #000 !important; }
   .receipt-text,
   .receipt-text-bold,
   .receipt-title,
@@ -47,7 +47,7 @@ const COUPON_PRINT_OVERRIDES = `
   .receipt-grid-3,
   .receipt-grid-row,
   .receipt-footer-copy {
-    font-size: 16px !important;
+    font-size: 14px !important;
     color: #000 !important;
     font-family: ${FONT_STACK} !important;
   }
@@ -157,7 +157,7 @@ function buildLegacyCouponShell() {
       min-height: 209mm;
       overflow-x: hidden;
       font-family: ${FONT_STACK};
-      font-size: 16px;
+      font-size: 14px;
       color: #000;
       background: #fff;
     }
@@ -170,8 +170,8 @@ function buildLegacyCouponShell() {
     .flex-col { flex-direction: column; }
     .items-center { align-items: center; }
     .items-end { align-items: flex-end; }
-    .text-xs { font-size: 1rem; line-height: 1.25rem; color: #000; }
-    .text-sm { font-size: 1.125rem; line-height: 1.5rem; color: #000; }
+    .text-xs { font-size: 0.875rem; line-height: 1.125rem; color: #000; }
+    .text-sm { font-size: 1rem; line-height: 1.375rem; color: #000; }
     .font-bold { font-weight: 700; }
     .border-t { border-top: 1px solid #000; }
     .border-b { border-bottom: 1px solid #000; }
