@@ -392,7 +392,12 @@ class PrintServer {
         // Nome da loja (dinâmico)
         nome_loja: item.nome_loja || item.nomeLoja || null,
         // Condição de pagamento (dinâmico)
-        condicao_pagamento: item.condicao_pagamento || item.condicaoPagamento || null
+        condicao_pagamento: item.condicao_pagamento || item.condicaoPagamento || null,
+        // Layout: true = PREÇO + crédito em loja | false = apenas PREÇO estendido
+        viewCredit:
+          item.viewCredit !== undefined
+            ? item.viewCredit === true || item.viewCredit === 'true'
+            : undefined
       };
 
       // Adicionar item 'qtd' vezes

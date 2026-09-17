@@ -2,7 +2,13 @@ const { createCanvas } = require('canvas');
 const QRCode = require('qrcode');
 const { BrowserWindow } = require('electron');
 const { exec } = require('child_process');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { prepareCouponPrintHtml } = require('./coupon-html');
+
+const PRINT_LOAD_TIMEOUT_MS = 45000;
+const PRINT_JOB_TIMEOUT_MS = 45000;
 
 /**
  * Módulo de impressão - Argox OS-2140 PPLA
@@ -47,6 +53,128 @@ class PrinterManager {
 
   mmToPixels(mm) {
     return Math.round(mm * (this.config.dpi / 25.4));
+  }
+
+  isVirtualPrinter(printerName) {
+    return /pdf|xps|microsoft print to pdf|onenote|fax/i.test(String(printerName || ''));
+  }
+
+  cleanupPrintWindow(printWindow) {
+    try {
+      if (!printWindow.isDestroyed()) {
+        printWindow.close();
+      }
+    } catch (error) {
+      console.error('[Printer] Erro ao fechar janela:', error);
+    }
+
+    setTimeout(() => {
+      try {
+        if (!printWindow.isDestroyed()) {
+          printWindow.destroy();
+        }
+      } catch (error) {
+        console.error('[Printer] Erro ao destruir janela:', error);
+      }
+    }, 2000);
+  }
+
+  async printHtmlContent({ printerName, html, pageSize, copies = 1, postPrintDelayMs = 500 }) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let loadTimeout;
+      let printTimeout;
+
+      const finish = (error) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(loadTimeout);
+        clearTimeout(printTimeout);
+
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      };
+
+      try {
+        const printWindow = new BrowserWindow({
+          show: false,
+          webPreferences: { offscreen: true, nodeIntegration: false },
+        });
+
+        loadTimeout = setTimeout(() => {
+          this.cleanupPrintWindow(printWindow);
+          finish(new Error('Timeout ao carregar etiqueta para impressão'));
+        }, PRINT_LOAD_TIMEOUT_MS);
+
+        printWindow.webContents.once('did-fail-load', (_event, errorCode, errorDescription) => {
+          this.cleanupPrintWindow(printWindow);
+          finish(new Error(`Falha ao carregar etiqueta (${errorCode}): ${errorDescription}`));
+        });
+
+        printWindow.webContents.once('did-finish-load', () => {
+          clearTimeout(loadTimeout);
+
+          if (this.isVirtualPrinter(printerName)) {
+            printWindow.webContents
+              .printToPDF({ pageSize, printBackground: true })
+              .then((data) => {
+                const filePath = path.join(os.tmpdir(), `loopii-etiqueta-${Date.now()}.pdf`);
+                fs.writeFileSync(filePath, data);
+                console.log(`[Printer] PDF gerado em: ${filePath}`);
+                this.cleanupPrintWindow(printWindow);
+                finish();
+              })
+              .catch((error) => {
+                this.cleanupPrintWindow(printWindow);
+                finish(error);
+              });
+            return;
+          }
+
+          const printOptions = {
+            silent: true,
+            printBackground: true,
+            deviceName: printerName,
+            color: false,
+            margins: { marginType: 'none' },
+            pageSize,
+            dpi: { horizontal: 203, vertical: 203 },
+            copies,
+            landscape: false,
+            scaleFactor: 100,
+            shouldPrintBackgrounds: true,
+          };
+
+          printTimeout = setTimeout(() => {
+            this.cleanupPrintWindow(printWindow);
+            finish(new Error('Timeout ao enviar etiqueta para a impressora'));
+          }, PRINT_JOB_TIMEOUT_MS);
+
+          printWindow.webContents.print(printOptions, (success, failureReason) => {
+            clearTimeout(printTimeout);
+            this.cleanupPrintWindow(printWindow);
+
+            if (success) {
+              setTimeout(() => finish(), postPrintDelayMs);
+              return;
+            }
+
+            finish(new Error(failureReason || 'Falha na impressão'));
+          });
+        });
+
+        printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+      } catch (error) {
+        finish(error);
+      }
+    });
   }
 
   /**
@@ -166,6 +294,12 @@ class PrinterManager {
     const preco = (labelData.preco || labelData.valor || '0,00').toString();
     const tamanho = (labelData.tamanho || labelData.tam || '').toString();
     const valorCredito = labelData.valorCredito || labelData.valueStoreCredit || labelData.valor_giracredito || null;
+    const viewCredit =
+      labelData.viewCredit === true || labelData.viewCredit === 'true'
+        ? true
+        : labelData.viewCredit === false || labelData.viewCredit === 'false'
+          ? false
+          : Boolean(valorCredito);
     const nomeLoja = (labelData.nome_loja || labelData.nomeLoja || 'LOOPII').toString();
     const condicaoPagamento = (labelData.condicao_pagamento || labelData.condicaoPagamento || 'NO GIRA').toString();
     const produtoNovo = labelData.produto_novo === true || (texto && texto.toLowerCase().includes('novo'));
@@ -361,26 +495,24 @@ class PrinterManager {
       ctx.fillText(eventoTexto, centerX, areaPrecoY + eventoH / 2);
     }
 
-    // ========== VALORES (2 colunas verticais: label em cima, valor embaixo) ==========
-    if (valorCredito) {
+    // ========== VALORES ==========
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (viewCredit && valorCredito) {
       const precoGira = this.formatPrice(valorCredito);
       const metadeWidth = this.config.labelWidthPx / 2;
       const colunaW = metadeWidth - margin - 2;
-      
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
+
       // ========== COLUNA ESQUERDA (PREÇO) ==========
-      // Label "PREÇO" em cima
       ctx.fillStyle = '#333';
       this.autoFitText(ctx, 'PREÇO', colunaW, 16, 10, '500', 'Helvetica, sans-serif');
       ctx.fillText('PREÇO', metadeWidth / 2, areaValoresY + 16);
-      
-      // Valor embaixo
+
       ctx.fillStyle = 'black';
       this.autoFitText(ctx, precoTexto, colunaW, 32, 16, '500', 'Helvetica, sans-serif');
       ctx.fillText(precoTexto, metadeWidth / 2, areaValoresY + areaValoresH / 2 + 8);
-      
+
       // ========== LINHA VERTICAL DIVISÓRIA ==========
       ctx.strokeStyle = '#999';
       ctx.lineWidth = 1;
@@ -388,28 +520,29 @@ class PrinterManager {
       ctx.moveTo(metadeWidth, areaValoresY + 4);
       ctx.lineTo(metadeWidth, areaValoresY + areaValoresH - 4);
       ctx.stroke();
-      
+
       // ========== COLUNA DIREITA (CONDIÇÃO PAGAMENTO) - Fundo preto ==========
       ctx.fillStyle = '#000000';
       ctx.fillRect(metadeWidth + 1, areaValoresY, metadeWidth - margin - 1, areaValoresH);
-      
-      // Label condição em cima
+
       ctx.fillStyle = '#FFFFFF';
       this.autoFitText(ctx, condicaoPagamento, colunaW - 6, 16, 8, '600', 'Arial');
       ctx.fillText(condicaoPagamento, metadeWidth + (metadeWidth / 2) - (margin / 2), areaValoresY + 16);
-      
-      // Valor crédito embaixo
+
       ctx.fillStyle = '#FFFFFF';
       this.autoFitText(ctx, precoGira, colunaW - 6, 32, 16, '500', 'Helvetica, sans-serif');
       ctx.fillText(precoGira, metadeWidth + (metadeWidth / 2) - (margin / 2), areaValoresY + areaValoresH / 2 + 8);
-      
     } else {
-      // APENAS VALOR (centralizado)
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // APENAS PREÇO (label + valor estendido em largura total)
+      const fullWidth = this.config.labelWidthPx - (margin * 4);
+
+      ctx.fillStyle = '#333';
+      this.autoFitText(ctx, 'PREÇO', fullWidth, 16, 10, '500', 'Helvetica, sans-serif');
+      ctx.fillText('PREÇO', centerX, areaValoresY + 16);
+
       ctx.fillStyle = 'black';
-      this.autoFitText(ctx, precoTexto, this.config.labelWidthPx - (margin * 4), 40, 20, '500', 'Helvetica, sans-serif');
-      ctx.fillText(precoTexto, centerX, areaValoresY + areaValoresH / 2);
+      this.autoFitText(ctx, precoTexto, fullWidth, 40, 18, '500', 'Helvetica, sans-serif');
+      ctx.fillText(precoTexto, centerX, areaValoresY + areaValoresH / 2 + 8);
     }
 
     return canvas;
@@ -512,11 +645,8 @@ class PrinterManager {
    * Imprime canvas via Electron Print API
    */
   async printCanvas(printerName, canvas, copies = 1) {
-    return new Promise((resolve, reject) => {
-      try {
-        const dataUrl = canvas.toDataURL('image/png');
-
-        const html = `
+    const dataUrl = canvas.toDataURL('image/png');
+    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -529,71 +659,11 @@ class PrinterManager {
 <body><img src="${dataUrl}" /></body>
 </html>`;
 
-        const printWindow = new BrowserWindow({
-          show: false,
-          webPreferences: { offscreen: true, nodeIntegration: false }
-        });
-
-        printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-
-        printWindow.webContents.once('did-finish-load', () => {
-          const printOptions = {
-            silent: true,
-            printBackground: true,
-            deviceName: printerName,
-            color: false,
-            margins: { marginType: 'none' },
-            pageSize: { width: 80000, height: 60000 },
-            dpi: { horizontal: 203, vertical: 203 },
-            copies: copies,
-            landscape: false,
-            scaleFactor: 100,
-            shouldPrintBackgrounds: true
-          };
-
-          printWindow.webContents.print(printOptions, (success, failureReason) => {
-            if (success) {
-
-              // Limpeza segura APÓS a impressão
-              setTimeout(() => {
-                try {
-                  if (!printWindow.isDestroyed()) {
-                    printWindow.close();
-                  }
-                } catch (e) {
-                  console.error('[Printer] ⚠️ Erro ao fechar janela:', e);
-                }
-
-                // Limpeza de referências após mais tempo
-                setTimeout(() => {
-                  try {
-                    if (!printWindow.isDestroyed()) {
-                      printWindow.destroy();
-                    }
-                  } catch (e) {
-                    console.error('[Printer] Erro na limpeza:', e);
-                  }
-                }, 2000);
-
-                resolve();
-              }, 500); // Tempo mínimo para impressora processar
-            } else {
-              console.error('[Printer] ❌ ✗ Falha na impressão:', failureReason);
-              reject(new Error(failureReason || 'Falha na impressão'));
-            }
-          });
-        });
-
-        setTimeout(() => {
-          if (!printWindow.isDestroyed()) {
-            printWindow.close();
-            reject(new Error('Timeout'));
-          }
-        }, 10000);
-
-      } catch (error) {
-        reject(error);
-      }
+    return this.printHtmlContent({
+      printerName,
+      html,
+      copies,
+      pageSize: { width: 80000, height: 60000 },
     });
   }
 
@@ -842,12 +912,8 @@ class PrinterManager {
    * Imprime canvas de etiqueta única (40mm)
    */
   async printCanvasSingle(printerName, canvas, copies = 1) {
-    return new Promise((resolve, reject) => {
-      try {
-
-        const dataUrl = canvas.toDataURL('image/png');
-
-        const html = `
+    const dataUrl = canvas.toDataURL('image/png');
+    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -860,59 +926,12 @@ class PrinterManager {
 <body><img src="${dataUrl}" /></body>
 </html>`;
 
-        const printWindow = new BrowserWindow({
-          show: false,
-          webPreferences: { offscreen: true, nodeIntegration: false }
-        });
-
-        printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
-
-        printWindow.webContents.once('did-finish-load', () => {
-          const printOptions = {
-            silent: true,
-            printBackground: true,
-            deviceName: printerName,
-            color: false,
-            margins: { marginType: 'none' },
-            pageSize: { width: 40000, height: 60000 }, // 40mm x 60mm
-            dpi: { horizontal: 203, vertical: 203 },
-            copies: copies,
-            landscape: false,
-            scaleFactor: 100,
-            shouldPrintBackgrounds: true
-          };
-
-          printWindow.webContents.print(printOptions, (success, failureReason) => {
-            // Limpeza de memória
-            try {
-              printWindow.close();
-              printWindow.destroy();
-            } catch (e) {
-              console.error('[Printer] Erro ao destruir janela:', e);
-            }
-
-            if (success) {
-              // Delay mínimo para a impressora processar
-              setTimeout(() => {
-                resolve();
-              }, 200);
-            } else {
-              console.error('[Printer] ✗ Falha:', failureReason);
-              reject(new Error(failureReason || 'Falha na impressão'));
-            }
-          });
-        });
-
-        setTimeout(() => {
-          if (!printWindow.isDestroyed()) {
-            printWindow.close();
-            reject(new Error('Timeout'));
-          }
-        }, 10000);
-
-      } catch (error) {
-        reject(error);
-      }
+    return this.printHtmlContent({
+      printerName,
+      html,
+      copies,
+      pageSize: { width: 40000, height: 60000 },
+      postPrintDelayMs: 200,
     });
   }
 }
