@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "test": "node --test test/",
+    "test": "node --test",
     "build:test": "node scripts/generate-runtime-config.js test && electron-builder --win --config electron-builder.test.json --publish never",
     "build:beta": "node scripts/generate-runtime-config.js beta && electron-builder --win --config electron-builder.beta.json --publish never",
     "build:prod": "node scripts/generate-runtime-config.js prod && electron-builder --win --config electron-builder.prod.json --publish never",
