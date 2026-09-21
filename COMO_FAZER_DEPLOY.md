@@ -1,68 +1,65 @@
 # 🚀 Como Fazer Deploy
 
-## 📝 Processo Simples
+Guia rápido. O detalhamento (canais, secrets, auto-update) está em [DEPLOY.md](DEPLOY.md).
 
-### 1️⃣ Fazer suas alterações
+## 1️⃣ Escolher a branch do ambiente
+
+| Ambiente | Branch | Formato da versão |
+|----------|--------|-------------------|
+| TEST | `develop` | `2.0.73-env-test.1` |
+| BETA | `beta` | `2.0.73-env-beta.1` |
+| PROD | `main` | `2.0.73` |
+
+## 2️⃣ Fazer as alterações
+
 ```bash
 git checkout -b feature/minha-alteracao
-# ... fazer alterações no código ...
-git add .
-git commit -m "descrição das alterações"
+# ... alterações ...
+npm test
+git commit -am "descrição das alterações"
 ```
 
-### 2️⃣ Incrementar a versão no package.json
+## 3️⃣ Incrementar a versão no package.json
+
+Use o formato da branch de destino:
+
 ```json
 {
-  "version": "2.0.7"  // Mudar de 2.0.6 para 2.0.7
+  "version": "2.0.73-env-beta.1"
 }
 ```
 
-**Tipos de versão:**
-- `2.0.6 → 2.0.7` = Correção/pequena mudança (patch)
-- `2.0.6 → 2.1.0` = Nova funcionalidade (minor)
-- `2.0.6 → 3.0.0` = Mudança grande (major)
+- Correção/pequena mudança: `2.0.72 → 2.0.73`
+- Nova funcionalidade: `2.0.72 → 2.1.0`
+- Mudança grande: `2.0.72 → 3.0.0`
+- Novo build no mesmo ambiente: `-env-beta.1 → -env-beta.2`
 
-### 3️⃣ Commit da nova versão
-```bash
-git add package.json
-git commit -m "chore: versão 2.0.7"
-```
+## 4️⃣ Merge na branch do ambiente
 
-### 4️⃣ Fazer merge para main
 ```bash
-git checkout main
+git checkout beta          # ou develop, ou main
 git merge feature/minha-alteracao
-git push origin main
+git push origin beta
 ```
 
-### 5️⃣ PRONTO! 🎉
+## 5️⃣ PRONTO! 🎉
+
 O workflow automaticamente:
-- ✅ Faz o build
-- ✅ Cria a tag v2.0.7
-- ✅ Publica no GitHub Releases
-- ✅ Usuários recebem atualização automática!
+- ✅ Descobre o canal pela branch
+- ✅ Roda os testes
+- ✅ Grava a URL do socket do ambiente no instalador
+- ✅ Publica no GitHub Releases (pre-release em TEST/BETA)
+- ✅ Usuários do mesmo canal recebem a atualização
 
 ## ⚠️ Importante
 
-- **SEMPRE** incremente a versão antes do push para main
+- **SEMPRE** incremente a versão antes do push
 - **NUNCA** use a mesma versão duas vezes
-- Se esquecer de incrementar, o workflow vai dar erro (isso é bom!)
-
-## 🔄 Como os usuários recebem a atualização?
-
-O aplicativo tem **electron-updater** configurado que:
-1. Verifica o GitHub Releases automaticamente
-2. Compara a versão instalada com a disponível
-3. Se houver versão nova, baixa e instala automaticamente
-4. Usuário só precisa reiniciar o app!
+- A versão precisa casar com o canal da branch, senão o build falha de propósito
 
 ## 🆘 Deu erro?
 
-Se o workflow der erro dizendo "Tag já existe":
-1. Significa que você esqueceu de incrementar a versão
-2. Abra o `package.json`
-3. Incremente a versão
-4. Commit e push novamente
+Veja a tabela de erros no final do [DEPLOY.md](DEPLOY.md).
 
 ---
 

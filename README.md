@@ -42,12 +42,17 @@ npm start
 
 ## 📦 Build
 
-```bash
-# Gerar instalador Windows
-npm run build:win
+O app tem 3 canais (TEST, BETA e PROD), cada um com a URL do socket do seu ambiente
+gravada no instalador. Detalhes em [DEPLOY.md](DEPLOY.md).
 
-# Publicar atualização
-npm run publish
+```bash
+# Gerar instalador Windows do canal desejado (sem publicar)
+npm run build:test
+npm run build:beta
+npm run build:prod
+
+# Publicar (usado pelo GitHub Actions)
+npm run publish:prod
 ```
 
 ## 🏗️ Estrutura do Projeto
@@ -89,15 +94,9 @@ O aplicativo usa o protocolo PPLA (Printer Programming Language Argox) para comu
 
 ## 🔄 Auto-atualização
 
-Configure o `publish` no `package.json` para seu repositório GitHub:
-
-```json
-"publish": {
-  "provider": "github",
-  "owner": "seu-usuario",
-  "repo": "etiquetas-desktop"
-}
-```
+O `publish` fica em `electron-builder.base.json` (comum) e o canal de cada ambiente em
+`electron-builder.{test,beta,prod}.json`. Cada canal só atualiza dentro dele mesmo —
+ver [DEPLOY.md](DEPLOY.md).
 
 ## 📝 Roadmap
 

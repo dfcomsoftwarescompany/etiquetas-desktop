@@ -1,0 +1,36 @@
+{
+  "directories": {
+    "output": "dist"
+  },
+  "win": {
+    "target": [
+      "nsis",
+      "portable"
+    ],
+    "icon": "assets/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "perMachine": false,
+    "runAfterFinish": true,
+    "deleteAppDataOnUninstall": false,
+    "include": "build/installer.nsh"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "dfcomsoftwarescompany",
+    "repo": "etiquetas-desktop",
+    "private": false
+  },
+  "extraResources": [
+    "assets/**",
+    {
+      "from": "build/runtime-config.json",
+      "to": "runtime-config.json"
+    }
+  ]
+}

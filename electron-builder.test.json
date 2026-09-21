@@ -1,0 +1,13 @@
+{
+  "extends": "./electron-builder.base.json",
+  "appId": "com.loopii.etiquetas.test",
+  "productName": "Etiquetas LOOPII TEST",
+  "nsis": {
+    "shortcutName": "Etiquetas LOOPII TEST",
+    "uninstallDisplayName": "Etiquetas LOOPII TEST"
+  },
+  "publish": {
+    "releaseType": "prerelease",
+    "channel": "env-test"
+  }
+}

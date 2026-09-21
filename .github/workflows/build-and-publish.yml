@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - beta
+      - develop
   workflow_dispatch:
 
 jobs:
@@ -20,15 +22,29 @@ jobs:
           node-version: '22'
           cache: 'npm'
       
-      - name: Obter versão
-        id: version
+      - name: Resolver canal e versão
+        id: build-info
         run: |
+          $channel = switch ("${{ github.ref_name }}") {
+            'main'    { 'prod' }
+            'beta'    { 'beta' }
+            'develop' { 'test' }
+            default   { '' }
+          }
+          if (-not $channel) {
+            Write-Error "Branch '${{ github.ref_name }}' não tem canal configurado (main/beta/develop)."
+            exit 1
+          }
           $version = (Get-Content package.json | ConvertFrom-Json).version
+          echo "channel=$channel" >> $env:GITHUB_OUTPUT
           echo "version=$version" >> $env:GITHUB_OUTPUT
-          echo "📦 Versão: $version"
+          echo "📦 Canal: $channel | Versão: $version"
       
       - name: Instalar dependências
         run: npm ci
+      
+      - name: Rodar testes
+        run: npm test
       
       - name: Rebuild módulos nativos
         run: npm run rebuild
@@ -36,7 +52,10 @@ jobs:
       - name: Build e Publicar
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run publish:prod
+          PRINTER_WS_URL_PROD: ${{ secrets.PRINTER_WS_URL_PROD }}
+          PRINTER_WS_URL_BETA: ${{ secrets.PRINTER_WS_URL_BETA }}
+          PRINTER_WS_URL_TEST: ${{ secrets.PRINTER_WS_URL_TEST }}
+        run: npm run publish:${{ steps.build-info.outputs.channel }}
       
       - name: Confirmar release
-        run: echo "✅ Release v${{ steps.version.outputs.version }} criada com sucesso!"
+        run: echo "✅ Release v${{ steps.build-info.outputs.version }} (${{ steps.build-info.outputs.channel }}) criada com sucesso!"

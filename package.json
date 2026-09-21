@@ -1,16 +1,18 @@
 {
   "name": "etiquetas-desktop",
-  "version": "2.0.72",
+  "version": "2.0.73-env-test.1",
   "description": "Aplicativo para impressão de etiquetas 40x60mm com QR Code em impressoras Argox OS-2140",
   "main": "src/main/index.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "build:test": "electron-builder --win --publish never",
-    "publish:test": "electron-builder --win --publish always --config.publish.releaseType=draft",
-    "publish:prod": "electron-builder --win --publish always",
+    "test": "node --test test/",
+    "build:test": "node scripts/generate-runtime-config.js test && electron-builder --win --config electron-builder.test.json --publish never",
+    "build:beta": "node scripts/generate-runtime-config.js beta && electron-builder --win --config electron-builder.beta.json --publish never",
+    "build:prod": "node scripts/generate-runtime-config.js prod && electron-builder --win --config electron-builder.prod.json --publish never",
+    "publish:test": "node scripts/generate-runtime-config.js test && electron-builder --win --config electron-builder.test.json --publish always",
+    "publish:beta": "node scripts/generate-runtime-config.js beta && electron-builder --win --config electron-builder.beta.json --publish always",
+    "publish:prod": "node scripts/generate-runtime-config.js prod && electron-builder --win --config electron-builder.prod.json --publish always",
     "rebuild": "electron-rebuild"
   },
   "author": "LOOPII",
@@ -32,42 +34,5 @@
     "express": "^4.18.2",
     "qrcode": "^1.5.3",
     "socket.io-client": "^4.8.3"
-  },
-  "build": {
-    "appId": "com.loopii.etiquetas",
-    "productName": "Etiquetas LOOPII",
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ],
-      "icon": "assets/icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "perMachine": false,
-      "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false,
-      "include": "build/installer.nsh",
-      "shortcutName": "Etiquetas LOOPII",
-      "uninstallDisplayName": "Etiquetas LOOPII"
-    },
-    "publish": {
-      "provider": "github",
-      "owner": "dfcomsoftwarescompany",
-      "repo": "etiquetas-desktop",
-      "releaseType": "release",
-      "private": false
-    },
-    "extraResources": [
-      "assets/**"
-    ]
   }
 }

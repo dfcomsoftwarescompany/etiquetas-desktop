@@ -1,13 +1,12 @@
 const { io } = require('socket.io-client');
 const log = require('electron-log');
-
-const DEFAULT_WS_URL = 'https://socket.dfcom.com.br/notifications-printer';
+const { getRuntimeConfig } = require('./runtime-config');
 
 class PrinterWsClient {
   constructor(printServer) {
     this.printServer = printServer;
     this.socket = null;
-    this.wsUrl = process.env.PRINTER_WS_URL || DEFAULT_WS_URL;
+    this.wsUrl = getRuntimeConfig().printerWsUrl;
     this.reconnectDelay = 3000;
     this.isStarted = false;
   }

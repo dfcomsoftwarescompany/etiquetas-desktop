@@ -26,3 +26,6 @@ Thumbs.db
 .env
 .env.local
 
+# Config de ambiente gerada no build (TEST/BETA/PROD)
+build/runtime-config.json
+

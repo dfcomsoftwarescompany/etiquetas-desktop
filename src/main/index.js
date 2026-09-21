@@ -16,6 +16,7 @@ const {
   buildPersistedSettings,
   resolveConfigFromPersisted,
 } = require('./modules/printer-settings');
+const { getRuntimeConfig } = require('./modules/runtime-config');
 const { registerAllHandlers } = require('./ipc');
 
 // Importar módulo de updates - Usando electron-updater diretamente
@@ -147,6 +148,15 @@ app.whenReady().then(async () => {
   // Configurações do auto-updater
   autoUpdater.autoDownload = false; // Não baixar automaticamente
   autoUpdater.autoInstallOnAppQuit = true; // Instalar ao fechar app
+
+  // Builds TEST/BETA só atualizam dentro do próprio canal (env-test / env-beta)
+  const runtimeConfig = getRuntimeConfig();
+  log.info(`[App] Canal: ${runtimeConfig.channel} | socket: ${runtimeConfig.printerWsUrl}`);
+
+  if (runtimeConfig.allowPrerelease) {
+    autoUpdater.channel = runtimeConfig.updateChannel;
+    autoUpdater.allowPrerelease = true;
+  }
   
   // ==================== Eventos do Auto-Updater ====================
   
