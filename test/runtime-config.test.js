@@ -25,8 +25,7 @@ describe('resolveRuntimeConfig', () => {
         // Assert
         assert.equal(config.channel, DEFAULT_CHANNEL);
         assert.equal(config.printerWsUrl, DEFAULT_WS_URL);
-        assert.equal(config.updateChannel, 'latest');
-        assert.equal(config.allowPrerelease, false);
+        assert.equal(config.updateChannel, null);
       });
     });
 
@@ -59,8 +58,7 @@ describe('resolveRuntimeConfig', () => {
       // Assert
       assert.equal(config.channel, 'beta');
       assert.equal(config.printerWsUrl, 'https://socket-beta.dfcom.com.br/notifications-printer');
-      assert.equal(config.updateChannel, 'env-beta');
-      assert.equal(config.allowPrerelease, true);
+      assert.equal(config.updateChannel, 'beta');
     });
 
     describe('e PRINTER_WS_URL for informada na máquina', () => {
@@ -83,7 +81,7 @@ describe('resolveRuntimeConfig', () => {
   });
 
   describe('se o build for do canal test', () => {
-    it('deve usar o canal de update env-test e permitir pré-release', () => {
+    it('deve usar o canal de update test', () => {
       // Arrange
       const fileConfig = {
         channel: 'test',
@@ -94,8 +92,7 @@ describe('resolveRuntimeConfig', () => {
       const config = resolveRuntimeConfig({ fileConfig, env: {} });
 
       // Assert
-      assert.equal(config.updateChannel, 'env-test');
-      assert.equal(config.allowPrerelease, true);
+      assert.equal(config.updateChannel, 'test');
     });
   });
 
@@ -109,7 +106,7 @@ describe('resolveRuntimeConfig', () => {
 
       // Assert
       assert.equal(config.channel, DEFAULT_CHANNEL);
-      assert.equal(config.updateChannel, 'latest');
+      assert.equal(config.updateChannel, null);
     });
   });
 });
