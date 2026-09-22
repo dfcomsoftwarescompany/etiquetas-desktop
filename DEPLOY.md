@@ -9,9 +9,12 @@ instalador próprio, que já vem com a **URL do socket do seu ambiente** gravada
 
 | Branch | Canal | Versão no `package.json` | App instalado | Release no GitHub |
 |--------|-------|--------------------------|---------------|-------------------|
-| `develop` | TEST | `2.0.73-env-test.1` | Etiquetas LOOPII TEST | pre-release |
-| `beta` | BETA | `2.0.73-env-beta.1` | Etiquetas LOOPII BETA | pre-release |
-| `main` | PROD | `2.0.73` | Etiquetas LOOPII | release |
+| `develop` | TEST | `2.0.74-test` | Etiquetas LOOPII TEST | pre-release |
+| `beta` | BETA | `2.0.74-beta` | Etiquetas LOOPII BETA | pre-release |
+| `main` | PROD | `2.0.74-main` | Etiquetas LOOPII | release |
+
+Precisa republicar no mesmo ambiente sem mudar o número base? Use o contador:
+`2.0.74-beta.2`.
 
 Os três podem ser instalados **na mesma máquina** ao mesmo tempo: `appId`, nome do app,
 atalhos e pasta de dados (token e impressoras) são separados por canal.
@@ -22,7 +25,7 @@ atalhos e pasta de dados (token e impressoras) são separados por canal.
 
 ```bash
 # 1. Ajustar a versão conforme o canal da branch
-#    develop -> 2.0.73-env-test.1 | beta -> 2.0.73-env-beta.1 | main -> 2.0.73
+#    develop -> 2.0.74-test | beta -> 2.0.74-beta | main -> 2.0.74-main
 
 # 2. Commit e push na branch do ambiente
 git push origin develop   # ou beta, ou main
@@ -101,12 +104,18 @@ npm run build:beta
 
 Cada canal só atualiza dentro dele mesmo:
 
-- **PROD** procura a última release estável (`latest.yml`)
-- **BETA** procura a última pre-release `-env-beta` (`env-beta.yml`)
-- **TEST** procura a última pre-release `-env-test` (`env-test.yml`)
+- **PROD** publica `latest.yml` e procura releases `-main`
+- **BETA** procura a última pre-release `-beta` (`beta.yml`)
+- **TEST** procura a última pre-release `-test` (`test.yml`)
 
 Por isso o sufixo na versão é obrigatório: é ele que separa os canais no GitHub Releases
 e impede que uma máquina de homologação instale o build de produção.
+
+PROD continua publicando `latest.yml` porque os clientes instalados antes desse esquema
+(versões sem sufixo, como 2.0.73) procuram esse arquivo para se atualizar.
+
+⚠️ Releases antigas, sem sufixo na tag, ainda podem ser vistas por uma máquina BETA caso
+não exista nenhuma release `-beta` ou `-main` mais recente que elas no GitHub.
 
 **Primeira instalação:** baixar o .exe do canal desejado no GitHub Releases.
 
@@ -116,8 +125,8 @@ e impede que uma máquina de homologação instale o build de produção.
 
 | Mensagem | Causa | Solução |
 |----------|-------|---------|
-| `Canal beta exige versão no formato X.Y.Z-env-beta.N` | Versão sem sufixo do canal | Ajustar `version` no `package.json` |
-| `Canal prod exige versão estável` | Versão com sufixo na `main` | Remover o sufixo antes de mergear |
+| `Canal beta exige versão no formato X.Y.Z-beta` | Versão sem o sufixo do canal | Ajustar `version` no `package.json` |
+| `Canal prod exige versão no formato X.Y.Z-main` | Versão sem sufixo na `main` | Ajustar `version` no `package.json` |
 | `Secret PRINTER_WS_URL_BETA não configurado` | Secret faltando | Cadastrar o secret no repositório |
 | `Branch 'x' não tem canal configurado` | Push em branch sem canal | Usar `develop`, `beta` ou `main` |
 | Tag já existe | Versão repetida | Incrementar a versão |

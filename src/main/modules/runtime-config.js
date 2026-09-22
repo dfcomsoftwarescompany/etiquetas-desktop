@@ -5,9 +5,9 @@
  * e copiado para os resources do pacote. Assim cada .exe fala com o socket do
  * seu ambiente sem depender de variável de ambiente na máquina do cliente.
  *
- * updateChannel usa nomes próprios (env-beta / env-test) porque o electron-updater
- * trata "alpha" e "beta" como níveis de maturidade e permitiria que um app BETA
- * baixasse o instalador de PROD.
+ * PROD fica sem updateChannel: a versão do próprio pacote (X.Y.Z-main) já define o
+ * canal no electron-updater, e o canal publicado continua sendo latest.yml para
+ * que builds antigos (sem sufixo na versão) também encontrem a atualização.
  */
 
 const fs = require('fs');
@@ -18,9 +18,9 @@ const DEFAULT_WS_URL = 'https://socket.dfcom.com.br/notifications-printer';
 const RUNTIME_CONFIG_FILENAME = 'runtime-config.json';
 
 const UPDATE_CHANNEL_BY_CHANNEL = {
-  prod: 'latest',
-  beta: 'env-beta',
-  test: 'env-test',
+  prod: null,
+  beta: 'beta',
+  test: 'test',
 };
 
 let cachedRuntimeConfig = null;
@@ -54,7 +54,7 @@ function resolveChannel(channel) {
 
   const normalized = channel.trim().toLowerCase();
 
-  if (!UPDATE_CHANNEL_BY_CHANNEL[normalized]) {
+  if (!Object.prototype.hasOwnProperty.call(UPDATE_CHANNEL_BY_CHANNEL, normalized)) {
     return DEFAULT_CHANNEL;
   }
 
@@ -69,7 +69,6 @@ function resolveRuntimeConfig({ fileConfig = null, env = process.env } = {}) {
     channel,
     printerWsUrl,
     updateChannel: UPDATE_CHANNEL_BY_CHANNEL[channel],
-    allowPrerelease: channel !== DEFAULT_CHANNEL,
   };
 }
 

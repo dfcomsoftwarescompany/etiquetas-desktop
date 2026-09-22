@@ -14,25 +14,28 @@ const path = require('path');
 const { DEFAULT_WS_URL, RUNTIME_CONFIG_FILENAME } = require('../src/main/modules/runtime-config');
 
 const CHANNELS = {
-  prod: { envVar: 'PRINTER_WS_URL_PROD', versionTag: null },
-  beta: { envVar: 'PRINTER_WS_URL_BETA', versionTag: 'env-beta' },
-  test: { envVar: 'PRINTER_WS_URL_TEST', versionTag: 'env-test' },
+  prod: { envVar: 'PRINTER_WS_URL_PROD', versionTag: 'main' },
+  beta: { envVar: 'PRINTER_WS_URL_BETA', versionTag: 'beta' },
+  test: { envVar: 'PRINTER_WS_URL_TEST', versionTag: 'test' },
 };
 
-function assertVersionMatchesChannel(channel, version, versionTag) {
-  if (versionTag === null) {
-    if (version.includes('-')) {
-      throw new Error(
-        `Canal prod exige versão estável, mas package.json está em "${version}". ` +
-          'Use uma versão sem sufixo (ex.: 2.0.73) na branch main.'
-      );
-    }
-    return;
+/**
+ * Identificador de pré-release da versão: 2.0.73-beta e 2.0.73-beta.2 => "beta".
+ */
+function prereleaseIdentifier(version) {
+  const separatorIndex = version.indexOf('-');
+
+  if (separatorIndex === -1) {
+    return null;
   }
 
-  if (!version.includes(`-${versionTag}.`)) {
+  return version.slice(separatorIndex + 1).split('.')[0];
+}
+
+function assertVersionMatchesChannel(channel, version, versionTag) {
+  if (prereleaseIdentifier(version) !== versionTag) {
     throw new Error(
-      `Canal ${channel} exige versão no formato X.Y.Z-${versionTag}.N, mas package.json está em "${version}". ` +
+      `Canal ${channel} exige versão no formato X.Y.Z-${versionTag}, mas package.json está em "${version}". ` +
         `Sem esse sufixo o auto-update do canal ${channel} não encontra a release.`
     );
   }

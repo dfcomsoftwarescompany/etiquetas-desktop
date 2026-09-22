@@ -8,6 +8,6 @@
   },
   "publish": {
     "releaseType": "prerelease",
-    "channel": "env-beta"
+    "channel": "beta"
   }
 }

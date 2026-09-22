@@ -6,9 +6,9 @@ Guia rápido. O detalhamento (canais, secrets, auto-update) está em [DEPLOY.md]
 
 | Ambiente | Branch | Formato da versão |
 |----------|--------|-------------------|
-| TEST | `develop` | `2.0.73-env-test.1` |
-| BETA | `beta` | `2.0.73-env-beta.1` |
-| PROD | `main` | `2.0.73` |
+| TEST | `develop` | `2.0.74-test` |
+| BETA | `beta` | `2.0.74-beta` |
+| PROD | `main` | `2.0.74-main` |
 
 ## 2️⃣ Fazer as alterações
 
@@ -25,14 +25,14 @@ Use o formato da branch de destino:
 
 ```json
 {
-  "version": "2.0.73-env-beta.1"
+  "version": "2.0.74-beta"
 }
 ```
 
-- Correção/pequena mudança: `2.0.72 → 2.0.73`
-- Nova funcionalidade: `2.0.72 → 2.1.0`
-- Mudança grande: `2.0.72 → 3.0.0`
-- Novo build no mesmo ambiente: `-env-beta.1 → -env-beta.2`
+- Correção/pequena mudança: `2.0.73 → 2.0.74`
+- Nova funcionalidade: `2.0.73 → 2.1.0`
+- Mudança grande: `2.0.73 → 3.0.0`
+- Novo build no mesmo ambiente: `-beta → -beta.2`
 
 ## 4️⃣ Merge na branch do ambiente
 
