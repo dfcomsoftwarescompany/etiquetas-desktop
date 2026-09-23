@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { prepareCouponPrintHtml } = require('./coupon-html');
+const { isConsignedLabelCode, applyConsignedLabelMark } = require('./consigned-label-mark');
 
 const PRINT_LOAD_TIMEOUT_MS = 45000;
 const PRINT_JOB_TIMEOUT_MS = 45000;
@@ -281,8 +282,13 @@ class PrinterManager {
    */
   async generateSingleLabel(labelData) {
     // Sanitizar dados com valores padrão seguros
-    const texto = (labelData.texto || labelData.descricao || 'PRODUTO').toString();
+    const textoOriginal = (labelData.texto || labelData.descricao || 'PRODUTO').toString();
     const codigoCompleto = (labelData.codigo || labelData.codbarras || labelData.cod || '123456789').toString();
+    const isConsigned =
+      labelData.isConsigned === true ||
+      labelData.consigned === true ||
+      isConsignedLabelCode(codigoCompleto);
+    const texto = applyConsignedLabelMark(textoOriginal, isConsigned);
     // Separar: código completo pro QR Code, só número pro display
     // Suporta /dp- (consignado) e /ctl- (catálogo) em qualquer caso
     const codigo = codigoCompleto; // QR Code usa o código completo
@@ -338,6 +344,15 @@ class PrinterManager {
     ctx.textBaseline = 'top';
     this.autoFitText(ctx, nomeLoja, this.config.labelWidthPx - (margin * 2), 26, 14, '600', 'Arial');
     ctx.fillText(nomeLoja, centerX, margemFuro);
+
+    if (isConsigned) {
+      ctx.fillStyle = 'black';
+      ctx.font = '700 28px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('*', margin, margemFuro);
+      ctx.textAlign = 'center';
+    }
 
     // ========================================
     // QR CODE (centralizado, abaixo do logo)

@@ -397,7 +397,8 @@ class PrintServer {
         viewCredit:
           item.viewCredit !== undefined
             ? item.viewCredit === true || item.viewCredit === 'true'
-            : undefined
+            : undefined,
+        isConsigned: item.isConsigned === true || item.consigned === true,
       };
 
       // Adicionar item 'qtd' vezes
