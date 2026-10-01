@@ -7,6 +7,10 @@ const os = require('os');
 const path = require('path');
 const { prepareCouponPrintHtml } = require('./coupon-html');
 const { isConsignedLabelCode, applyConsignedLabelMark } = require('./consigned-label-mark');
+const {
+  EXCHANGE_DEADLINE_LABEL_MESSAGE,
+  shouldShowExchangeDeadlineLabel,
+} = require('./exchange-deadline-label');
 
 const PRINT_LOAD_TIMEOUT_MS = 45000;
 const PRINT_JOB_TIMEOUT_MS = 45000;
@@ -311,7 +315,10 @@ class PrinterManager {
     const produtoNovo = labelData.produto_novo === true || (texto && texto.toLowerCase().includes('novo'));
     const evento = labelData.evento || null;
     const dataProduto = labelData.data || null;
-
+    const showExchangeDeadlineLabel = shouldShowExchangeDeadlineLabel({
+      tenantName: labelData.tenant_name || labelData.tenantName || this.config.tenant_name,
+      storeName: nomeLoja,
+    });
 
     const canvas = createCanvas(this.config.labelWidthPx, this.config.labelHeightPx);
     const ctx = canvas.getContext('2d');
@@ -325,6 +332,13 @@ class PrinterManager {
     // Área de preço + evento (embaixo)
     const areaPrecoAltura = 120;
     const areaPrecoY = this.config.labelHeightPx - areaPrecoAltura - 25;
+    const exchangeDeadlineBandHeight = showExchangeDeadlineLabel ? 24 : 0;
+    const faixaProdutoNovoAltura = 28;
+    const faixaProdutoNovoY = areaPrecoY - faixaProdutoNovoAltura - 6;
+    const maxContentY =
+      areaPrecoY -
+      exchangeDeadlineBandHeight -
+      (produtoNovo ? faixaProdutoNovoAltura + 6 : 8);
     
     // Fundo branco
     ctx.fillStyle = 'white';
@@ -443,7 +457,11 @@ class PrinterManager {
     for (let i = 0; i < palavras.length; i++) {
       const testeLinha = linha + palavras[i] + ' ';
       const metricas = ctx.measureText(testeLinha);
-      
+
+      if (currentY + linhaAltura > maxContentY) {
+        break;
+      }
+
       if (metricas.width > maxWidth && linha !== '') {
         ctx.fillText(linha.trim(), centerX, currentY);
         linha = palavras[i] + ' ';
@@ -452,17 +470,35 @@ class PrinterManager {
         linha = testeLinha;
       }
     }
-    
-    if (linha.trim() !== '') {
+
+    if (linha.trim() !== '' && currentY + linhaAltura <= maxContentY) {
       ctx.fillText(linha.trim(), centerX, currentY);
       currentY += linhaAltura + 4;
     }
 
     // ========================================
+    // POLÍTICA DE TROCA (Giramini Kids)
+    // ========================================
+    if (showExchangeDeadlineLabel) {
+      const exchangeY = areaPrecoY - exchangeDeadlineBandHeight + 2;
+      ctx.fillStyle = '#333333';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      this.autoFitText(
+        ctx,
+        EXCHANGE_DEADLINE_LABEL_MESSAGE,
+        maxWidth,
+        11,
+        8,
+        '600',
+        'Arial',
+      );
+      ctx.fillText(EXCHANGE_DEADLINE_LABEL_MESSAGE, centerX, exchangeY);
+    }
+
+    // ========================================
     // PRODUTO NOVO - Faixa horizontal entre descrição e preços
     // ========================================
-    const faixaProdutoNovoAltura = 28;
-    const faixaProdutoNovoY = areaPrecoY - faixaProdutoNovoAltura - 6;
     if (produtoNovo) {
       ctx.fillStyle = 'black';
       ctx.fillRect(0, faixaProdutoNovoY, this.config.labelWidthPx, faixaProdutoNovoAltura);
